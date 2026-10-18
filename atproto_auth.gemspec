@@ -31,4 +31,5 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "jose", "~> 1.2"
   spec.add_dependency "jwt", "~> 3.3"
+  spec.add_dependency "didkit", "~> 0.5.0"
 end

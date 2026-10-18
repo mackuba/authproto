@@ -13,7 +13,6 @@ module AuthProto
     attr_reader redirect_uri: String
     attr_reader client_metadata: ClientMetadata
     attr_reader session_manager: State::SessionManager
-    attr_reader identity_resolver: Identity::Resolver
     attr_reader dpop_client: DPoP::Client
 
     def initialize: (client_id: String, redirect_uri: String, ?metadata: json_object?, ?dpop_key: (json_object | JOSE::Map)?) -> void

@@ -24,25 +24,6 @@ describe AuthProto::InsecureHTTPClient do
     end
   end
 
-  it "should use the same shared client for remote identity discovery and local requests" do
-    previous_configuration = AuthProto.configuration
-    AuthProto.reset_configuration!
-    AuthProto.configure { |config| config.http_client = client }
-    Resolv::DNS.any_instance.stubs(:getresources).returns([])
-    stub_request(:get, "https://alice.example.com/.well-known/atproto-did")
-      .to_return(status: 200, body: "did:plc:alice")
-    stub_request(:get, "https://plc.directory/did:plc:alice").to_return(status: 200, body: {
-      id: "did:plc:alice", pds: "https://pds.example.com"
-    }.to_json)
-    stub_request(:post, "http://localhost:9292/token").to_return(status: 200, body: "local")
-
-    result = AuthProto::Identity::Resolver.new.resolve_handle("alice.example.com")
-    result[:did].should == "did:plc:alice"
-    AuthProto.configuration.http_client.post("http://localhost:9292/token")[:body].should == "local"
-  ensure
-    AuthProto.configuration = previous_configuration
-  end
-
   it "should follow GET and POST redirects between HTTPS and local HTTP" do
     remote = "https://example.com/start"
     local = "http://localhost:9292/next"

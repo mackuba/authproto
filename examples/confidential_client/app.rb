@@ -225,9 +225,10 @@ class ExampleApp < Sinatra::Base
     end
 
     oauth_session = settings.oauth_client.session_manager.get_session(session_id)
-    pds_url = ENV.fetch("PDS_URL") do
-      AuthProto::Identity::Resolver.new.get_did_info(oauth_session.did).fetch(:pds)
-    end
+
+    pds_url = ENV['PDS_URL'] || DIDKit::DID.new(oauth_session.did).document.pds_endpoint
+    raise "No HTTPS PDS location found" unless pds_url && URI(pds_url).is_a?(URI::HTTPS)
+
     endpoint = URI.join(
       "#{pds_url.chomp("/")}/",
       "xrpc/com.atproto.repo.createRecord"

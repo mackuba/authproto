@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
+require 'didkit/did'
 require 'json'
+require 'uri'
 
 module AuthProto
 
@@ -54,10 +56,6 @@ module AuthProto
     # @return [State::SessionManager]
     attr_reader :session_manager
 
-    # Resolver for account handles, DIDs and server bindings.
-    # @return [Identity::Resolver]
-    attr_reader :identity_resolver
-
     # DPoP key, proof and nonce manager.
     # @return [DPoP::Client]
     attr_reader :dpop_client
@@ -86,7 +84,6 @@ module AuthProto
       validate_redirect_uri!
 
       @session_manager = State::SessionManager.new
-      @identity_resolver = Identity::Resolver.new
       @dpop_client = initialize_dpop(dpop_key)
     end
 
@@ -95,13 +92,13 @@ module AuthProto
     # Supply exactly one of `handle` or `pds_url`. Open the returned `:url` in a browser
     # and pass the eventual callback parameters to {#handle_callback}.
     #
-    # @param handle [String, nil] account handle, optionally prefixed with `@`
+    # @param handle [String, nil] account handle (optionally prefixed with `@`) or DID
     # @param pds_url [String, nil] PDS URL when no handle is supplied
     # @param scope [String] space-separated scopes, including `atproto`
     #
     # @return [Hash{Symbol => String}] `:url` is the browser URL; `:session_id` identifies the pending session
-    # @raise [Error] if both/neither identity arguments are supplied or `atproto` is absent
-    # @raise [Identity::ResolutionError] if handle or DID resolution fails
+    # @raise [Error] if identity arguments or scope are invalid, the handle cannot be verified, or no HTTPS PDS is found
+    # @raise [DIDKit::DIDError, DIDKit::FormatError, DIDKit::APIError] if DID validation or document fetching fails
     # @raise [InvalidAuthorizationServer] if server discovery or metadata validation fails
     # @raise [PAR::Error] if the pushed authorization request fails
     # @raise [PAR::ClientAssertion::Error] if confidential-client signing fails
@@ -374,18 +371,22 @@ module AuthProto
     end
 
     def resolve_from_handle(handle, session)
-      # Resolve handle to DID document
-      resolution = @identity_resolver.resolve_handle(handle)
-      session.did = resolution[:did]
+      did = DIDKit::DID.resolve_handle(handle)
+      raise Error, "Could not resolve or verify identity #{handle}" unless did
+
+      pds_url = did.document.pds_endpoint
+      raise Error, "No HTTPS PDS location found for #{did}" unless pds_url && URI(pds_url).is_a?(URI::HTTPS)
+
+      session.did = did.to_s
 
       # Get authorization server from PDS
-      server = resolve_auth_server(resolution[:pds])
+      server = resolve_auth_server(pds_url)
       session.authorization_server = server
 
       # Update stored session
       session_manager.update_session(session)
 
-      { server: server, pds: resolution[:pds] }
+      { server: server, pds: pds_url }
     end
 
     def resolve_from_pds(pds_url, session)

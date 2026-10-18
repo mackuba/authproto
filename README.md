@@ -247,7 +247,7 @@ tokens = client.handle_callback(
 
 ### Identity Resolution
 
-The library handles the complete AT Protocol identity resolution flow:
+The library uses DIDKit for AT Protocol identity resolution:
 
 - Handle to DID resolution (DNS-based or HTTP fallback)
 - DID document fetching and validation

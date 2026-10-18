@@ -128,6 +128,96 @@ describe MiniskyOAuth do
     client.authorize(pds_url: host)[:url].should include("urn%3Aexample%3Apar")
   end
 
+  it "should authorize a resolved handle and persist its DID and discovered issuer" do
+    did = "did:plc:abcdefghijklmnopqrstuvwx"
+    client_metadata["token_endpoint_auth_method"] = "none"
+    stub_authorization_metadata
+
+    Resolv::DNS.any_instance.stubs(:getresources).returns([Resolv::DNS::Resource::IN::TXT.new("did=#{did}")])
+
+    stub_request(:get, "#{DIDKit::DEFAULT_PLC_DIRECTORY}/#{did}")
+      .to_return(status: 200, headers: { "Content-Type" => "application/did+json" }, body: {
+        id: did,
+        alsoKnownAs: ["at://alice.example.com"],
+        service: [{ id: "#atproto_pds", type: "AtprotoPersonalDataServer", serviceEndpoint: host }]
+      }.to_json)
+
+    stub_request(:post, "#{auth_server.issuer}/par")
+      .with { |request| URI.decode_www_form(request.body).to_h["login_hint"] == "@Alice.Example.Com" }
+      .to_return(status: 201, body: { request_uri: "urn:example:par", expires_in: 90 }.to_json)
+
+    result = client.authorize(handle: "@Alice.Example.Com")
+    session = client.oauth_client.session_manager.get_session(result[:session_id])
+
+    session.did.should == did
+    session.auth_server.issuer.should == auth_server.issuer
+    URI(result[:url]).host.should == "auth.example.com"
+  end
+
+  describe "identity discovery during authorization" do
+    let(:did) { "did:plc:abcdefghijklmnopqrstuvwx" }
+    let(:handle) { "alice.example.com" }
+
+    def stub_identity_document(aliases: ["at://alice.example.com"], pds: host, document_did: did)
+      Resolv::DNS.any_instance.stubs(:getresources).returns([Resolv::DNS::Resource::IN::TXT.new("did=#{did}")])
+
+      services = pds ? [{ id: "#atproto_pds", type: "AtprotoPersonalDataServer", serviceEndpoint: pds }] : []
+
+      stub_request(:get, "#{DIDKit::DEFAULT_PLC_DIRECTORY}/#{did}")
+        .to_return(status: 200, headers: { "Content-Type" => "application/did+json" }, body: {
+          id: document_did, alsoKnownAs: aliases, service: services
+        }.to_json)
+    end
+
+    it "should accept a DID without a claimed handle" do
+      client_metadata["token_endpoint_auth_method"] = "none"
+      stub_authorization_metadata
+      stub_identity_document(aliases: [])
+
+      Resolv::DNS.any_instance.expects(:getresources).never
+
+      stub_request(:post, "#{auth_server.issuer}/par")
+        .to_return(status: 201, body: { request_uri: "urn:example:par", expires_in: 90 }.to_json)
+
+      result = client.authorize(handle: did)
+      client.oauth_client.session_manager.get_session(result[:session_id]).did.should == did
+    end
+
+    it "should reject an invalid handle before server discovery" do
+      expect { client.authorize(handle: "invalid handle") }.to raise_error(AuthProto::Error, /resolve or verify/)
+
+      WebMock.should_not have_requested(:get, /oauth-protected-resource/)
+    end
+
+    [[], ["at://other.example.com"], ["at://other.example.com", "at://alice.example.com"]].each do |aliases|
+      it "should reject an unverified primary handle (#{aliases.inspect}) before server discovery" do
+        stub_identity_document(aliases: aliases)
+
+        expect { client.authorize(handle: handle) }.to raise_error(AuthProto::Error, /resolve or verify/)
+
+        WebMock.should_not have_requested(:get, /oauth-protected-resource/)
+      end
+    end
+
+    [nil, "http://pds.example.com"].each do |pds|
+      it "should reject a missing or non-HTTPS PDS #{pds.inspect} before server discovery" do
+        stub_identity_document(pds: pds)
+
+        expect { client.authorize(handle: handle) }.to raise_error(AuthProto::Error, /No HTTPS PDS/)
+
+        WebMock.should_not have_requested(:get, /oauth-protected-resource/)
+      end
+    end
+
+    it "should propagate DIDKit document errors before server discovery" do
+      stub_identity_document(document_did: "did:plc:zyxwvutsrqponmlkjihgfedc")
+
+      expect { client.authorize(handle: handle) }.to raise_error(DIDKit::FormatError, /doesn't match expected DID/)
+
+      WebMock.should_not have_requested(:get, /oauth-protected-resource/)
+    end
+  end
+
   it "should disable Minisky password token management" do
     client.auto_manage_tokens.should be false
     client.send_auth_headers.should be true
