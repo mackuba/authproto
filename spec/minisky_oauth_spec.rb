@@ -96,6 +96,7 @@ describe MiniskyOAuth do
 
   it "should authorize a localhost public client using PKCE and DPoP without a client assertion" do
     client_metadata["client_id"] = "http://localhost/"
+    client_metadata["application_type"] = "native"
     client_metadata["redirect_uris"] = ["http://127.0.0.1:9292/callback"]
     client_metadata["token_endpoint_auth_method"] = "none"
     stub_authorization_metadata
@@ -109,6 +110,18 @@ describe MiniskyOAuth do
     result = client.authorize(pds_url: host)
     URI(result[:url]).host.should == "auth.example.com"
     client.session_id.should == result[:session_id]
+  end
+
+  it "should submit a native custom-scheme callback unchanged in PAR" do
+    callback = "com.example.client:/oauth/callback"
+    client_metadata.merge!("application_type" => "native", "token_endpoint_auth_method" => "none",
+                           "redirect_uris" => [callback])
+    stub_authorization_metadata
+    stub_request(:post, "#{auth_server.issuer}/par").with do |request|
+      URI.decode_www_form(request.body).to_h["redirect_uri"] == callback
+    end.to_return(status: 201, body: { request_uri: "urn:example:par", expires_in: 90 }.to_json)
+
+    URI(client.authorize(pds_url: host)[:url]).host.should == "auth.example.com"
   end
 
   it "should include a verifiable client assertion when authorizing a confidential client" do

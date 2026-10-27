@@ -1,6 +1,8 @@
 module AuthProto
   # Handles and validates AT Protocol OAuth client metadata.
   class ClientMetadata
+    AUTH_PRIVATE_KEY_JWT: String
+
     @client_id: String
 
     @grant_types: Array[String]
@@ -24,6 +26,8 @@ module AuthProto
     @policy_uri: String?
 
     @token_endpoint_auth_method: String?
+
+    @token_endpoint_auth_signing_alg: String?
 
     @jwks: Hash[String, untyped]?
 
@@ -56,25 +60,31 @@ module AuthProto
 
     def validate_client_id: (String client_id) -> String
 
+    def valid_https_client_id?: (String client_id) -> bool
+
+    def valid_localhost_client_id?: (String client_id) -> bool
+
     def validate_grant_types: (Array[String] grant_types) -> Array[String]
 
     def validate_response_types: (Array[String] response_types) -> Array[String]
 
     def validate_redirect_uris: (Array[String] uris) -> Array[String]
 
-    def validate_redirect_uri: (URI uri) -> void
+    def validate_redirect_uri: (String value) -> void
 
-    def validate_redirect_uri_origin: (URI uri) -> void
+    def validate_https_redirect_uri: (URI::Generic uri, String? port) -> void
 
-    def validate_native_redirect_uri: (URI uri) -> void
+    def validate_redirect_uri_origin: (URI::Generic uri) -> void
 
-    def validate_custom_scheme: (URI uri) -> void
+    def validate_native_redirect_uri: (URI::Generic uri, String? port) -> void
+
+    def validate_custom_scheme: (URI::Generic uri) -> void
 
     def validate_scope: (String scope) -> String
 
-    def validate_offline_access_scope: (Array[String] scope_values) -> void
-
     def validate_application_type: (String? type) -> String
+
+    def validate_client_name: (String? name) -> String?
 
     def validate_client_uri: (String? uri) -> String?
 
@@ -86,13 +96,6 @@ module AuthProto
 
     def validate_dpop: (Hash[String, untyped] metadata) -> void
 
-    private def self.validate_url: (String url) -> void
-
-    private def self.fetch_metadata: (String url) -> http_response
-
-    private def self.parse_metadata: (String body) -> Hash[String, untyped]
-
-    private def self.validate_client_id: (String metadata_client_id, String url) -> void
   end
 end
 
