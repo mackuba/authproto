@@ -104,6 +104,29 @@ describe AuthProto::HTTPClient do
       response[:body].should == "redirected"
     end
 
+    it "should return the initial response when redirects are disabled for a request" do
+      target = "https://example.com/final"
+      stub_request(:get, sample_url).with(headers: { "X-Custom" => "value" })
+        .to_return(status: 302, headers: { "Location" => target }, body: "redirect")
+      stub_request(:get, target).to_return(status: 200, body: "followed")
+
+      response = client.get(sample_url, { "X-Custom" => "value" }, follow_redirects: false)
+
+      response[:status].should == 302
+      response[:headers]["location"].should == target
+      response[:body].should == "redirect"
+      WebMock.should_not have_requested(:get, target)
+    end
+
+    it "should still enforce response size limits when redirects are disabled" do
+      stub_request(:get, sample_url).to_return(status: 302, headers: {
+        "Location" => "https://example.com/final",
+        "Content-Length" => (AuthProto::HTTPClient::MAX_RESPONSE_SIZE + 1).to_s
+      })
+
+      expect { client.get(sample_url, follow_redirects: false) }.to raise_error(AuthProto::HTTPClient::HTTPError)
+    end
+
     it "should prevent redirect loops" do
       stub_request(:get, sample_url)
         .to_return(status: 302, headers: { "Location" => sample_url })

@@ -1,5 +1,5 @@
 interface _HTTPClient
-  def get: (String url, ?Hash[String, String] headers) -> AuthProto::http_response
+  def get: (String url, ?Hash[String, String] headers, ?follow_redirects: bool) -> AuthProto::http_response
   def post: (String url, ?body: AuthProto::http_body, ?headers: Hash[String, String]) -> AuthProto::http_response
 end
 

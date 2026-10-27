@@ -91,6 +91,10 @@ The regular `HTTPClient` accepts HTTPS and rejects loopback/private addresses.
 Use it for remote OAuth servers, including when your application's callback is
 local: the browser, rather than this HTTP client, follows the callback redirect.
 
+Client metadata fetches call `get(url, follow_redirects: false)` and require HTTP
+200 with an `application/json` response. Custom HTTP clients must support this
+keyword and return the initial response without following redirects when it is false.
+
 ### Storage Backends
 
 The library supports multiple storage backends for managing OAuth state:

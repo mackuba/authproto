@@ -26,14 +26,14 @@ module AuthProto
     end
 
     def initialize: (?timeout: Numeric, ?verify_ssl: bool) -> void
-    def get: (String url, ?Hash[String, String] headers) -> http_response
+    def get: (String url, ?Hash[String, String] headers, ?follow_redirects: bool) -> http_response
     def post: (String url, ?body: http_body, ?headers: Hash[String, String]) -> http_response
 
     private
     def validate_uri: (String url) -> URI::HTTP
     def validate_ip: (URI::HTTP uri) -> void
     def forbidden_ip?: (IPAddr ip) -> bool
-    def make_request: (URI::HTTP uri, ?Hash[String, String] headers, ?Integer redirect_count) -> Net::HTTPResponse
+    def make_request: (URI::HTTP uri, ?Hash[String, String] headers, ?Integer redirect_count, ?follow_redirects: bool) -> Net::HTTPResponse
     def make_post_request: (URI::HTTP uri, http_body body, ?Hash[String, String] headers, ?Integer redirect_count) -> Net::HTTPResponse
     def configure_http_client: (Net::HTTP http, ?ssl: bool) -> void
     def add_security_headers: (Net::HTTPRequest request, Hash[String, String] headers) -> void

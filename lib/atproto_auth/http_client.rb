@@ -101,16 +101,17 @@ module AuthProto
     #
     # @param url [String] absolute HTTPS request URL without a fragment
     # @param headers [Hash{String => String}] additional request headers; can override the default `Cache-Control` value
+    # @param follow_redirects [Boolean] follow redirects, or return the initial response when false
     # @return [Hash{Symbol => Integer, Hash{String => String}, String, nil}] `:status` (Integer), lowercase `:headers` (Hash), and `:body` (String or nil)
     # @raise [SSRFError] if initial scheme, host, fragment or resolved address is rejected
     # @raise [HTTPError] if transport, TLS, redirect validation or response size checks fail
     # @raise [URI::InvalidURIError] if the initial URL cannot be parsed
     #
-    def get(url, headers = {})
+    def get(url, headers = {}, follow_redirects: true)
       uri = validate_uri(url)
       validate_ip(uri)
 
-      response = make_request(uri, headers)
+      response = make_request(uri, headers, follow_redirects: follow_redirects)
       validate_response(response)
 
       {
@@ -204,13 +205,15 @@ module AuthProto
       FORBIDDEN_IP_RANGES.any? { |range| range.include?(ip) }
     end
 
-    def make_request(uri, headers = {}, redirect_count = 0)
+    def make_request(uri, headers = {}, redirect_count = 0, follow_redirects: true)
       http = Net::HTTP.new(uri.hostname, uri.port)
       configure_http_client(http, ssl: uri.scheme == "https")
 
       request = Net::HTTP::Get.new(uri.request_uri)
       add_security_headers(request, headers)
       response = http.request(request)
+      return response unless follow_redirects
+
       handle_redirect(
         original_uri: uri,
         response: response,
