@@ -99,7 +99,7 @@ describe AuthProto::ClientMetadata do
 
   describe "client ID validation" do
     ["https://example.com/metadata.json", "https://example.com/metadata.json?version=2"].each do |client_id|
-      it "should preserve an allowed HTTPS client ID #{client_id}" do
+      it "should accept an allowed HTTPS client ID #{client_id}" do
         @valid_metadata["client_id"] = client_id
         described_class.new(@valid_metadata).client_id.should == client_id
       end
@@ -107,7 +107,7 @@ describe AuthProto::ClientMetadata do
 
     ["http://localhost", "http://localhost/", "http://localhost?scope=atproto",
      "http://localhost/?scope=atproto&redirect_uri=http%3A%2F%2F127.0.0.1%2Fcallback"].each do |client_id|
-      it "should preserve an allowed localhost client ID #{client_id}" do
+      it "should accept an allowed localhost client ID #{client_id}" do
         @valid_metadata.merge!("client_id" => client_id, "application_type" => "native",
                                "redirect_uris" => ["http://127.0.0.1:9292/callback"])
         described_class.new(@valid_metadata).client_id.should == client_id
@@ -138,7 +138,7 @@ describe AuthProto::ClientMetadata do
     describe "web clients" do
       ["https://example.com/callback", "https://login.example.net/callback",
        "https://login.example.net:8443/callback", "https://example.com/callback?flow=login"].each do |redirect_uri|
-        it "should accept and preserve HTTPS callback #{redirect_uri}" do
+        it "should accept HTTPS callback #{redirect_uri}" do
           @valid_metadata["redirect_uris"] = [redirect_uri]
           described_class.new(@valid_metadata).redirect_uris.should == [redirect_uri]
         end
@@ -167,7 +167,7 @@ describe AuthProto::ClientMetadata do
        "http://[::1]/callback", "http://[::1]:9292/callback?flow=login",
        "com.example:/", "com.example:/callback", "com.example:/oauth/callback",
        "com.example:/callback?flow=login"].each do |redirect_uri|
-        it "should accept and preserve callback #{redirect_uri}" do
+        it "should accept callback #{redirect_uri}" do
           @valid_metadata["redirect_uris"] = [redirect_uri]
           described_class.new(@valid_metadata).redirect_uris.should == [redirect_uri]
         end
@@ -287,6 +287,67 @@ describe AuthProto::ClientMetadata do
     end
   end
 
+  describe "scope and response-type syntax" do
+    ["atproto transition:generic", "atproto repo:app.bsky.feed.post?action=create",
+     "atproto include:app.example.permissions?aud=did:web:api.example.com%23bsky_appview",
+     "atproto extension:future"].each do |scope|
+      it "should accept valid scope syntax #{scope.inspect}" do
+        @valid_metadata["scope"] = scope
+        described_class.new(@valid_metadata).scope.should == scope
+      end
+    end
+
+    ["", " atproto", "atproto ", "atproto  transition:generic", "atproto\ttransition:generic",
+     "atproto\n", "atproto\r\ntransition:generic", "atproto café", 'atproto invalid"scope',
+     'atproto invalid\\scope', "atproto\u0000"].each do |scope|
+      it "should reject malformed scope syntax #{scope.inspect}" do
+        @valid_metadata["scope"] = scope
+        expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /valid tokens/)
+      end
+    end
+
+    ["atproto atproto", "atproto transition:generic transition:generic"].each do |scope|
+      it "should accept and preserve duplicate scopes #{scope.inspect}" do
+        @valid_metadata["scope"] = scope
+        described_class.new(@valid_metadata).scope.should == scope
+      end
+    end
+
+    it "should treat scope names as case-sensitive" do
+      @valid_metadata["scope"] = "atproto extension:Read extension:read"
+      described_class.new(@valid_metadata).scope.should == @valid_metadata["scope"]
+    end
+
+    [["authorization_code", "authorization_code"], ["authorization_code", "refresh_token", "refresh_token"]].each do |grants|
+      it "should accept and preserve duplicate grant types #{grants.inspect}" do
+        @valid_metadata["grant_types"] = grants
+        described_class.new(@valid_metadata).grant_types.should == grants
+      end
+    end
+
+    [123, nil, {}, false, []].each do |type|
+      it "should reject a non-string response_types entry #{type.inspect}" do
+        @valid_metadata["response_types"] = ["code", type]
+        expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /only strings/)
+      end
+    end
+
+    it "should accept and preserve duplicate response types" do
+      @valid_metadata["response_types"] = ["code", "code"]
+      described_class.new(@valid_metadata).response_types.should == ["code", "code"]
+    end
+
+    it "should require a code entry" do
+      @valid_metadata["response_types"] = ["token"]
+      expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /must include 'code'/)
+    end
+
+    it "should accept arbitrary response-type strings alongside the required code entry" do
+      @valid_metadata["response_types"] = ["code", "unknown", "CODE", "code id_token", "code  token", "code\ttoken", ""]
+      described_class.new(@valid_metadata).response_types.should == @valid_metadata["response_types"]
+    end
+  end
+
   describe "optional field validation" do
     [false, 123, []].each do |name|
       it "should reject a non-string client_name #{name.inspect}" do
@@ -319,18 +380,64 @@ describe AuthProto::ClientMetadata do
     end
 
     it "should accept a client_uri with the same hostname" do
-      @valid_metadata["client_uri"] = "https://example.com/home"
-      described_class.new(@valid_metadata).client_uri.should == @valid_metadata["client_uri"]
+      @valid_metadata["client_uri"] = uri = 'https://example.com/home'
+
+      described_class.new(@valid_metadata).client_uri.should == uri
+    end
+
+    ["ftp://example.com/home", "//example.com/home", "/home", ""].each do |uri|
+      it "should reject a client_uri without an HTTP(S) scheme and hostname: #{uri.inspect}" do
+        @valid_metadata["client_uri"] = uri
+
+        expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /HTTP or HTTPS/)
+      end
+    end
+
+    ["http:home", "https:home"].each do |uri|
+      it "should reject a client_uri without a hostname: #{uri.inspect}" do
+        @valid_metadata["client_uri"] = uri
+
+        expect { described_class.new(@valid_metadata) }.to raise_error(
+          AuthProto::InvalidClientMetadata, /must have the same hostname/
+        )
+      end
     end
 
     it "should reject a client_uri with a different hostname" do
       @valid_metadata["client_uri"] = "https://other.example.com/home"
+
       expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /same hostname/)
     end
 
     it "should reject a non-string client_uri" do
       @valid_metadata["client_uri"] = false
       expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /client_uri must be a string/)
+    end
+  end
+
+  describe "client authentication methods" do
+    [nil, "none"].each do |method|
+      it "should accept public authentication with method #{method.inspect}" do
+        @valid_metadata["token_endpoint_auth_method"] = method
+        metadata = described_class.new(@valid_metadata)
+        metadata.confidential?.should be false
+        metadata.token_endpoint_auth_method.should == method
+      end
+
+      ["ES256", "none", "RS256", "", false, 123].each do |algorithm|
+        it "should reject signing algorithm #{algorithm.inspect} for public method #{method.inspect}" do
+          @valid_metadata["token_endpoint_auth_method"] = method
+          @valid_metadata["token_endpoint_auth_signing_alg"] = algorithm
+          expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /must be unset for public clients/)
+        end
+      end
+    end
+
+    ["client_secret_basic", "client_secret_post", "unknown", "", false, 123, []].each do |method|
+      it "should reject unsupported authentication method #{method.inspect}" do
+        @valid_metadata["token_endpoint_auth_method"] = method
+        expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /unsupported token_endpoint_auth_method/)
+      end
     end
   end
 
@@ -422,7 +529,7 @@ describe AuthProto::ClientMetadata do
     end
 
     it "should create an instance from valid URL metadata" do
-      http_client.stubs(:get).returns({ body: @valid_metadata.to_json })
+      http_client.stubs(:get).returns(status: 200, headers: { "content-type" => "application/json" }, body: @valid_metadata.to_json)
 
       client_metadata = AuthProto::ClientMetadata.from_url("https://example.com/metadata.json")
       client_metadata.should be_an_instance_of(AuthProto::ClientMetadata)
@@ -436,7 +543,7 @@ describe AuthProto::ClientMetadata do
     end
 
     it "should raise an error for client_id mismatch in metadata" do
-      http_client.stubs(:get).returns({ body: @valid_metadata.to_json })
+      http_client.stubs(:get).returns(status: 200, headers: { "content-type" => "application/json" }, body: @valid_metadata.to_json)
 
       @valid_metadata["client_id"] = "https://otherexample.com"
 
@@ -460,22 +567,91 @@ describe AuthProto::ClientMetadata do
 
     [nil, false, [], "metadata", 42].each do |metadata|
       it "should reject a non-object JSON response #{metadata.inspect}" do
-        @http_client.expects(:get).with(@valid_metadata["client_id"]).returns(body: metadata.to_json)
+        @http_client.expects(:get).with(@valid_metadata["client_id"], follow_redirects: false)
+          .returns(status: 200, headers: { "content-type" => "application/json" }, body: metadata.to_json)
         expect { described_class.from_url(@valid_metadata["client_id"]) }
           .to raise_error(AuthProto::InvalidClientMetadata, /must be a hash/)
       end
     end
 
     it "should translate a JSON parse error into InvalidClientMetadata" do
-      @http_client.expects(:get).returns(body: "{")
+      @http_client.expects(:get).with(@valid_metadata["client_id"], follow_redirects: false)
+        .returns(status: 200, headers: { "content-type" => "application/json" }, body: "{")
       expect { described_class.from_url(@valid_metadata["client_id"]) }
         .to raise_error(AuthProto::InvalidClientMetadata, /Invalid JSON/)
     end
 
+    [201, 204, 301, 302, 303, 307, 308, 400, 500].each do |status|
+      it "should reject HTTP #{status} even if the body contains valid metadata" do
+        @http_client.expects(:get).with(@valid_metadata["client_id"], follow_redirects: false)
+          .returns(status: status, headers: { "content-type" => "application/json" }, body: @valid_metadata.to_json)
+        expect { described_class.from_url(@valid_metadata["client_id"]) }
+          .to raise_error(AuthProto::InvalidClientMetadata, /expected HTTP 200 response for client metadata request/)
+      end
+    end
+
+    [nil, "", "text/plain", "text/html", "application/did+json", "application/json-seq"].each do |content_type|
+      it "should reject a missing or incorrect metadata Content-Type #{content_type.inspect}" do
+        headers = content_type ? { "content-type" => content_type } : {}
+        @http_client.expects(:get).with(@valid_metadata["client_id"], follow_redirects: false)
+          .returns(status: 200, headers: headers, body: @valid_metadata.to_json)
+        expect { described_class.from_url(@valid_metadata["client_id"]) }
+          .to raise_error(AuthProto::InvalidClientMetadata, /Content-Type must be application\/json/)
+      end
+    end
+
+    ["application/json", "application/json; charset=utf-8", "Application/JSON ; charset=UTF-8"].each do |content_type|
+      it "should accept JSON metadata with Content-Type #{content_type.inspect}" do
+        @http_client.expects(:get).with(@valid_metadata["client_id"], follow_redirects: false)
+          .returns(status: 200, headers: { "Content-Type" => content_type }, body: @valid_metadata.to_json)
+        described_class.from_url(@valid_metadata["client_id"]).client_id.should == @valid_metadata["client_id"]
+      end
+    end
+
+    it "should reject a missing response body" do
+      @http_client.expects(:get).with(@valid_metadata["client_id"], follow_redirects: false)
+        .returns(status: 200, headers: { "content-type" => "application/json" }, body: nil)
+
+      expect { described_class.from_url(@valid_metadata["client_id"]) }.to raise_error(
+        AuthProto::InvalidClientMetadata, /client metadata request returned response with no body/
+      )
+    end
+
     it "should report a missing HTTP client" do
       AuthProto.configuration.http_client = nil
-      expect { described_class.from_url(@valid_metadata["client_id"]) }
-        .to raise_error(AuthProto::InvalidClientMetadata, /HTTP client not configured/)
+
+      expect { described_class.from_url(@valid_metadata["client_id"]) }.to raise_error(
+        AuthProto::InvalidClientMetadata, /HTTP client not configured/
+      )
+    end
+  end
+
+  describe ".from_url redirect handling" do
+    before do
+      @previous_configuration = AuthProto.configuration
+      AuthProto.reset_configuration
+      AuthProto.configuration.http_client = AuthProto::HTTPClient.new
+      Resolv::DNS.any_instance.stubs(:getaddresses).returns([Resolv::IPv4.create("93.184.216.34")])
+    end
+
+    after { AuthProto.configuration = @previous_configuration }
+
+    [301, 302, 303, 307, 308].each do |status|
+      it "should reject HTTP #{status} without requesting the redirect target" do
+        url = @valid_metadata["client_id"]
+        target = "https://other.example.com/metadata.json"
+
+        stub_request(:get, url)
+          .to_return(status: status, headers: { "Location" => target })
+        stub_request(:get, target)
+          .to_return(status: 200, headers: { "Content-Type" => "application/json" }, body: @valid_metadata.to_json)
+
+        expect { described_class.from_url(url) }.to raise_error(
+          AuthProto::InvalidClientMetadata, /expected HTTP 200 response for client metadata request/
+        )
+
+        WebMock.should_not have_requested(:get, target)
+      end
     end
   end
 

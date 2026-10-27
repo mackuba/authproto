@@ -41,6 +41,9 @@ module AuthProto
     # Client authentication method for confidential clients
     AUTH_PRIVATE_KEY_JWT = "private_key_jwt"
 
+    # RFC 6749 scope-token characters, separated by single ASCII spaces.
+    SCOPE_PATTERN = /\A[\x21\x23-\x5B\x5D-\x7E]+(?: [\x21\x23-\x5B\x5D-\x7E]+)*\z/
+
 
     # -- required fields --
 
@@ -120,6 +123,7 @@ module AuthProto
 
     # Fetches and validates a client metadata document using the configured transport.
     #
+    # Requires HTTP 200 and application/json, without following redirects.
     # The document's `client_id` must equal the requested URL.
     #
     # @param url [String] HTTPS metadata URL, or localhost URL for development
@@ -137,7 +141,20 @@ module AuthProto
 
       raise InvalidClientMetadata, "HTTP client not configured" unless AuthProto.configuration.http_client
 
-      response = AuthProto.configuration.http_client.get(url)
+      response = AuthProto.configuration.http_client.get(url, follow_redirects: false)
+
+      unless response[:status] == 200
+        raise InvalidClientMetadata, "expected HTTP 200 response for client metadata request, got #{response[:status]}"
+      end
+
+      content_type = (response[:headers] || {}).find { |name, _| name.downcase == 'content-type' }&.last
+
+      unless content_type.to_s.split(';', 2).first.to_s.strip.downcase == 'application/json'
+        raise InvalidClientMetadata, "client metadata Content-Type must be application/json"
+      end
+
+      raise InvalidClientMetadata, "client metadata request returned response with no body" if response[:body].nil?
+
       metadata = JSON.parse(response[:body])
       raise InvalidClientMetadata, "metadata must be a hash" unless metadata.is_a?(Hash)
 
@@ -242,6 +259,10 @@ module AuthProto
       raise InvalidClientMetadata, "response_types must be an array" unless response_types.is_a?(Array)
       raise InvalidClientMetadata, "response_types must include 'code'" unless response_types.include?("code")
 
+      unless response_types.all? { |type| type.is_a?(String) }
+        raise InvalidClientMetadata, "response_types must contain only strings"
+      end
+
       response_types
     end
 
@@ -321,8 +342,9 @@ module AuthProto
     def validate_scope(scope)
       raise InvalidClientMetadata, "scope is required" unless scope
       raise InvalidClientMetadata, "scope must be a string" unless scope.is_a?(String)
+      raise InvalidClientMetadata, "scope must contain valid tokens separated by single spaces" unless SCOPE_PATTERN.match?(scope)
 
-      scope_values = scope.split
+      scope_values = scope.split(' ')
       raise InvalidClientMetadata, "atproto scope is required" unless scope_values.include?("atproto")
 
       scope
@@ -358,7 +380,13 @@ module AuthProto
       return if uri.nil?
       raise InvalidClientMetadata, "client_uri must be a string" unless uri.is_a?(String)
 
-      unless URI(uri).host == URI(@client_id).host
+      parsed = URI(uri)
+
+      unless %w[http https].include?(parsed.scheme)
+        raise InvalidClientMetadata, "client_uri must use HTTP or HTTPS"
+      end
+
+      unless URI(uri).origin == URI(@client_id).origin
         raise InvalidClientMetadata, "client_uri must have the same hostname as client_id"
       end
 
@@ -400,10 +428,25 @@ module AuthProto
 
     def validate_auth_methods(metadata)
       @token_endpoint_auth_method = metadata["token_endpoint_auth_method"]
-      return unless @token_endpoint_auth_method == AUTH_PRIVATE_KEY_JWT
-
       @token_endpoint_auth_signing_alg = metadata["token_endpoint_auth_signing_alg"]
 
+      case @token_endpoint_auth_method
+      when nil, 'none'
+        validate_auth_public(metadata)
+      when AUTH_PRIVATE_KEY_JWT
+        validate_auth_confidential(metadata)
+      else
+        raise InvalidClientMetadata, "unsupported token_endpoint_auth_method"
+      end
+    end
+
+    def validate_auth_public(metadata)
+      unless @token_endpoint_auth_signing_alg.nil?
+        raise InvalidClientMetadata, "token_endpoint_auth_signing_alg must be unset for public clients"
+      end
+    end
+
+    def validate_auth_confidential(metadata)
       unless @token_endpoint_auth_signing_alg == "ES256"
         raise InvalidClientMetadata, "token_endpoint_auth_signing_alg must be ES256"
       end

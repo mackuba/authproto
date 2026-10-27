@@ -2,6 +2,7 @@ module AuthProto
   # Handles and validates AT Protocol OAuth client metadata.
   class ClientMetadata
     AUTH_PRIVATE_KEY_JWT: String
+    SCOPE_PATTERN: Regexp
 
     @client_id: String
 
@@ -93,6 +94,10 @@ module AuthProto
     def validate_jwks: (Hash[String, untyped] jwks) -> void
 
     def validate_auth_methods: (Hash[String, untyped] metadata) -> void
+
+    def validate_auth_public: (Hash[String, untyped] metadata) -> void
+
+    def validate_auth_confidential: (Hash[String, untyped] metadata) -> void
 
     def validate_dpop: (Hash[String, untyped] metadata) -> void
 
