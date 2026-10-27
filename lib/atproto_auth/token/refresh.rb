@@ -163,7 +163,7 @@ module AuthProto
       # @return [State::TokenSet] validated replacement tokens
       # @raise [RefreshError] if the session is not renewable, refresh fails, or retries are exhausted
       #
-      def perform!
+      def perform
         synchronize do
           raise RefreshError.new("No refresh token available", retry_possible: false) unless session.renewable?
           raise RefreshError.new("No access token to refresh", retry_possible: false) if session.tokens.nil?
@@ -240,7 +240,7 @@ module AuthProto
         }
 
         # Add client authentication if available
-        add_client_authentication!(body) if client_metadata.confidential?
+        add_client_authentication(body) if client_metadata.confidential?
 
         AuthProto.configuration.http_client.post(
           auth_server.token_endpoint,
@@ -272,7 +272,7 @@ module AuthProto
         nonce
       end
 
-      def add_client_authentication!(body)
+      def add_client_authentication(body)
         return unless client_metadata.jwks && !client_metadata.jwks["keys"].empty?
 
         signing_key = JOSE::JWK.from_map(client_metadata.jwks["keys"].first)
@@ -306,7 +306,7 @@ module AuthProto
 
       def process_successful_response(response)
         data = JSON.parse(response[:body])
-        validate_refresh_response!(data)
+        validate_refresh_response(data)
 
         AuthProto::State::TokenSet.new(
           access_token: data["access_token"],
@@ -350,7 +350,7 @@ module AuthProto
         raise RefreshError, "Rate limited - retry after #{retry_after} seconds"
       end
 
-      def validate_refresh_response!(data)
+      def validate_refresh_response(data)
         # Required fields
         %w[access_token token_type expires_in scope sub].each do |field|
           raise TokenError.new("Missing #{field} in response", retry_possible: false) unless data[field]

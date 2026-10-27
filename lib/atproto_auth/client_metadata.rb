@@ -107,7 +107,7 @@ module AuthProto
     # @raise [URI::InvalidURIError] if a metadata URI cannot be parsed
     #
     def initialize(metadata)
-      validate_and_set_metadata!(metadata)
+      validate_and_set_metadata(metadata)
     end
 
     # Fetches and validates a client metadata document using the configured transport.
@@ -121,10 +121,10 @@ module AuthProto
     # @raise [URI::InvalidURIError] if a URL cannot be parsed
     #
     def self.from_url(url)
-      validate_url!(url)
+      validate_url(url)
       response = fetch_metadata(url)
       metadata = parse_metadata(response[:body])
-      validate_client_id!(metadata["client_id"], url)
+      validate_client_id(metadata["client_id"], url)
       new(metadata)
     end
 
@@ -137,16 +137,16 @@ module AuthProto
 
     private
 
-    def validate_and_set_metadata!(metadata)
+    def validate_and_set_metadata(metadata)
       # Required fields
       @application_type = validate_application_type(metadata["application_type"])
-      @client_id = validate_client_id!(metadata["client_id"])
-      @grant_types = validate_grant_types!(metadata["grant_types"])
-      @response_types = validate_response_types!(metadata["response_types"])
-      @redirect_uris = validate_redirect_uris!(metadata["redirect_uris"])
-      @scope = validate_scope!(metadata["scope"])
+      @client_id = validate_client_id(metadata["client_id"])
+      @grant_types = validate_grant_types(metadata["grant_types"])
+      @response_types = validate_response_types(metadata["response_types"])
+      @redirect_uris = validate_redirect_uris(metadata["redirect_uris"])
+      @scope = validate_scope(metadata["scope"])
 
-      validate_dpop!(metadata)
+      validate_dpop(metadata)
 
       # Optional fields
       @client_name = metadata["client_name"]
@@ -156,10 +156,10 @@ module AuthProto
       @policy_uri = validate_https_uri(metadata["policy_uri"])
 
       # Authentication methods
-      validate_auth_methods!(metadata)
+      validate_auth_methods(metadata)
     end
 
-    def validate_client_id!(client_id)
+    def validate_client_id(client_id)
       raise InvalidClientMetadata, "client_id is required" unless client_id
 
       uri = URI(client_id)
@@ -170,7 +170,7 @@ module AuthProto
       client_id
     end
 
-    def validate_grant_types!(grant_types)
+    def validate_grant_types(grant_types)
       raise InvalidClientMetadata, "grant_types is required" unless grant_types
 
       valid_types = %w[authorization_code refresh_token]
@@ -181,50 +181,50 @@ module AuthProto
       grant_types
     end
 
-    def validate_response_types!(response_types)
+    def validate_response_types(response_types)
       raise InvalidClientMetadata, "response_types is required" unless response_types
       raise InvalidClientMetadata, "response_types must include 'code'" unless response_types.include?("code")
 
       response_types
     end
 
-    def validate_redirect_uris!(uris)
+    def validate_redirect_uris(uris)
       raise InvalidClientMetadata, "redirect_uris is required" if uris.nil? || uris.none?
 
-      uris.each { |uri| validate_redirect_uri!(URI(uri)) }
+      uris.each { |uri| validate_redirect_uri(URI(uri)) }
       uris
     end
 
-    def validate_redirect_uri!(uri)
+    def validate_redirect_uri(uri)
       case application_type
       when ApplicationType::WEB
         if uri.host != "127.0.0.1" && uri.scheme != "https"
           raise InvalidClientMetadata, "web clients must use HTTPS redirect URIs #{uri}"
         end
 
-        validate_redirect_uri_origin!(uri)
+        validate_redirect_uri_origin(uri)
       when ApplicationType::NATIVE
-        validate_native_redirect_uri!(uri)
+        validate_native_redirect_uri(uri)
       end
     end
 
-    def validate_redirect_uri_origin!(uri)
+    def validate_redirect_uri_origin(uri)
       client_origin = URI(@client_id).host
       valid = client_origin == "localhost" ? true : uri.host == client_origin
       raise InvalidClientMetadata, "redirect URI must match client_id origin" unless valid
     end
 
-    def validate_native_redirect_uri!(uri)
+    def validate_native_redirect_uri(uri)
       if uri.scheme == "http"
         unless ["127.0.0.1", "[::1]"].include?(uri.host)
           raise InvalidClientMetadata, "HTTP redirect URIs for native clients must use loopback IP"
         end
       else
-        validate_custom_scheme!(uri)
+        validate_custom_scheme(uri)
       end
     end
 
-    def validate_custom_scheme!(uri)
+    def validate_custom_scheme(uri)
       reversed_host = URI(@client_id).host.split(".").reverse
       scheme_parts = uri.scheme.split(".")
       unless scheme_parts == reversed_host
@@ -233,17 +233,17 @@ module AuthProto
       raise InvalidClientMetadata, "custom scheme URI must have single path component" unless uri.path == "/"
     end
 
-    def validate_scope!(scope)
+    def validate_scope(scope)
       raise InvalidClientMetadata, "scope is required" unless scope
 
       scope_values = scope.split
       raise InvalidClientMetadata, "atproto scope is required" unless scope_values.include?("atproto")
 
-      # validate_offline_access_scope!(scope_values)
+      # validate_offline_access_scope(scope_values)
       scope
     end
 
-    def validate_offline_access_scope!(scope_values)
+    def validate_offline_access_scope(scope_values)
       has_refresh = @grant_types&.include?("refresh_token")
       has_offline = scope_values.include?("offline_access")
       return unless has_refresh != has_offline
@@ -275,7 +275,7 @@ module AuthProto
       uri
     end
 
-    def validate_jwks!(jwks)
+    def validate_jwks(jwks)
       raise InvalidClientMetadata, "jwks must have keys array" unless jwks["keys"].is_a?(Array)
 
       jwks["keys"].each_with_index do |key, index|
@@ -289,7 +289,7 @@ module AuthProto
       end
     end
 
-    def validate_auth_methods!(metadata)
+    def validate_auth_methods(metadata)
       @token_endpoint_auth_method = metadata["token_endpoint_auth_method"]
       return unless @token_endpoint_auth_method == "private_key_jwt"
 
@@ -304,11 +304,11 @@ module AuthProto
       raise InvalidClientMetadata, "cannot use both jwks and jwks_uri" if @jwks && @jwks_uri
       raise InvalidClientMetadata, "confidential clients must provide jwks or jwks_uri" unless @jwks || @jwks_uri
 
-      validate_jwks!(@jwks) if @jwks
+      validate_jwks(@jwks) if @jwks
       validate_https_uri(@jwks_uri) if @jwks_uri
     end
 
-    def validate_dpop!(metadata)
+    def validate_dpop(metadata)
       return if metadata["dpop_bound_access_tokens"] == true
 
       raise InvalidClientMetadata, "dpop_bound_access_tokens must be true"
@@ -317,7 +317,7 @@ module AuthProto
     class << self
       private
 
-      def validate_url!(url)
+      def validate_url(url)
         uri = URI(url)
         return if uri.scheme == "https" || uri.host == "localhost"
 
@@ -335,7 +335,7 @@ module AuthProto
         raise InvalidClientMetadata, "Invalid JSON in client metadata: #{e.message}"
       end
 
-      def validate_client_id!(metadata_client_id, url)
+      def validate_client_id(metadata_client_id, url)
         return if metadata_client_id == url
 
         raise InvalidClientMetadata, "client_id mismatch: #{metadata_client_id} != #{url}"

@@ -66,8 +66,8 @@ module AuthProto
       # @raise [SQLiteError] if the backend operation fails
       #
       def set(key, value, ttl: nil)
-        validate_key!(key)
-        validate_ttl!(ttl)
+        validate_key(key)
+        validate_ttl(ttl)
 
         expires_at = ttl && (current_time + ttl)
 
@@ -93,7 +93,7 @@ module AuthProto
       # @raise [SQLiteError] if the backend operation fails
       #
       def get(key)
-        validate_key!(key)
+        validate_key(key)
 
         now = current_time
         row = @database.get_first_row(
@@ -123,7 +123,7 @@ module AuthProto
       # @raise [SQLiteError] if the backend operation fails
       #
       def delete(key)
-        validate_key!(key)
+        validate_key(key)
 
         result = @database.get_first_value(
           "DELETE FROM atproto_storage WHERE key = ? RETURNING 1",
@@ -143,7 +143,7 @@ module AuthProto
       # @raise [SQLiteError] if the backend operation fails
       #
       def exists?(key)
-        validate_key!(key)
+        validate_key(key)
 
         now = current_time
 
@@ -231,8 +231,8 @@ module AuthProto
       end
 
       def acquire_lock(key, ttl:)
-        validate_key!(key)
-        validate_ttl!(ttl)
+        validate_key(key)
+        validate_ttl(ttl)
 
         now = current_time
         owner = SecureRandom.uuid

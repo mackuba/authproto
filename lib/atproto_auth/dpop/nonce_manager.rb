@@ -70,7 +70,7 @@ module AuthProto
       # @raise [Storage::StorageError] if backend validation or storage fails
       #
       def update(nonce:, server_url:)
-        validate_inputs!(nonce, server_url)
+        validate_inputs(nonce, server_url)
         origin = normalize_server_url(server_url)
 
         stored_nonce = StoredNonce.new(nonce, origin)
@@ -90,7 +90,7 @@ module AuthProto
       # @raise [Storage::StorageError] if storage retrieval fails
       #
       def get(server_url)
-        validate_server_url!(server_url)
+        validate_server_url(server_url)
         origin = normalize_server_url(server_url)
         key = Storage::KeyBuilder.nonce_key(origin)
 
@@ -113,7 +113,7 @@ module AuthProto
       # @raise [Storage::StorageError] if deletion fails
       #
       def clear(server_url)
-        validate_server_url!(server_url)
+        validate_server_url(server_url)
         origin = normalize_server_url(server_url)
         key = Storage::KeyBuilder.nonce_key(origin)
         AuthProto.storage.delete(key)
@@ -127,7 +127,7 @@ module AuthProto
       # @raise [Storage::StorageError] if the existence check fails
       #
       def valid_nonce?(server_url)
-        validate_server_url!(server_url)
+        validate_server_url(server_url)
         origin = normalize_server_url(server_url)
         key = Storage::KeyBuilder.nonce_key(origin)
         AuthProto.storage.exists?(key)
@@ -146,13 +146,13 @@ module AuthProto
         origin
       end
 
-      def validate_inputs!(nonce, server_url)
+      def validate_inputs(nonce, server_url)
         raise NonceError, "nonce is required" if nonce.nil? || nonce.empty?
 
-        validate_server_url!(server_url)
+        validate_server_url(server_url)
       end
 
-      def validate_server_url!(server_url)
+      def validate_server_url(server_url)
         raise NonceError, "server_url is required" if server_url.nil? || server_url.empty?
 
         uri = URI(server_url)

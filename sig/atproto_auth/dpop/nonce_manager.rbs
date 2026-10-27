@@ -23,8 +23,8 @@ module AuthProto
 
       private
       def normalize_server_url: (String url) -> String
-      def validate_inputs!: (String nonce, String server_url) -> void
-      def validate_server_url!: (String server_url) -> void
+      def validate_inputs: (String nonce, String server_url) -> void
+      def validate_server_url: (String server_url) -> void
     end
   end
 end

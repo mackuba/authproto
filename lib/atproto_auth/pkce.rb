@@ -44,7 +44,7 @@ module AuthProto
       # @raise [Error] if length is invalid
       #
       def generate_verifier(length = MAX_VERIFIER_LENGTH)
-        validate_verifier_length!(length)
+        validate_verifier_length(length)
 
         # Generate random bytes and encode as URL-safe base64
         random_bytes = SecureRandom.random_bytes(length * 3 / 4)
@@ -60,7 +60,7 @@ module AuthProto
       # @raise [Error] if verifier is invalid or hashing fails
       #
       def generate_challenge(verifier)
-        validate_verifier!(verifier)
+        validate_verifier(verifier)
 
         # Hash with SHA-256 and encode as URL-safe base64
         digest = OpenSSL::Digest::SHA256.digest(verifier)
@@ -90,18 +90,18 @@ module AuthProto
 
       private
 
-      def validate_verifier_length!(length)
+      def validate_verifier_length(length)
         return if length.is_a?(Integer) && length.between?(MIN_VERIFIER_LENGTH, MAX_VERIFIER_LENGTH)
 
         raise Error, "Verifier length must be between #{MIN_VERIFIER_LENGTH} and #{MAX_VERIFIER_LENGTH}"
       end
 
-      def validate_verifier!(verifier)
+      def validate_verifier(verifier)
         raise Error, "Verifier cannot be nil" if verifier.nil?
         raise Error, "Verifier cannot be empty" if verifier.empty?
 
         length = verifier.length
-        validate_verifier_length!(length)
+        validate_verifier_length(length)
 
         return if verifier.match?(ALLOWED_VERIFIER_CHARS)
 

@@ -17,7 +17,7 @@ module AuthProto
 
       private
 
-      def validate_object!(obj)
+      def validate_object(obj)
         return if obj.is_a?(AuthProto::DPoP::KeyManager)
 
         raise ValidationError, "Expected KeyManager object, got #{obj.class}"

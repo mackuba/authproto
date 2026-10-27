@@ -20,7 +20,7 @@ module AuthProto
 
       private
 
-      def validate_inputs!: (String http_method, String http_uri) -> void
+      def validate_inputs: (String http_method, String http_uri) -> void
 
       def build_header: () -> { typ: "dpop+jwt", alg: "ES256", jwk: Hash[String, untyped] }
 

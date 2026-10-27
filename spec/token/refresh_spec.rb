@@ -76,7 +76,7 @@ describe AuthProto::Token::Refresh do
   end
 
   it "should refresh the token and return a new TokenSet" do
-    token_set = @refresher.perform!
+    token_set = @refresher.perform
 
     token_set.should be_an_instance_of(AuthProto::State::TokenSet)
     token_set.access_token.should == "new_token"
@@ -92,7 +92,7 @@ describe AuthProto::Token::Refresh do
     )
 
     expect {
-      @refresher.perform!
+      @refresher.perform
     }.to raise_error(AuthProto::Token::RefreshError) { |error|
       error.message.should match("Token refresh failed after 3 attempts")
     }

@@ -80,7 +80,7 @@ module AuthProto
         @endpoint = endpoint
         @dpop_client = dpop_client
         @nonce_manager = dpop_client.nonce_manager
-        validate_endpoint!
+        validate_endpoint
       end
 
       # Submits a PAR request, handling DPoP nonce requirements
@@ -152,7 +152,7 @@ module AuthProto
 
       private
 
-      def validate_endpoint!
+      def validate_endpoint
         uri = URI(@endpoint)
         raise Error, "endpoint must be HTTPS" unless uri.scheme == "https"
       rescue URI::InvalidURIError => e

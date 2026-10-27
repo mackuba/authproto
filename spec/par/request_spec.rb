@@ -51,7 +51,7 @@ describe AuthProto::PAR::Request do
       request = AuthProto::PAR::Request.new(config)
       request.instance_variable_set(:@response_type, "invalid")
       expect {
-        request.send(:validate_response_type!)
+        request.send(:validate_response_type)
       }.to raise_error(AuthProto::PAR::Error)
     end
 

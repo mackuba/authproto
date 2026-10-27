@@ -15,9 +15,9 @@ module AuthProto
 
     private
 
-    private def self.validate_verifier_length!: (Integer length) -> void
+    private def self.validate_verifier_length: (Integer length) -> void
 
-    private def self.validate_verifier!: (String verifier) -> void
+    private def self.validate_verifier: (String verifier) -> void
 
     private def self.secure_compare: (String str1, String str2) -> bool
   end

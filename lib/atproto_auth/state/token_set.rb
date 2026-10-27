@@ -51,11 +51,11 @@ module AuthProto
         sub:,
         refresh_token: nil
       )
-        validate_token_type!(token_type)
-        validate_required!("access_token", access_token)
-        validate_required!("scope", scope)
-        validate_required!("sub", sub)
-        validate_expires_in!(expires_in)
+        validate_token_type(token_type)
+        validate_required("access_token", access_token)
+        validate_required("scope", scope)
+        validate_required("sub", sub)
+        validate_expires_in(expires_in)
 
         @access_token = access_token
         @refresh_token = refresh_token
@@ -83,15 +83,15 @@ module AuthProto
 
       private
 
-      def validate_token_type!(type)
+      def validate_token_type(type)
         raise ArgumentError, "token_type must be DPoP" unless type == "DPoP"
       end
 
-      def validate_required!(name, value)
+      def validate_required(name, value)
         raise ArgumentError, "#{name} is required" if value.nil? || value.empty?
       end
 
-      def validate_expires_in!(expires_in)
+      def validate_expires_in(expires_in)
         return if expires_in.is_a?(Integer)
 
         raise ArgumentError, "expires_in must be an integer"

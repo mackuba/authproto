@@ -6,7 +6,7 @@ module AuthProto
       def type_identifier: () -> String
 
       private
-      def validate_object!: (DPoP::KeyManager obj) -> void
+      def validate_object: (DPoP::KeyManager obj) -> void
       def serialize_data: (DPoP::KeyManager obj) -> json_object
       def deserialize_data: (json_object data) -> DPoP::KeyManager
     end

@@ -17,7 +17,7 @@ module AuthProto
 
       private
 
-      def validate_object!(obj)
+      def validate_object(obj)
         return if obj.is_a?(AuthProto::DPoP::NonceManager::StoredNonce)
 
         raise ValidationError, "Expected StoredNonce object, got #{obj.class}"

@@ -14,9 +14,9 @@ describe AuthProto::Configuration do
     end
   end
 
-  describe "#validate!" do
+  describe "#validate" do
     it "should validate valid configuration" do
-      configuration.validate!.should be true
+      configuration.validate.should be true
     end
 
     it "should validate custom storage implementation" do
@@ -29,20 +29,20 @@ describe AuthProto::Configuration do
       end.new
 
       configuration.storage = custom_storage
-      configuration.validate!.should be true
+      configuration.validate.should be true
     end
 
     it "should raise error for invalid storage implementation" do
       configuration.storage = Object.new
       expect {
-        configuration.validate!
+        configuration.validate
       }.to raise_error(AuthProto::ConfigurationError)
     end
 
     it "should raise error for nil storage" do
       configuration.storage = nil
       expect {
-        configuration.validate!
+        configuration.validate
       }.to raise_error(AuthProto::ConfigurationError)
     end
 
@@ -52,13 +52,13 @@ describe AuthProto::Configuration do
       def valid_client.post(url, body: nil, headers: {}); end
 
       configuration.http_client = valid_client
-      configuration.validate!.should be true
+      configuration.validate.should be true
     end
 
     it "should raise error for invalid http client" do
       configuration.http_client = Object.new
       expect {
-        configuration.validate!
+        configuration.validate
       }.to raise_error(AuthProto::ConfigurationError)
     end
   end

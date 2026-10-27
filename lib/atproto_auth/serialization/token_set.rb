@@ -19,7 +19,7 @@ module AuthProto
 
       private
 
-      def validate_object!(obj)
+      def validate_object(obj)
         return if obj.is_a?(AuthProto::State::TokenSet)
 
         raise ValidationError, "Expected TokenSet object, got #{obj.class}"

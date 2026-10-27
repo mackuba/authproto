@@ -93,7 +93,7 @@ module AuthProto
       # @return [void]
       # @raise [StorageError] if the value is invalid
       #
-      def validate_key!(key)
+      def validate_key(key)
         raise StorageError, "Key cannot be nil" if key.nil?
         raise StorageError, "Key must be a string" unless key.is_a?(String)
         raise StorageError, "Key cannot be empty" if key.empty?
@@ -106,7 +106,7 @@ module AuthProto
       # @return [void]
       # @raise [StorageError] if the value is invalid
       #
-      def validate_ttl!(ttl)
+      def validate_ttl(ttl)
         return if ttl.nil?
         raise StorageError, "TTL must be a positive integer" unless ttl.is_a?(Integer) && ttl.positive?
       end

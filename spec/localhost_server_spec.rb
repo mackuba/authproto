@@ -9,7 +9,7 @@ require 'atproto_auth/localhost_server'
 describe AuthProto::LocalhostServer do
   before do
     @previous_configuration = AuthProto.configuration
-    AuthProto.reset_configuration!
+    AuthProto.reset_configuration
     AuthProto::LocalhostServer.any_instance.stubs(:puts)
   end
 

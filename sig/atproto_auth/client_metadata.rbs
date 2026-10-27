@@ -52,27 +52,27 @@ module AuthProto
 
     private
 
-    def validate_and_set_metadata!: (Hash[String, untyped] metadata) -> void
+    def validate_and_set_metadata: (Hash[String, untyped] metadata) -> void
 
-    def validate_client_id!: (String client_id) -> String
+    def validate_client_id: (String client_id) -> String
 
-    def validate_grant_types!: (Array[String] grant_types) -> Array[String]
+    def validate_grant_types: (Array[String] grant_types) -> Array[String]
 
-    def validate_response_types!: (Array[String] response_types) -> Array[String]
+    def validate_response_types: (Array[String] response_types) -> Array[String]
 
-    def validate_redirect_uris!: (Array[String] uris) -> Array[String]
+    def validate_redirect_uris: (Array[String] uris) -> Array[String]
 
-    def validate_redirect_uri!: (URI uri) -> void
+    def validate_redirect_uri: (URI uri) -> void
 
-    def validate_redirect_uri_origin!: (URI uri) -> void
+    def validate_redirect_uri_origin: (URI uri) -> void
 
-    def validate_native_redirect_uri!: (URI uri) -> void
+    def validate_native_redirect_uri: (URI uri) -> void
 
-    def validate_custom_scheme!: (URI uri) -> void
+    def validate_custom_scheme: (URI uri) -> void
 
-    def validate_scope!: (String scope) -> String
+    def validate_scope: (String scope) -> String
 
-    def validate_offline_access_scope!: (Array[String] scope_values) -> void
+    def validate_offline_access_scope: (Array[String] scope_values) -> void
 
     def validate_application_type: (String? type) -> String
 
@@ -80,19 +80,19 @@ module AuthProto
 
     def validate_https_uri: (String? uri) -> String?
 
-    def validate_jwks!: (Hash[String, untyped] jwks) -> void
+    def validate_jwks: (Hash[String, untyped] jwks) -> void
 
-    def validate_auth_methods!: (Hash[String, untyped] metadata) -> void
+    def validate_auth_methods: (Hash[String, untyped] metadata) -> void
 
-    def validate_dpop!: (Hash[String, untyped] metadata) -> void
+    def validate_dpop: (Hash[String, untyped] metadata) -> void
 
-    private def self.validate_url!: (String url) -> void
+    private def self.validate_url: (String url) -> void
 
     private def self.fetch_metadata: (String url) -> http_response
 
     private def self.parse_metadata: (String body) -> Hash[String, untyped]
 
-    private def self.validate_client_id!: (String metadata_client_id, String url) -> void
+    private def self.validate_client_id: (String metadata_client_id, String url) -> void
   end
 end
 

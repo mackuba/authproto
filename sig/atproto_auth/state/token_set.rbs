@@ -30,11 +30,11 @@ module AuthProto
 
       private
 
-      def validate_token_type!: (String type) -> void
+      def validate_token_type: (String type) -> void
 
-      def validate_required!: (String name, String? value) -> void
+      def validate_required: (String name, String? value) -> void
 
-      def validate_expires_in!: (Integer expires_in) -> void
+      def validate_expires_in: (Integer expires_in) -> void
     end
   end
 end

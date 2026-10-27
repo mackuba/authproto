@@ -107,11 +107,11 @@ module AuthProto
     # @raise [URI::InvalidURIError] if the initial URL cannot be parsed
     #
     def get(url, headers = {})
-      uri = validate_uri!(url)
-      validate_ip!(uri)
+      uri = validate_uri(url)
+      validate_ip(uri)
 
       response = make_request(uri, headers)
-      validate_response!(response)
+      validate_response(response)
 
       {
         status: response.code.to_i,
@@ -137,11 +137,11 @@ module AuthProto
     # @raise [URI::InvalidURIError] if the initial URL cannot be parsed
     #
     def post(url, body: nil, headers: {})
-      uri = validate_uri!(url)
-      validate_ip!(uri)
+      uri = validate_uri(url)
+      validate_ip(uri)
 
       response = make_post_request(uri, body, headers)
-      validate_response!(response)
+      validate_response(response)
 
       {
         status: response.code.to_i,
@@ -153,7 +153,7 @@ module AuthProto
 
     private
 
-    def validate_uri!(url)
+    def validate_uri(url)
       uri = URI(url)
       unless self.class::ALLOWED_SCHEMES.include?(uri.scheme)
         raise SSRFError, "URL scheme must be one of: #{self.class::ALLOWED_SCHEMES.join(", ")}"
@@ -167,7 +167,7 @@ module AuthProto
       uri
     end
 
-    def validate_ip!(uri)
+    def validate_ip(uri)
       # URI#hostname removes brackets from IPv6 literals.
       begin
         parsed_ip = IPAddr.new(uri.hostname)
@@ -206,10 +206,10 @@ module AuthProto
 
     def make_request(uri, headers = {}, redirect_count = 0)
       http = Net::HTTP.new(uri.hostname, uri.port)
-      configure_http_client!(http, ssl: uri.scheme == "https")
+      configure_http_client(http, ssl: uri.scheme == "https")
 
       request = Net::HTTP::Get.new(uri.request_uri)
-      add_security_headers!(request, headers)
+      add_security_headers(request, headers)
       response = http.request(request)
       handle_redirect(
         original_uri: uri,
@@ -225,10 +225,10 @@ module AuthProto
 
     def make_post_request(uri, body, headers = {}, redirect_count = 0)
       http = Net::HTTP.new(uri.hostname, uri.port)
-      configure_http_client!(http, ssl: uri.scheme == "https")
+      configure_http_client(http, ssl: uri.scheme == "https")
 
       request = Net::HTTP::Post.new(uri.request_uri)
-      add_security_headers!(request, headers)
+      add_security_headers(request, headers)
       request.body = body.is_a?(Hash) ? URI.encode_www_form(body) : body if body
 
       response = http.request(request)
@@ -246,14 +246,14 @@ module AuthProto
       raise HTTPError.new("Request failed: #{e.message}", nil)
     end
 
-    def configure_http_client!(http, ssl: true)
+    def configure_http_client(http, ssl: true)
       http.use_ssl = ssl
       http.verify_mode = @verify_ssl ? OpenSSL::SSL::VERIFY_PEER : OpenSSL::SSL::VERIFY_NONE
       http.read_timeout = @timeout
       http.open_timeout = @timeout
     end
 
-    def add_security_headers!(request, headers)
+    def add_security_headers(request, headers)
       # Prevent caching of sensitive data
       request["Cache-Control"] = "no-store"
 
@@ -280,8 +280,8 @@ module AuthProto
       location = URI(response["location"])
       location = kwargs[:original_uri] + location if location.relative?
 
-      validate_uri!(location.to_s)
-      validate_ip!(location)
+      validate_uri(location.to_s)
+      validate_ip(location)
 
       # Increment redirect count for the next request
       redirect_count += 1
@@ -294,18 +294,18 @@ module AuthProto
       end
     end
 
-    def validate_response!(response)
-      # check_success_status!(response)
-      check_content_length!(response)
+    def validate_response(response)
+      # check_success_status(response)
+      check_content_length(response)
     end
 
-    def check_success_status!(response)
+    def check_success_status(response)
       return if response.is_a?(Net::HTTPSuccess)
 
       raise HTTPError.new("HTTP request failed: #{response.code} #{response.message}", response)
     end
 
-    def check_content_length!(response)
+    def check_content_length(response)
       content_length = response["content-length"]&.to_i || response.body&.bytesize || 0
       return unless content_length > MAX_RESPONSE_SIZE
 

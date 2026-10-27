@@ -34,8 +34,8 @@ module AuthProto
       # @raise [StorageError] if key or TTL validation fails
       #
       def set(key, value, ttl: nil)
-        validate_key!(key)
-        validate_ttl!(ttl)
+        validate_key(key)
+        validate_ttl(ttl)
 
         @monitor.synchronize do
           @data[key] = value
@@ -51,7 +51,7 @@ module AuthProto
       # @raise [StorageError] if the key is invalid
       #
       def get(key)
-        validate_key!(key)
+        validate_key(key)
 
         @monitor.synchronize do
           return nil if expired?(key)
@@ -67,7 +67,7 @@ module AuthProto
       # @raise [StorageError] if the key is invalid
       #
       def delete(key)
-        validate_key!(key)
+        validate_key(key)
 
         @monitor.synchronize do
           @data.delete(key)
@@ -83,7 +83,7 @@ module AuthProto
       # @raise [StorageError] if the key is invalid
       #
       def exists?(key)
-        validate_key!(key)
+        validate_key(key)
 
         @monitor.synchronize do
           return false unless @data.key?(key)
@@ -135,8 +135,8 @@ module AuthProto
       private
 
       def acquire_lock(key, ttl:)
-        validate_key!(key)
-        validate_ttl!(ttl)
+        validate_key(key)
+        validate_ttl(ttl)
         lock_key = "lock:#{key}"
 
         @monitor.synchronize do
@@ -148,7 +148,7 @@ module AuthProto
       end
 
       def release_lock(key)
-        validate_key!(key)
+        validate_key(key)
         lock_key = "lock:#{key}"
 
         @monitor.synchronize do

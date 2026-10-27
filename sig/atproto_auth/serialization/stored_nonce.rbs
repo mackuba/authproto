@@ -6,7 +6,7 @@ module AuthProto
       def type_identifier: () -> String
 
       private
-      def validate_object!: (DPoP::NonceManager::StoredNonce obj) -> void
+      def validate_object: (DPoP::NonceManager::StoredNonce obj) -> void
       def serialize_data: (DPoP::NonceManager::StoredNonce obj) -> data_hash
       def deserialize_data: (json_object data) -> DPoP::NonceManager::StoredNonce
     end

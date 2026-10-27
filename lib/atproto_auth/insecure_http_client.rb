@@ -17,7 +17,7 @@ module AuthProto
 
     private
 
-    def validate_ip!(uri)
+    def validate_ip(uri)
       # Deliberately bypass IP restrictions for local development environments.
     end
   end

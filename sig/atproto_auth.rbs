@@ -39,16 +39,16 @@ module AuthProto
     attr_accessor logger: Logger
     attr_accessor storage: Storage::Interface
     def initialize: () -> void
-    def validate!: () -> true
+    def validate: () -> true
 
     private
-    def validate_storage!: () -> void
-    def validate_http_client!: () -> void
+    def validate_storage: () -> void
+    def validate_http_client: () -> void
   end
 
   attr_writer self.configuration: Configuration
   def self.configuration: () -> Configuration
   def self.configure: () { (Configuration) -> untyped } -> Configuration
   def self.storage: () -> Storage::Interface
-  def self.reset_configuration!: () -> Configuration
+  def self.reset_configuration: () -> Configuration
 end

@@ -96,7 +96,7 @@ module AuthProto
       # @raise [URI::InvalidURIError] if a metadata URL cannot be parsed
       #
       def initialize(metadata)
-        validate_and_set_metadata!(metadata)
+        validate_and_set_metadata(metadata)
       end
 
       # Fetches `/.well-known/oauth-authorization-server` using the configured transport.
@@ -112,7 +112,7 @@ module AuthProto
       def self.from_issuer(issuer)
         response = fetch_metadata(issuer)
         metadata = parse_metadata(response[:body])
-        validate_issuer!(metadata["issuer"], issuer)
+        validate_issuer(metadata["issuer"], issuer)
         new(metadata)
       end
 
@@ -145,23 +145,23 @@ module AuthProto
 
       private
 
-      def validate_and_set_metadata!(metadata)
+      def validate_and_set_metadata(metadata)
         REQUIRED_FIELDS.each do |field|
           raise InvalidAuthorizationServer, "#{field} is required" unless metadata[field]
         end
 
-        @issuer = validate_issuer!(metadata["issuer"])
-        @authorization_endpoint = validate_https_url!(metadata["authorization_endpoint"])
-        @token_endpoint = validate_https_url!(metadata["token_endpoint"])
-        @pushed_authorization_request_endpoint = validate_https_url!(metadata["pushed_authorization_request_endpoint"])
+        @issuer = validate_issuer(metadata["issuer"])
+        @authorization_endpoint = validate_https_url(metadata["authorization_endpoint"])
+        @token_endpoint = validate_https_url(metadata["token_endpoint"])
+        @pushed_authorization_request_endpoint = validate_https_url(metadata["pushed_authorization_request_endpoint"])
 
-        validate_response_types!(metadata["response_types_supported"])
-        validate_grant_types!(metadata["grant_types_supported"])
-        validate_code_challenge_methods!(metadata["code_challenge_methods_supported"])
-        validate_token_endpoint_auth_methods!(metadata["token_endpoint_auth_methods_supported"])
-        validate_token_endpoint_auth_signing_algs!(metadata["token_endpoint_auth_signing_alg_values_supported"])
-        validate_dpop_signing_algs!(metadata["dpop_signing_alg_values_supported"])
-        validate_scopes!(metadata["scopes_supported"])
+        validate_response_types(metadata["response_types_supported"])
+        validate_grant_types(metadata["grant_types_supported"])
+        validate_code_challenge_methods(metadata["code_challenge_methods_supported"])
+        validate_token_endpoint_auth_methods(metadata["token_endpoint_auth_methods_supported"])
+        validate_token_endpoint_auth_signing_algs(metadata["token_endpoint_auth_signing_alg_values_supported"])
+        validate_dpop_signing_algs(metadata["dpop_signing_alg_values_supported"])
+        validate_scopes(metadata["scopes_supported"])
 
         # Store validated values
         @response_types_supported = metadata["response_types_supported"]
@@ -173,61 +173,61 @@ module AuthProto
         @dpop_signing_alg_values_supported = metadata["dpop_signing_alg_values_supported"]
 
         # Required boolean fields
-        validate_boolean_field!(metadata, "authorization_response_iss_parameter_supported", true)
-        validate_boolean_field!(metadata, "require_pushed_authorization_requests", true)
-        validate_boolean_field!(metadata, "client_id_metadata_document_supported", true)
+        validate_boolean_field(metadata, "authorization_response_iss_parameter_supported", true)
+        validate_boolean_field(metadata, "require_pushed_authorization_requests", true)
+        validate_boolean_field(metadata, "client_id_metadata_document_supported", true)
       end
 
-      def validate_issuer!(issuer)
+      def validate_issuer(issuer)
         is_valid = OriginURL.new(issuer).valid?
         raise InvalidAuthorizationServer, "invalid issuer URL format" unless is_valid
 
         issuer
       end
 
-      def validate_https_url!(url)
+      def validate_https_url(url)
         uri = URI(url)
         raise InvalidAuthorizationServer, "URL must use HTTPS" unless uri.scheme == "https"
 
         url
       end
 
-      def validate_response_types!(types)
+      def validate_response_types(types)
         raise InvalidAuthorizationServer, "must support 'code' response type" unless types.include?("code")
       end
 
-      def validate_grant_types!(types)
+      def validate_grant_types(types)
         required = %w[authorization_code refresh_token]
         missing = required - types
         raise InvalidAuthorizationServer, "missing grant types: #{missing.join(", ")}" if missing.any?
       end
 
-      def validate_code_challenge_methods!(methods)
+      def validate_code_challenge_methods(methods)
         raise InvalidAuthorizationServer, "must support S256 PKCE" unless methods.include?("S256")
       end
 
-      def validate_token_endpoint_auth_methods!(methods)
+      def validate_token_endpoint_auth_methods(methods)
         required = %w[private_key_jwt none]
         missing = required - methods
         raise InvalidAuthorizationServer, "missing auth methods: #{missing.join(", ")}" if missing.any?
       end
 
-      def validate_token_endpoint_auth_signing_algs!(algs)
+      def validate_token_endpoint_auth_signing_algs(algs)
         raise InvalidAuthorizationServer, "must support ES256" unless algs.include?("ES256")
         raise InvalidAuthorizationServer, "must not allow 'none'" if algs.include?("none")
       end
 
-      def validate_dpop_signing_algs!(algs)
+      def validate_dpop_signing_algs(algs)
         raise InvalidAuthorizationServer, "must support ES256 for DPoP" unless algs.include?("ES256")
       end
 
-      def validate_scopes!(scopes)
+      def validate_scopes(scopes)
         required = %w[atproto]
         missing = required - scopes
         raise InvalidAuthorizationServer, "missing scopes: #{missing.join(", ")}" if missing.any?
       end
 
-      def validate_boolean_field!(metadata, field, required_value)
+      def validate_boolean_field(metadata, field, required_value)
         actual = metadata[field]
         return if actual == required_value
 
@@ -250,7 +250,7 @@ module AuthProto
           raise InvalidAuthorizationServer, "Invalid JSON in authorization server metadata: #{e.message}"
         end
 
-        def validate_issuer!(metadata_issuer, request_issuer)
+        def validate_issuer(metadata_issuer, request_issuer)
           return if metadata_issuer == request_issuer
 
           raise InvalidAuthorizationServer, "issuer mismatch: #{metadata_issuer} != #{request_issuer}"

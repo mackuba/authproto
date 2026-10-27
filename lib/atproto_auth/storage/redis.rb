@@ -42,8 +42,8 @@ module AuthProto
       # @raise [RedisError] if the backend operation fails
       #
       def set(key, value, ttl: nil)
-        validate_key!(key)
-        validate_ttl!(ttl)
+        validate_key(key)
+        validate_ttl(ttl)
 
         @redis_client.set(key, value, ex: ttl)
         true
@@ -59,7 +59,7 @@ module AuthProto
       # @raise [RedisError] if the backend operation fails
       #
       def get(key)
-        validate_key!(key)
+        validate_key(key)
 
         value = @redis_client.get(key)
         value.nil? || value == "" ? nil : value
@@ -75,7 +75,7 @@ module AuthProto
       # @raise [RedisError] if the backend operation fails
       #
       def delete(key)
-        validate_key!(key)
+        validate_key(key)
 
         @redis_client.del(key).positive?
       rescue ::Redis::BaseError => e
@@ -90,7 +90,7 @@ module AuthProto
       # @raise [RedisError] if the backend operation fails
       #
       def exists?(key)
-        validate_key!(key)
+        validate_key(key)
 
         @redis_client.exists?(key)
       rescue ::Redis::BaseError => e
@@ -132,8 +132,8 @@ module AuthProto
       private
 
       def acquire_lock(key, ttl:)
-        validate_key!(key)
-        validate_ttl!(ttl)
+        validate_key(key)
+        validate_ttl(ttl)
 
         lock_key = "atproto:locks:#{key}"
         @redis_client.set(lock_key, Time.now.to_i, nx: true, ex: ttl)
@@ -142,7 +142,7 @@ module AuthProto
       end
 
       def release_lock(key)
-        validate_key!(key)
+        validate_key(key)
 
         lock_key = "atproto:locks:#{key}"
         @redis_client.del(lock_key).positive?

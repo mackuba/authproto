@@ -6,7 +6,7 @@ module AuthProto
       def type_identifier: () -> String
 
       private
-      def validate_object!: (State::Session obj) -> void
+      def validate_object: (State::Session obj) -> void
       def serialize_data: (State::Session obj) -> data_hash
       def deserialize_data: (json_object data) -> State::Session
 

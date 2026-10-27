@@ -30,16 +30,16 @@ module AuthProto
     def post: (String url, ?body: http_body, ?headers: Hash[String, String]) -> http_response
 
     private
-    def validate_uri!: (String url) -> URI::HTTP
-    def validate_ip!: (URI::HTTP uri) -> void
+    def validate_uri: (String url) -> URI::HTTP
+    def validate_ip: (URI::HTTP uri) -> void
     def forbidden_ip?: (IPAddr ip) -> bool
     def make_request: (URI::HTTP uri, ?Hash[String, String] headers, ?Integer redirect_count) -> Net::HTTPResponse
     def make_post_request: (URI::HTTP uri, http_body body, ?Hash[String, String] headers, ?Integer redirect_count) -> Net::HTTPResponse
-    def configure_http_client!: (Net::HTTP http, ?ssl: bool) -> void
-    def add_security_headers!: (Net::HTTPRequest request, Hash[String, String] headers) -> void
+    def configure_http_client: (Net::HTTP http, ?ssl: bool) -> void
+    def add_security_headers: (Net::HTTPRequest request, Hash[String, String] headers) -> void
     def handle_redirect: (original_uri: URI::HTTP, response: Net::HTTPResponse, headers: Hash[String, String], redirect_count: Integer, ?method: Symbol, ?body: http_body) -> Net::HTTPResponse
-    def validate_response!: (Net::HTTPResponse response) -> void
-    def check_success_status!: (Net::HTTPResponse response) -> void
-    def check_content_length!: (Net::HTTPResponse response) -> void
+    def validate_response: (Net::HTTPResponse response) -> void
+    def check_success_status: (Net::HTTPResponse response) -> void
+    def check_content_length: (Net::HTTPResponse response) -> void
   end
 end

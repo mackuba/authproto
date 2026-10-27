@@ -27,7 +27,7 @@ module AuthProto
 
     private
     def load_client_metadata: (json_object? metadata) -> ClientMetadata
-    def validate_redirect_uri!: () -> void
+    def validate_redirect_uri: () -> void
     def initialize_dpop: ((json_object | JOSE::Map)? key) -> DPoP::Client
     def validate_auth_params!: (String? handle, String? pds_url, String scope) -> void
     def resolve_from_handle: (String handle, State::Session session) -> { server: ServerMetadata::AuthorizationServer, pds: String }
@@ -38,6 +38,6 @@ module AuthProto
     def make_token_request: (String code, State::Session session) -> http_response
     def requires_dpop_nonce?: (http_response response) -> bool
     def extract_dpop_nonce: (http_response response) -> String
-    def validate_token_response!: (json_object response, State::Session session) -> void
+    def validate_token_response: (json_object response, State::Session session) -> void
   end
 end

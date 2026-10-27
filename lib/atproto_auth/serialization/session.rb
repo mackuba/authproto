@@ -17,7 +17,7 @@ module AuthProto
 
       private
 
-      def validate_object!(obj)
+      def validate_object(obj)
         return if obj.is_a?(AuthProto::State::Session)
 
         raise ValidationError, "Expected Session object, got #{obj.class}"

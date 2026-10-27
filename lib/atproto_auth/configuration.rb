@@ -55,23 +55,23 @@ module AuthProto
     # @return [true] if validation succeeds
     # @raise [ConfigurationError] if storage is absent/invalid or transport methods are missing
     #
-    def validate!
-      validate_storage!
-      validate_http_client!
+    def validate
+      validate_storage
+      validate_http_client
       true
     end
 
 
     private
 
-    def validate_storage!
+    def validate_storage
       raise ConfigurationError, "Storage must be configured" if @storage.nil?
       return if @storage.is_a?(AuthProto::Storage::Interface)
 
       raise ConfigurationError, "Storage must implement Storage::Interface"
     end
 
-    def validate_http_client!
+    def validate_http_client
       return if @http_client.nil? # Allow nil for testing
       return if @http_client.respond_to?(:get) && @http_client.respond_to?(:post)
 

@@ -87,7 +87,7 @@ describe AuthProto::ServerMetadata::AuthorizationServer do
     it "should validate required fields" do
       server = AuthProto::ServerMetadata::AuthorizationServer.new(valid_metadata)
       expect {
-        server.send(:validate_boolean_field!, valid_metadata, "nonexistent_field", true)
+        server.send(:validate_boolean_field, valid_metadata, "nonexistent_field", true)
       }.to raise_error(AuthProto::InvalidAuthorizationServer)
     end
 

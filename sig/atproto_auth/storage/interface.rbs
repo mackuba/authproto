@@ -13,8 +13,8 @@ module AuthProto
       def with_lock: [T] (String key, ?ttl: Integer) { () -> T } -> T
 
       # Protected in Ruby; RBS exposes protected methods as public.
-      def validate_key!: (String key) -> void
-      def validate_ttl!: (Integer? ttl) -> void
+      def validate_key: (String key) -> void
+      def validate_ttl: (Integer? ttl) -> void
     end
   end
 end

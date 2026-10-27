@@ -203,14 +203,14 @@ describe AuthProto::HTTPClient do
     it "should verify SSL certificates by default" do
       client = AuthProto::HTTPClient.new
       http = Net::HTTP.new("example.com")
-      client.send(:configure_http_client!, http)
+      client.send(:configure_http_client, http)
       http.verify_mode.should == OpenSSL::SSL::VERIFY_PEER
     end
 
     it "should be able to disable SSL verification" do
       client = AuthProto::HTTPClient.new(verify_ssl: false)
       http = Net::HTTP.new("example.com")
-      client.send(:configure_http_client!, http)
+      client.send(:configure_http_client, http)
       http.verify_mode.should == OpenSSL::SSL::VERIFY_NONE
     end
   end

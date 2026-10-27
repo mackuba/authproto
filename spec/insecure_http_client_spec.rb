@@ -45,7 +45,7 @@ describe AuthProto::InsecureHTTPClient do
   it "should keep HTTPS certificate verification enabled and honor timeouts" do
     http = Net::HTTP.new("example.com")
     configured = AuthProto::InsecureHTTPClient.new(timeout: 3)
-    configured.send(:configure_http_client!, http)
+    configured.send(:configure_http_client, http)
     http.use_ssl?.should be true
     http.verify_mode.should == OpenSSL::SSL::VERIFY_PEER
     http.open_timeout.should == 3

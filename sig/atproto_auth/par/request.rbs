@@ -55,17 +55,17 @@ module AuthProto
 
       def add_client_auth_params: (Hash[String, String] params) -> void
 
-      def validate!: () -> void
+      def validate_request: () -> void
 
-      def validate_required_params!: () -> void
+      def validate_required_params: () -> void
 
-      def validate_response_type!: () -> void
+      def validate_response_type: () -> void
 
-      def validate_code_challenge_method!: () -> void
+      def validate_code_challenge_method: () -> void
 
-      def validate_scope!: () -> void
+      def validate_scope: () -> void
 
-      def validate_client_auth!: () -> void
+      def validate_client_auth: () -> void
 
       def encode_params: (Hash[String, String]) -> String
     end

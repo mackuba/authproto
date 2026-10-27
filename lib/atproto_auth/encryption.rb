@@ -93,7 +93,7 @@ module AuthProto
       # @raise [EncryptionError] if inputs are invalid or encryption fails
       #
       def encrypt(data, context:)
-        validate_encryption_inputs!(data, context)
+        validate_encryption_inputs(data, context)
 
         iv = SecureRandom.random_bytes(12)
 
@@ -124,8 +124,8 @@ module AuthProto
       # @raise [DecryptionError] if the context, key, version, encoding or authentication tag is invalid
       #
       def decrypt(encrypted, context:)
-        validate_decryption_inputs!(encrypted, context)
-        validate_encrypted_data!(encrypted)
+        validate_decryption_inputs(encrypted, context)
+        validate_encrypted_data(encrypted)
 
         iv = Base64.strict_decode64(encrypted[:iv])
         data = Base64.strict_decode64(encrypted[:data])
@@ -148,21 +148,21 @@ module AuthProto
 
       private
 
-      def validate_encryption_inputs!(data, context)
+      def validate_encryption_inputs(data, context)
         raise EncryptionError, "Data cannot be nil" if data.nil?
         raise EncryptionError, "Context cannot be nil" if context.nil?
         raise EncryptionError, "Context must be a string" unless context.is_a?(String)
         raise EncryptionError, "Context cannot be empty" if context.empty?
       end
 
-      def validate_decryption_inputs!(encrypted, context)
+      def validate_decryption_inputs(encrypted, context)
         raise DecryptionError, "Encrypted data cannot be nil" if encrypted.nil?
         raise DecryptionError, "Context cannot be nil" if context.nil?
         raise DecryptionError, "Context must be a string" unless context.is_a?(String)
         raise DecryptionError, "Context cannot be empty" if context.empty?
       end
 
-      def validate_encrypted_data!(encrypted)
+      def validate_encrypted_data(encrypted)
         raise DecryptionError, "Invalid encrypted data format" unless encrypted.is_a?(Hash)
 
         unless encrypted[:version] == VERSION

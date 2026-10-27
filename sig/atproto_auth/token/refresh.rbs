@@ -27,7 +27,7 @@ module AuthProto
       attr_reader client_metadata: ClientMetadata
 
       def initialize: (session: State::Session, dpop_client: DPoP::Client, auth_server: ServerMetadata::AuthorizationServer, client_metadata: ClientMetadata) -> void
-      def perform!: () -> State::TokenSet
+      def perform: () -> State::TokenSet
 
       private
       def with_retries: [T] () { () -> T } -> T
@@ -36,12 +36,12 @@ module AuthProto
       def make_token_request: (State::Session session) -> http_response
       def requires_dpop_nonce?: (http_response response) -> bool
       def extract_dpop_nonce: (http_response response) -> String
-      def add_client_authentication!: (Hash[Symbol, untyped] body) -> void
+      def add_client_authentication: (Hash[Symbol, untyped] body) -> void
       def handle_refresh_response: (http_response response) -> State::TokenSet
       def process_successful_response: (http_response response) -> State::TokenSet
       def handle_400_response: (http_response response) -> bot
       def handle_rate_limit_response: (http_response response) -> bot
-      def validate_refresh_response!: (json_object data) -> void
+      def validate_refresh_response: (json_object data) -> void
     end
   end
 end

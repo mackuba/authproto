@@ -81,7 +81,7 @@ module AuthProto
 
       # Initialize core dependencies
       @client_metadata = load_client_metadata(metadata)
-      validate_redirect_uri!
+      validate_redirect_uri
 
       @session_manager = State::SessionManager.new
       @dpop_client = initialize_dpop(dpop_key)
@@ -108,7 +108,7 @@ module AuthProto
     # @raise [Encryption::EncryptionError] if session serialization cannot encrypt secrets
     #
     def authorize(handle: nil, pds_url: nil, scope: "atproto")
-      validate_auth_params!(handle, pds_url, scope)
+      validate_auth_params(handle, pds_url, scope)
 
       # Create new session
       session = session_manager.create_session(
@@ -178,7 +178,7 @@ module AuthProto
         )
 
         # Validate token response
-        validate_token_response!(token_response, session)
+        validate_token_response(token_response, session)
 
         # Create token set and store in session
         token_set = State::TokenSet.new(
@@ -258,7 +258,7 @@ module AuthProto
           client_metadata: client_metadata
         )
 
-        new_tokens = refresher.perform!
+        new_tokens = refresher.perform
         session.tokens = new_tokens
 
         # Update stored session
@@ -349,7 +349,7 @@ module AuthProto
       end
     end
 
-    def validate_redirect_uri!
+    def validate_redirect_uri
       valid = @client_metadata.redirect_uris.include?(@redirect_uri)
       raise Error, "redirect_uri not found in client metadata" unless valid
     end
@@ -364,7 +364,7 @@ module AuthProto
       DPoP::Client.new(key_manager: key_manager)
     end
 
-    def validate_auth_params!(handle, pds_url, scope)
+    def validate_auth_params(handle, pds_url, scope)
       raise Error, "scope must include 'atproto'" unless scope.split.include?("atproto")
       raise Error, "handle or pds_url must be provided" if handle.nil? && pds_url.nil?
       raise Error, "cannot provide both handle and pds_url" if handle && pds_url
@@ -539,7 +539,7 @@ module AuthProto
       nonce
     end
 
-    def validate_token_response!(response, session)
+    def validate_token_response(response, session)
       # Required fields
       %w[access_token token_type expires_in scope sub].each do |field|
         raise TokenError, "Missing #{field} in token response" unless response[field]

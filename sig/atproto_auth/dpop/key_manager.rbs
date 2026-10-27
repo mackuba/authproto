@@ -20,7 +20,7 @@ module AuthProto
 
       private
       def generate_kid: (json_object | JOSE::Map jwk) -> String
-      def validate_keypair!: () -> void
+      def validate_keypair: () -> void
     end
   end
 end

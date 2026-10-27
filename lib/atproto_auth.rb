@@ -95,7 +95,7 @@ module AuthProto
     #
     def configure
       yield(configuration)
-      configuration.validate!
+      configuration.validate
       configuration
     end
 
@@ -110,7 +110,7 @@ module AuthProto
     #
     # @return [Configuration] new global settings
     #
-    def reset_configuration!
+    def reset_configuration
       @configuration = Configuration.new
     end
   end

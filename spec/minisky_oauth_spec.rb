@@ -48,7 +48,7 @@ describe MiniskyOAuth do
 
   before do
     @previous_configuration = AuthProto.configuration
-    AuthProto.reset_configuration!
+    AuthProto.reset_configuration
     AuthProto.configuration.http_client = AuthProto::HTTPClient.new
   end
 

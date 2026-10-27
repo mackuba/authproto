@@ -37,7 +37,7 @@ module AuthProto
       #
       def initialize(keypair = nil)
         @keypair = keypair || generate_keypair
-        validate_keypair!
+        validate_keypair
       end
 
       # Generates a new ES256 keypair for DPoP usage
@@ -200,7 +200,7 @@ module AuthProto
 
       # Validates that the keypair meets DPoP requirements
       # @raise [KeyError] if validation fails
-      def validate_keypair!
+      def validate_keypair
         # Check that we have a valid EC key
         raise KeyError, "Invalid key type: #{@keypair.kty}, must be :ec" unless @keypair.kty.is_a?(JOSE::JWK::KTY_EC)
 

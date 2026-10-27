@@ -11,7 +11,7 @@ module AuthProto
 
       private
 
-      def validate_authorization_servers!: (Array[String] servers) -> Array[String]
+      def validate_authorization_servers: (Array[String] servers) -> Array[String]
 
       def ensure_servers_exist: (Array[String] | nil) -> void
 

@@ -27,7 +27,7 @@ module AuthProto
       # @raise [URI::InvalidURIError] if the authorization server URI cannot be parsed
       #
       def initialize(metadata)
-        @authorization_servers = validate_authorization_servers!(metadata["authorization_servers"])
+        @authorization_servers = validate_authorization_servers(metadata["authorization_servers"])
       end
 
       # Fetches `/.well-known/oauth-protected-resource` using the configured transport.
@@ -46,7 +46,7 @@ module AuthProto
 
       private
 
-      def validate_authorization_servers!(servers)
+      def validate_authorization_servers(servers)
         ensure_servers_exist(servers)
         ensure_exactly_one_server(servers)
         validate_server_url_format(servers.first)

@@ -3,6 +3,6 @@ module AuthProto
     ALLOWED_SCHEMES: Array[String]
 
     private
-    def validate_ip!: (URI::HTTP uri) -> void
+    def validate_ip: (URI::HTTP uri) -> void
   end
 end

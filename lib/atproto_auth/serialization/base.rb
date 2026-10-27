@@ -95,7 +95,7 @@ module AuthProto
       # @raise [NotImplementedError] if used without implementing the abstract serializer hooks
       #
       def serialize(obj)
-        validate_object!(obj)
+        validate_object(obj)
 
         # First serialize the object
         data = {
@@ -107,7 +107,7 @@ module AuthProto
         }
 
         # Then encrypt sensitive fields
-        encrypt_sensitive_fields!(data)
+        encrypt_sensitive_fields(data)
 
         # Finally convert to JSON
         JSON.generate(data)
@@ -128,10 +128,10 @@ module AuthProto
       #
       def deserialize(data)
         parsed = parse_json(data)
-        validate_serialized_data!(parsed)
+        validate_serialized_data(parsed)
 
         # Decrypt sensitive fields
-        decrypt_sensitive_fields!(parsed)
+        decrypt_sensitive_fields(parsed)
 
         # Deserialize according to version
         deserialize_version(parsed)
@@ -139,7 +139,7 @@ module AuthProto
 
       private
 
-      def encrypt_sensitive_fields!(data, path: [])
+      def encrypt_sensitive_fields(data, path: [])
         return unless data.is_a?(Hash)
 
         data.each do |key, value|
@@ -151,16 +151,16 @@ module AuthProto
               context: current_path.join(".")
             )
           elsif value.is_a?(Hash)
-            encrypt_sensitive_fields!(value, path: current_path)
+            encrypt_sensitive_fields(value, path: current_path)
           elsif value.is_a?(Array)
             value.each_with_index do |v, i|
-              encrypt_sensitive_fields!(v, path: current_path + [i.to_s]) if v.is_a?(Hash)
+              encrypt_sensitive_fields(v, path: current_path + [i.to_s]) if v.is_a?(Hash)
             end
           end
         end
       end
 
-      def decrypt_sensitive_fields!(data, path: [])
+      def decrypt_sensitive_fields(data, path: [])
         return unless data.is_a?(Hash)
 
         data.each do |key, value|
@@ -171,10 +171,10 @@ module AuthProto
               context: current_path.join(".")
             )
           elsif value.is_a?(Hash)
-            decrypt_sensitive_fields!(value, path: current_path)
+            decrypt_sensitive_fields(value, path: current_path)
           elsif value.is_a?(Array)
             value.each_with_index do |v, i|
-              decrypt_sensitive_fields!(v, path: current_path + [i.to_s]) if v.is_a?(Hash)
+              decrypt_sensitive_fields(v, path: current_path + [i.to_s]) if v.is_a?(Hash)
             end
           end
         end
@@ -215,7 +215,7 @@ module AuthProto
       # @param obj [Object] Object to validate
       # @raise [ValidationError] if object is invalid
       #
-      def validate_object!(obj)
+      def validate_object(obj)
         raise NotImplementedError
       end
 
@@ -225,7 +225,7 @@ module AuthProto
         raise Error, "Invalid JSON data: #{e.message}"
       end
 
-      def validate_serialized_data!(data)
+      def validate_serialized_data(data)
         raise Error, "Invalid serialized data format" unless data.is_a?(Hash)
 
         unless data["type"] == type_identifier

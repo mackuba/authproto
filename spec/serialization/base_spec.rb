@@ -17,7 +17,7 @@ class TestSerializer < AuthProto::Serialization::Base
     data["value"]
   end
 
-  def validate_object!(obj)
+  def validate_object(obj)
     raise AuthProto::Serialization::ValidationError unless obj.is_a?(String)
   end
 end

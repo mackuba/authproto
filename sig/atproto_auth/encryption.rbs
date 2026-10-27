@@ -23,9 +23,9 @@ module AuthProto
       def decrypt: (envelope encrypted, context: String) -> String
 
       private
-      def validate_encryption_inputs!: (untyped data, untyped context) -> void
-      def validate_decryption_inputs!: (untyped encrypted, untyped context) -> void
-      def validate_encrypted_data!: (untyped encrypted) -> void
+      def validate_encryption_inputs: (untyped data, untyped context) -> void
+      def validate_decryption_inputs: (untyped encrypted, untyped context) -> void
+      def validate_encrypted_data: (untyped encrypted) -> void
     end
 
     class KeyProvider

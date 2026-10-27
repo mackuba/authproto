@@ -11,7 +11,7 @@ module AuthProto
       def authorization_url: (authorize_endpoint: String, request_uri: String, client_id: String) -> String
 
       private
-      def validate_endpoint!: () -> void
+      def validate_endpoint: () -> void
       def make_request: (Request request) -> http_response
       def build_headers: (Request request, String dpop_proof) -> Hash[String, String]
       def requires_nonce?: (http_response response) -> bool

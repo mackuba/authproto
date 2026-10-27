@@ -39,33 +39,33 @@ module AuthProto
 
       private
 
-      def validate_and_set_metadata!: (Hash[String, untyped] metadata) -> void
+      def validate_and_set_metadata: (Hash[String, untyped] metadata) -> void
 
-      def validate_issuer!: (String issuer) -> String
+      def validate_issuer: (String issuer) -> String
 
-      def validate_https_url!: (String url) -> String
+      def validate_https_url: (String url) -> String
 
-      def validate_response_types!: (Array[String] types) -> void
+      def validate_response_types: (Array[String] types) -> void
 
-      def validate_grant_types!: (Array[String] types) -> void
+      def validate_grant_types: (Array[String] types) -> void
 
-      def validate_code_challenge_methods!: (Array[String] methods) -> void
+      def validate_code_challenge_methods: (Array[String] methods) -> void
 
-      def validate_token_endpoint_auth_methods!: (Array[String] methods) -> void
+      def validate_token_endpoint_auth_methods: (Array[String] methods) -> void
 
-      def validate_token_endpoint_auth_signing_algs!: (Array[String] algs) -> void
+      def validate_token_endpoint_auth_signing_algs: (Array[String] algs) -> void
 
-      def validate_dpop_signing_algs!: (Array[String] algs) -> void
+      def validate_dpop_signing_algs: (Array[String] algs) -> void
 
-      def validate_scopes!: (Array[String] scopes) -> void
+      def validate_scopes: (Array[String] scopes) -> void
 
-      def validate_boolean_field!: (Hash[String, untyped] metadata, String field, bool required_value) -> void
+      def validate_boolean_field: (Hash[String, untyped] metadata, String field, bool required_value) -> void
 
       private def self.fetch_metadata: (String issuer) -> http_response
 
       private def self.parse_metadata: (String body) -> Hash[String, untyped]
 
-      private def self.validate_issuer!: (String metadata_issuer, String request_issuer) -> void
+      private def self.validate_issuer: (String metadata_issuer, String request_issuer) -> void
     end
   end
 end

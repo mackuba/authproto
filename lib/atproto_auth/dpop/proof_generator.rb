@@ -50,7 +50,7 @@ module AuthProto
       # @raise [ProofError] if input validation or proof generation fails
       #
       def generate(http_method:, http_uri:, nonce: nil, access_token: nil, ath: nil)
-        validate_inputs!(http_method, http_uri)
+        validate_inputs(http_method, http_uri)
         ath = !access_token.nil? if ath.nil?
 
         header = build_header
@@ -69,7 +69,7 @@ module AuthProto
 
       private
 
-      def validate_inputs!(http_method, http_uri)
+      def validate_inputs(http_method, http_uri)
         raise ProofError, "http_method is required" if http_method.nil? || http_method.empty?
         raise ProofError, "http_uri is required" if http_uri.nil? || http_uri.empty?
 

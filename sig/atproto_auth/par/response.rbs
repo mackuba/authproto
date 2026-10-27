@@ -11,7 +11,7 @@ module AuthProto
 
       private
 
-      def validate!: () -> void
+      def validate_response: () -> void
     end
   end
 end

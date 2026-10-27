@@ -148,7 +148,7 @@ module AuthProto
         @client_assertion_type = config.client_assertion_type
         @client_assertion = config.client_assertion
 
-        validate!
+        validate_request
       end
 
       # Converts request to form-encoded parameters
@@ -187,39 +187,39 @@ module AuthProto
         params["client_assertion"] = client_assertion
       end
 
-      def validate!
-        validate_required_params!
-        validate_response_type!
-        validate_code_challenge_method!
-        validate_scope!
-        validate_client_auth!
+      def validate_request
+        validate_required_params
+        validate_response_type
+        validate_code_challenge_method
+        validate_scope
+        validate_client_auth
       end
 
-      def validate_required_params!
+      def validate_required_params
         %i[client_id redirect_uri code_challenge code_challenge_method state scope].each do |param|
           value = send(param)
           raise Error, "#{param} is required" if value.nil? || value.empty?
         end
       end
 
-      def validate_response_type!
+      def validate_response_type
         return if response_type == "code"
 
         raise Error, "response_type must be 'code'"
       end
 
-      def validate_code_challenge_method!
+      def validate_code_challenge_method
         return if code_challenge_method == "S256"
 
         raise Error, "code_challenge_method must be 'S256'"
       end
 
-      def validate_scope!
+      def validate_scope
         scopes = scope.split
         raise Error, "atproto scope is required" unless scopes.include?("atproto")
       end
 
-      def validate_client_auth!
+      def validate_client_auth
         # If either auth parameter is present, both must be present and valid
         has_assertion = !client_assertion.nil?
         has_type = !client_assertion_type.nil?
