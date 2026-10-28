@@ -5,6 +5,10 @@
 
 A Ruby implementation of the [AT Protocol OAuth specification](https://atproto.com/specs/oauth). This library provides support for both client and server-side implementations, with built-in security features including [DPoP](https://datatracker.ietf.org/doc/html/rfc9449), [PAR](https://datatracker.ietf.org/doc/html/rfc9126), and dynamic client registration.
 
+> [!WARNING]
+> I have inherited this gem from someone else, and haven't fully reviewed all code yet. Consider this an alpha version.
+
+
 ## Features
 
 - Complete AT Protocol OAuth 2.0 implementation
