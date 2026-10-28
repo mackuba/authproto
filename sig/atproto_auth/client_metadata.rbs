@@ -26,7 +26,7 @@ module AuthProto
 
     @policy_uri: String?
 
-    @token_endpoint_auth_method: String?
+    @token_endpoint_auth_method: String
 
     @token_endpoint_auth_signing_alg: String?
 
@@ -44,7 +44,7 @@ module AuthProto
     attr_reader logo_uri: String?
     attr_reader tos_uri: String?
     attr_reader policy_uri: String?
-    attr_reader token_endpoint_auth_method: String?
+    attr_reader token_endpoint_auth_method: String
     attr_reader jwks: Hash[String, untyped]?
     attr_reader jwks_uri: String?
     attr_reader application_type: String

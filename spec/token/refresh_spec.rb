@@ -22,6 +22,7 @@ describe AuthProto::Token::Refresh do
       "response_types" => ["code"],
       "redirect_uris" => ["https://example.com/callback"],
       "scope" => "atproto offline_access",
+      "token_endpoint_auth_method" => "none",
       "dpop_bound_access_tokens" => true,
       "client_name" => "Example Client",
       "application_type" => "web"

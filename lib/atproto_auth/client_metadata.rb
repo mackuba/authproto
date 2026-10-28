@@ -39,7 +39,10 @@ module AuthProto
   class ClientMetadata
 
     # Client authentication method for confidential clients
-    AUTH_PRIVATE_KEY_JWT = "private_key_jwt"
+    AUTH_METHOD_PRIVATE_KEY_JWT = "private_key_jwt"
+
+    # Client authentication method value for public clients
+    AUTH_METHOD_NONE = "none"
 
     # RFC 6749 scope-token characters, separated by single ASCII spaces.
     SCOPE_PATTERN = /\A[\x21\x23-\x5B\x5D-\x7E]+(?: [\x21\x23-\x5B\x5D-\x7E]+)*\z/
@@ -66,6 +69,12 @@ module AuthProto
     # Space-separated list of supported OAuth scopes. Must include at least `atproto`. **Required**.
     # @return [String]
     attr_reader :scope
+
+    # Client authentication method: `none` for public clients, or `private_key_jwt` for confidential ones.
+    # Not technically required, but the reference PDS sets it to `client_secret_basic` if not set,
+    # which we don't support.
+    # @return [String]
+    attr_reader :token_endpoint_auth_method
 
 
     # -- optional fields --
@@ -94,10 +103,6 @@ module AuthProto
     # @return [String, nil]
     attr_reader :policy_uri
 
-    # Client authentication method; needs to be set to `private_key_jwt` for confidential clients.
-    # @return [String, nil]
-    attr_reader :token_endpoint_auth_method
-
     # Inline set of JWK keys for confidential clients, if supplied.
     # @return [Hash{String => Object}, nil]
     attr_reader :jwks
@@ -110,7 +115,8 @@ module AuthProto
     # Validates string-keyed client metadata and exposes its fields.
     #
     # Requires `client_id`, `grant_types`, `response_types`, `redirect_uris`, `scope`,
-    # and `dpop_bound_access_tokens: true`. `application_type` defaults to `web`.
+    # `token_endpoint_auth_method`, and `dpop_bound_access_tokens: true`.
+    # `application_type` defaults to `web`.
     # Confidential clients using `private_key_jwt` require `ES256` and a JWK set or URI.
     #
     # @param metadata [Hash{String => Object}] parsed OAuth client metadata
@@ -171,7 +177,7 @@ module AuthProto
     # @return [Boolean] true if client is confidential.
     #
     def confidential?
-      token_endpoint_auth_method == AUTH_PRIVATE_KEY_JWT
+      token_endpoint_auth_method == AUTH_METHOD_PRIVATE_KEY_JWT
     end
 
 
@@ -426,14 +432,19 @@ module AuthProto
       end
     end
 
+
+    # -- Auth fields validations --
+
     def validate_auth_methods(metadata)
       @token_endpoint_auth_method = metadata["token_endpoint_auth_method"]
       @token_endpoint_auth_signing_alg = metadata["token_endpoint_auth_signing_alg"]
 
+      raise InvalidClientMetadata, "token_endpoint_auth_method is required" if @token_endpoint_auth_method.nil?
+
       case @token_endpoint_auth_method
-      when nil, 'none'
+      when AUTH_METHOD_NONE
         validate_auth_public(metadata)
-      when AUTH_PRIVATE_KEY_JWT
+      when AUTH_METHOD_PRIVATE_KEY_JWT
         validate_auth_confidential(metadata)
       else
         raise InvalidClientMetadata, "unsupported token_endpoint_auth_method"

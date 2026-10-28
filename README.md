@@ -95,6 +95,10 @@ Client metadata fetches call `get(url, follow_redirects: false)` and require HTT
 200 with an `application/json` response. Custom HTTP clients must support this
 keyword and return the initial response without following redirects when it is false.
 
+Client metadata must explicitly set `token_endpoint_auth_method` to `none` for
+public clients or `private_key_jwt` for confidential clients. Omitting it defaults
+to `client_secret_basic` in OAuth metadata, which this library does not support.
+
 ### Storage Backends
 
 The library supports multiple storage backends for managing OAuth state:

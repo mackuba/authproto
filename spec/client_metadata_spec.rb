@@ -10,6 +10,7 @@ describe AuthProto::ClientMetadata do
       "response_types" => ["code"],
       "redirect_uris" => ["https://example.com/callback"],
       "scope" => "atproto offline_access",
+      "token_endpoint_auth_method" => "none",
       "dpop_bound_access_tokens" => true,
       "client_name" => "Example Client",
       "application_type" => "web"
@@ -416,7 +417,17 @@ describe AuthProto::ClientMetadata do
   end
 
   describe "client authentication methods" do
-    [nil, "none"].each do |method|
+    it "should reject an omitted authentication method" do
+      @valid_metadata.delete("token_endpoint_auth_method")
+      expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /token_endpoint_auth_method is required/)
+    end
+
+    it "should reject a null authentication method" do
+      @valid_metadata["token_endpoint_auth_method"] = nil
+      expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /token_endpoint_auth_method is required/)
+    end
+
+    ["none"].each do |method|
       it "should accept public authentication with method #{method.inspect}" do
         @valid_metadata["token_endpoint_auth_method"] = method
         metadata = described_class.new(@valid_metadata)

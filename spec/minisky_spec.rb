@@ -17,6 +17,7 @@ describe Minisky::OAuthClient do
       "grant_types" => %w[authorization_code refresh_token],
       "response_types" => ["code"],
       "scope" => "atproto",
+      "token_endpoint_auth_method" => "none",
       "dpop_bound_access_tokens" => true,
       "application_type" => "web"
     }
