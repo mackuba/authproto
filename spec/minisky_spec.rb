@@ -5,9 +5,9 @@ require 'net/http'
 require 'resolv'
 require 'uri'
 
-require 'atproto_auth/minisky_oauth'
+require 'atproto_auth/minisky'
 
-describe MiniskyOAuth do
+describe Minisky::OAuthClient do
   let(:host) { "https://pds.example.com" }
   let(:endpoint) { "#{host}/xrpc/app.bsky.actor.getProfile" }
   let(:client_metadata) do
@@ -22,7 +22,7 @@ describe MiniskyOAuth do
     }
   end
   let(:client) do
-    MiniskyOAuth.new(
+    Minisky::OAuthClient.new(
       host, client_id: client_metadata["client_id"], redirect_uri: client_metadata["redirect_uris"].first,
             metadata: client_metadata
     )
@@ -239,7 +239,7 @@ describe MiniskyOAuth do
 
   it "should retain existing memory sessions when another client is created" do
     session = attach_session
-    MiniskyOAuth.new(
+    Minisky::OAuthClient.new(
       host, client_id: client_metadata["client_id"], redirect_uri: client_metadata["redirect_uris"].first,
             metadata: client_metadata
     )

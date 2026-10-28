@@ -12,7 +12,7 @@ require 'minisky'
 # Requiring atproto_auth alone does not load Minisky or this integration.
 #
 
-class MiniskyOAuth
+class Minisky::OAuthClient
   include Minisky::Requests
 
   # Maximum authenticated XRPC retries after nonce challenges.
