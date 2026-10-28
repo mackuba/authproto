@@ -1,7 +1,7 @@
 # AuthProto
 
-[![Gem Version](https://img.shields.io/gem/v/atproto_auth.svg)](https://rubygems.org/gems/atproto_auth)
-[![Documentation](https://img.shields.io/badge/docs-rdoc-blue.svg)](https://www.rubydoc.info/gems/atproto_auth)
+[![Gem Version](https://img.shields.io/gem/v/authproto.svg)](https://rubygems.org/gems/authproto)
+[![Documentation](https://img.shields.io/badge/docs-rdoc-blue.svg)](https://www.rubydoc.info/gems/authproto)
 
 A Ruby implementation of the [AT Protocol OAuth specification](https://atproto.com/specs/oauth). This library provides support for both client and server-side implementations, with built-in security features including [DPoP](https://datatracker.ietf.org/doc/html/rfc9449), [PAR](https://datatracker.ietf.org/doc/html/rfc9126), and dynamic client registration.
 
@@ -26,7 +26,7 @@ A Ruby implementation of the [AT Protocol OAuth specification](https://atproto.c
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'atproto_auth'
+gem 'authproto'
 ```
 
 And then execute:
@@ -38,7 +38,7 @@ bundle install
 Or install it yourself as:
 
 ```sh
-gem install atproto_auth
+gem install authproto
 ```
 
 ## Requirements
@@ -53,7 +53,7 @@ gem install atproto_auth
 ### Configuration
 
 ```ruby
-require 'atproto_auth'
+require 'authproto'
 
 AuthProto.configure do |config|
   # Configure HTTP client settings
@@ -124,7 +124,7 @@ low-to-moderate write concurrency:
 ```ruby
 AuthProto.configure do |config|
   config.storage = AuthProto::Storage::SQLite.new(
-    path: '/var/lib/my_app/atproto_auth.sqlite3'
+    path: '/var/lib/my_app/authproto.sqlite3'
   )
 end
 ```
@@ -297,7 +297,7 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/jhuckabee/atproto_auth.
+Bug reports and pull requests are welcome on GitHub at https://github.com/jhuckabee/authproto.
 
 ## License
 

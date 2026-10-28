@@ -6,7 +6,7 @@ require 'securerandom'
 require 'time'
 require 'uri'
 
-require 'atproto_auth'
+require 'authproto'
 require 'dotenv/load'
 require 'faraday'
 require 'sinatra/base'
@@ -39,7 +39,7 @@ class ExampleApp < Sinatra::Base
         config.storage = AuthProto::Storage::Memory.new
       when "sqlite"
         config.storage = AuthProto::Storage::SQLite.new(
-          path: ENV.fetch("SQLITE_PATH", File.join(__dir__, "db", "atproto_auth.sqlite3"))
+          path: ENV.fetch("SQLITE_PATH", File.join(__dir__, "db", "authproto.sqlite3"))
         )
       when "redis"
         config.storage = AuthProto::Storage::Redis.new(

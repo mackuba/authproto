@@ -5,7 +5,7 @@ require 'net/http'
 require 'resolv'
 require 'uri'
 
-require 'atproto_auth/minisky'
+require 'authproto/minisky'
 
 describe Minisky::OAuthClient do
   let(:host) { "https://pds.example.com" }

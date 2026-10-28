@@ -5,7 +5,7 @@ require 'rspec'
 require 'webmock/rspec'
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
-require 'atproto_auth'
+require 'authproto'
 
 # Set a consistent encryption key to use across all specs.
 ENV["ATPROTO_MASTER_KEY"] = Base64.strict_encode64("0" * 32)

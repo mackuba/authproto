@@ -1,7 +1,7 @@
 PATH
   remote: ../..
   specs:
-    atproto_auth (0.2.5)
+    authproto (0.2.5)
       jose (~> 1.2)
       jwt (~> 3.3)
 
@@ -73,7 +73,7 @@ PLATFORMS
   arm64-darwin-24
 
 DEPENDENCIES
-  atproto_auth!
+  authproto!
   dotenv
   faraday
   json

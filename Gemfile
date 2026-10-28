@@ -2,7 +2,7 @@
 
 source 'https://rubygems.org'
 
-# Specify your gem's dependencies in atproto_auth.gemspec
+# Specify your gem's dependencies in authproto.gemspec
 gemspec
 
 gem 'irb'

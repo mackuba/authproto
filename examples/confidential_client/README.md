@@ -2,9 +2,9 @@
 
 This is an example implementation of a confidential OAuth client for the AT Protocol using the AuthProto gem. It demonstrates how to implement the OAuth flow for a web application, including DPoP token binding and secure session management.
 
-<img src="https://github.com/jhuckabee/atproto_auth/blob/main/examples/confidential_client/screenshots/screenshot-1-sign-in.png?raw=true" alt="Sign In Form Screenshot" title="Sign In Form" width="500">
+<img src="https://github.com/jhuckabee/authproto/blob/main/examples/confidential_client/screenshots/screenshot-1-sign-in.png?raw=true" alt="Sign In Form Screenshot" title="Sign In Form" width="500">
 
-<img src="https://github.com/jhuckabee/atproto_auth/blob/main/examples/confidential_client/screenshots/screenshot-2-success.png?raw=true" alt="Sign In Success Screenshot" title="Sign In Success" width="500">
+<img src="https://github.com/jhuckabee/authproto/blob/main/examples/confidential_client/screenshots/screenshot-2-success.png?raw=true" alt="Sign In Success Screenshot" title="Sign In Success" width="500">
 
 ## Overview
 
@@ -77,8 +77,8 @@ export PERMITTED_DOMAIN=your.domain.com
 # Select a storage backend: memory (default), sqlite, or redis
 export STORAGE_BACKEND=sqlite
 
-# Optional SQLite path (defaults to ./db/atproto_auth.sqlite3)
-export SQLITE_PATH=/var/lib/my-app/atproto_auth.sqlite3
+# Optional SQLite path (defaults to ./db/authproto.sqlite3)
+export SQLITE_PATH=/var/lib/my-app/authproto.sqlite3
 
 # Required when STORAGE_BACKEND=redis
 export REDIS_URL=redis://localhost:6379
@@ -108,7 +108,7 @@ SQLite can be used for persistent storage in development or in low traffic produ
 
 ```bash
 export STORAGE_BACKEND=sqlite
-export SQLITE_PATH=/var/lib/my-app/atproto_auth.sqlite3
+export SQLITE_PATH=/var/lib/my-app/authproto.sqlite3
 ```
 
 #### Redis storage

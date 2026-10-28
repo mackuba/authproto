@@ -1,4 +1,4 @@
-require 'atproto_auth/minisky'
+require 'authproto/minisky'
 require 'dotenv/load'
 require 'uri'
 

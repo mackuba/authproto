@@ -4,12 +4,12 @@ require 'json'
 require 'net/http'
 require 'uri'
 
-require 'atproto_auth'
+require 'authproto'
 require 'minisky'
 
 #
 # Experimental Minisky client backed by an AuthProto session.
-# Requiring atproto_auth alone does not load Minisky or this integration.
+# Requiring authproto alone does not load Minisky or this integration.
 #
 
 class Minisky::OAuthClient

@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    atproto_auth (0.2.5)
+    authproto (0.2.5)
       didkit (~> 0.5.0)
       jose (~> 1.2)
       jwt (~> 3.3)
@@ -99,7 +99,7 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
-  atproto_auth!
+  authproto!
   irb
   minisky (~> 0.5.1)
   mocha (~> 2.6)

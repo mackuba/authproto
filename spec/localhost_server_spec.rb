@@ -4,7 +4,7 @@ require 'socket'
 require 'timeout'
 require 'uri'
 
-require 'atproto_auth/localhost_server'
+require 'authproto/localhost_server'
 
 describe AuthProto::LocalhostServer do
   before do
