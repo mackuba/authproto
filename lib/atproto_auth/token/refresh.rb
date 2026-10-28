@@ -267,7 +267,7 @@ module AuthProto
                 headers["dpop-nonce"] ||
                 headers["Dpop-Nonce"]
 
-        raise TokenError, "No DPoP nonce provided in error response" unless nonce
+        raise RefreshError.new("No DPoP nonce provided in error response", retry_possible: false) unless nonce
 
         nonce
       end
@@ -317,7 +317,7 @@ module AuthProto
           sub: data["sub"]
         )
       rescue JSON::ParserError => e
-        raise TokenError, "Invalid response format: #{e.message}"
+        raise RefreshError.new("Invalid response format: #{e.message}", retry_possible: false)
       end
 
       def handle_400_response(response)
@@ -327,21 +327,21 @@ module AuthProto
         case error_data["error"]
         when "use_dpop_nonce"
           dpop_client.process_response(response[:headers], auth_server.issuer)
-          raise TokenError.new("Retry with DPoP nonce", retry_possible: true)
+          raise RefreshError.new("Retry with DPoP nonce", retry_possible: true)
         when "invalid_grant"
           # The refresh token has been invalidated or already used
-          raise TokenError.new(
+          raise RefreshError.new(
             "Refresh token has been invalidated: #{error_description}",
             retry_possible: false
           )
         else
-          raise TokenError.new(
+          raise RefreshError.new(
             "Refresh request failed: #{error_description}",
             retry_possible: false
           )
         end
       rescue JSON::ParserError
-        raise TokenError, "Invalid error response format"
+        raise RefreshError.new("Invalid error response format", retry_possible: false)
       end
 
       def handle_rate_limit_response(response)
@@ -353,25 +353,25 @@ module AuthProto
       def validate_refresh_response(data)
         # Required fields
         %w[access_token token_type expires_in scope sub].each do |field|
-          raise TokenError.new("Missing #{field} in response", retry_possible: false) unless data[field]
+          raise RefreshError.new("Missing #{field} in response", retry_possible: false) unless data[field]
         end
 
         # Token type must be DPoP
         unless data["token_type"] == "DPoP"
-          raise TokenError.new("Invalid token_type: #{data["token_type"]}", retry_possible: false)
+          raise RefreshError.new("Invalid token_type: #{data["token_type"]}", retry_possible: false)
         end
 
         # Scope must include original scopes
         original_scopes = session.scope.split
         response_scopes = data["scope"].split
         unless (original_scopes - response_scopes).empty?
-          raise TokenError.new("Invalid scope in response", retry_possible: false)
+          raise RefreshError.new("Invalid scope in response", retry_possible: false)
         end
 
         # Subject must match
         return if data["sub"] == session.tokens.sub
 
-        raise TokenError.new("Subject mismatch in response", retry_possible: false)
+        raise RefreshError.new("Subject mismatch in response", retry_possible: false)
       end
     end
   end
