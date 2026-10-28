@@ -20,7 +20,7 @@ The example implements a simple web application using Sinatra that:
 
 ## Requirements
 
-- Ruby 3.2+
+- Ruby 3.3+
 - Bundler
 - A domain name for your application that matches your client metadata (required for production)
 - SSL certificate for your domain (required for production)

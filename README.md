@@ -39,7 +39,7 @@ gem install atproto_auth
 
 ## Requirements
 
-- Ruby 3.2 or higher
+- Ruby 3.3 or higher
 - OpenSSL support
 - For confidential clients: HTTPS-capable domain for client metadata hosting
 - Optional: SQLite or Redis storage adapter gems for production use
