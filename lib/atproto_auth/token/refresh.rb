@@ -184,7 +184,7 @@ module AuthProto
         while @attempt_count < MAX_RETRIES
           begin
             return yield
-          rescue StandardError => e
+          rescue RefreshError, HTTPClient::HTTPError => e
             last_error = e
             @attempt_count += 1
 
@@ -254,20 +254,20 @@ module AuthProto
 
       def requires_dpop_nonce?(response)
         return false unless response[:status] == 400
+        return false if response[:body].nil?
 
         error_data = JSON.parse(response[:body])
-        error_data["error"] == "use_dpop_nonce"
+        error_data.is_a?(Hash) && error_data["error"] == "use_dpop_nonce"
       rescue JSON::ParserError
         false
       end
 
       def extract_dpop_nonce(response)
-        headers = response[:headers]
-        nonce = headers["DPoP-Nonce"] ||
-                headers["dpop-nonce"] ||
-                headers["Dpop-Nonce"]
+        nonce = (response[:headers] || {}).detect { |k, v| k.downcase == "dpop-nonce" }&.last
 
-        raise RefreshError.new("No DPoP nonce provided in error response", retry_possible: false) unless nonce
+        unless nonce.is_a?(String) && !nonce.empty?
+          raise RefreshError.new("No DPoP nonce provided in error response", retry_possible: false)
+        end
 
         nonce
       end
@@ -305,6 +305,8 @@ module AuthProto
       end
 
       def process_successful_response(response)
+        raise RefreshError.new("Missing response body", retry_possible: false) if response[:body].nil?
+
         data = JSON.parse(response[:body])
         validate_refresh_response(data)
 
@@ -321,11 +323,19 @@ module AuthProto
       end
 
       def handle_400_response(response)
+        raise RefreshError.new("Missing error response body", retry_possible: false) if response[:body].nil?
+
         error_data = JSON.parse(response[:body])
+
+        unless error_data.is_a?(Hash)
+          raise RefreshError.new("Invalid error response format", retry_possible: false)
+        end
+
         error_description = error_data["error_description"] || error_data["error"]
 
         case error_data["error"]
         when "use_dpop_nonce"
+          extract_dpop_nonce(response)
           dpop_client.process_response(response[:headers], auth_server.issuer)
           raise RefreshError.new("Retry with DPoP nonce", retry_possible: true)
         when "invalid_grant"
@@ -351,9 +361,27 @@ module AuthProto
       end
 
       def validate_refresh_response(data)
+        unless data.is_a?(Hash)
+          raise RefreshError.new("Token response must be a JSON object", retry_possible: false)
+        end
+
         # Required fields
         %w[access_token token_type expires_in scope sub].each do |field|
           raise RefreshError.new("Missing #{field} in response", retry_possible: false) unless data[field]
+        end
+
+        %w[access_token token_type scope sub].each do |field|
+          unless data[field].is_a?(String) && !data[field].empty?
+            raise RefreshError.new("Invalid #{field} in response", retry_possible: false)
+          end
+        end
+
+        unless data["expires_in"].is_a?(Integer)
+          raise RefreshError.new("Invalid expires_in in response", retry_possible: false)
+        end
+
+        unless data["refresh_token"].nil? || data["refresh_token"].is_a?(String)
+          raise RefreshError.new("Invalid refresh_token in response", retry_possible: false)
         end
 
         # Token type must be DPoP
