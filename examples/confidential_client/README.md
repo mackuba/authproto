@@ -2,9 +2,9 @@
 
 This is an example implementation of a confidential OAuth client for the AT Protocol using the AuthProto gem. It demonstrates how to implement the OAuth flow for a web application, including DPoP token binding and secure session management.
 
-<img src="https://github.com/jhuckabee/authproto/blob/main/examples/confidential_client/screenshots/screenshot-1-sign-in.png?raw=true" alt="Sign In Form Screenshot" title="Sign In Form" width="500">
+<img src="https://github.com/mackuba/authproto/blob/main/examples/confidential_client/screenshots/screenshot-1-sign-in.png?raw=true" alt="Sign In Form Screenshot" title="Sign In Form" width="500">
 
-<img src="https://github.com/jhuckabee/authproto/blob/main/examples/confidential_client/screenshots/screenshot-2-success.png?raw=true" alt="Sign In Success Screenshot" title="Sign In Success" width="500">
+<img src="https://github.com/mackuba/authproto/blob/main/examples/confidential_client/screenshots/screenshot-2-success.png?raw=true" alt="Sign In Success Screenshot" title="Sign In Success" width="500">
 
 ## Overview
 
