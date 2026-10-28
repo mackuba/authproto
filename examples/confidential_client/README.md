@@ -60,7 +60,7 @@ SESSION_SECRET=<hex value from second command>
 5. Configure your client metadata:
    - Copy the example metadata file over:
      ```
-     cp config/client-metadata.example.json config/client-metadata.json
+     cp config/client-metadata.example.json config/oauth-client-metadata.json
      ```
    - Set the correct `client_id` URL where your metadata will be hosted
    - Configure valid `redirect_uris` for your application
@@ -137,7 +137,7 @@ end
 
 This application requires specific domain configuration to function properly:
 
-1. **Domain-Client Matching**: The domain where you run the application must exactly match the `client_id` domain in your client metadata. For example, if your `client_id` is `https://myapp.example.com/client-metadata.json`, the application must be accessible at `myapp.example.com`.
+1. **Domain-Client Matching**: The domain where you run the application must exactly match the `client_id` domain in your client metadata. For example, if your `client_id` is `https://myapp.example.com/oauth-client-metadata.json`, the application must be accessible at `myapp.example.com`.
 
 2. **Internet Accessibility**: The application must be accessible from the internet for AT Protocol OAuth to work. The Authorization Server needs to be able to reach your application's redirect URI during the OAuth flow.
 

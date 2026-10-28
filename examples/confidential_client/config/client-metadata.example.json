@@ -1,5 +1,5 @@
 {
-  "client_id": "https://YOUR_DOMAIN_HERE/client-metadata.json",
+  "client_id": "https://YOUR_DOMAIN_HERE/oauth-client-metadata.json",
   "client_name": "AT Protocol OAuth Ruby Example",
   "redirect_uris": ["https://YOUR_DOMAIN_HERE/callback"],
   "grant_types": ["authorization_code", "refresh_token"],

@@ -26,7 +26,7 @@ module AuthProto
   #
   #   # Create a new session
   #   session = manager.create_session(
-  #     client_id: "https://myapp.com/client-metadata.json",
+  #     client_id: "https://myapp.com/oauth-client-metadata.json",
   #     scope: "atproto"
   #   )
   #

@@ -51,7 +51,7 @@ class ExampleApp < Sinatra::Base
     end
 
     # Load client metadata
-    metadata_path = File.join(__dir__, "config", "client-metadata.json")
+    metadata_path = File.join(__dir__, "config", "oauth-client-metadata.json")
     metadata = JSON.parse(File.read(metadata_path))
 
     client_id = metadata["client_id"]
@@ -108,11 +108,11 @@ class ExampleApp < Sinatra::Base
     erb :index
   end
 
-  get "/client-metadata.json" do
+  get "/oauth-client-metadata.json" do
     content_type :json
 
     # Read metadata from config file
-    metadata_path = File.join(__dir__, "config", "client-metadata.json")
+    metadata_path = File.join(__dir__, "config", "oauth-client-metadata.json")
     metadata = JSON.parse(File.read(metadata_path))
 
     # Strip private key 'd' component from each key in the JWKS

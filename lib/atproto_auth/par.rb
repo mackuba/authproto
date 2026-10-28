@@ -18,7 +18,7 @@ module AuthProto
   #   )
   #
   #   request = AuthProto::PAR::Request.build do |config|
-  #     config.client_id = "https://app.example.com/client-metadata.json"
+  #     config.client_id = "https://app.example.com/oauth-client-metadata.json"
   #     config.redirect_uri = "https://app.example.com/callback"
   #     config.code_challenge = "abc123..."
   #     config.code_challenge_method = "S256"

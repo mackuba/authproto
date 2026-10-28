@@ -185,7 +185,7 @@ Here's a basic example of using the library in a confidential client application
 ```ruby
 # Initialize client with metadata
 client = AuthProto::Client.new(
-  client_id: "https://app.example.com/client-metadata.json",
+  client_id: "https://app.example.com/oauth-client-metadata.json",
   redirect_uri: "https://app.example.com/callback",
   metadata: {
     # Your client metadata...
@@ -229,7 +229,7 @@ See `examples/confidential_client/README.md` for setup instructions and implemen
 
 ```ruby
 client = AuthProto::Client.new(
-  client_id: "https://app.example.com/client-metadata.json",
+  client_id: "https://app.example.com/oauth-client-metadata.json",
   redirect_uri: "https://app.example.com/callback"
 )
 
