@@ -47,9 +47,9 @@ class Minisky::OAuthClient
   # @raise [AuthProto::HTTPClient::HTTPError, AuthProto::HTTPClient::SSRFError] if fetching metadata fails
   # @see AuthProto::Client#initialize
   #
-  def initialize(host, client_id:, redirect_uri:, metadata: nil, dpop_key: nil)
+  def initialize(host, client_id:, redirect_uri:, metadata: nil, dpop_key: nil, session_id: nil)
     @host = host
-    @session_id = nil
+    @session_id = session_id
 
     @send_auth_headers = true
     @auto_manage_tokens = false

@@ -295,6 +295,29 @@ describe Minisky::OAuthClient do
     client.oauth_client.get_tokens(client.session_id)[:access_token].should == "new-access"
   end
 
+  it "should reuse the persisted DPoP key when refreshing a session from a new client" do
+    session = attach_session(expires_in: -10)
+    serializer = AuthProto::Serialization::DPoPKey.new
+    key_id = AuthProto::Storage::KeyBuilder.dpop_key(client_metadata["client_id"])
+    AuthProto.storage.set(key_id, serializer.serialize(client.oauth_client.dpop_client.key_manager))
+    restored_key = serializer.deserialize(AuthProto.storage.get(key_id))
+    restored = described_class.new(host, client_id: client_metadata["client_id"],
+                                  redirect_uri: client_metadata["redirect_uris"].first, metadata: client_metadata,
+                                  session_id: session.session_id, dpop_key: restored_key.to_jwk(include_private: true).to_h)
+    original_public_key = client.oauth_client.dpop_client.public_key
+    stub_refresh
+    stub_request(:post, "https://auth.example.com/token").with do |request|
+      JWT.decode(request.headers["Dpop"], nil, false).last["jwk"] == original_public_key
+    end.to_return(status: 200, body: {
+      access_token: "restored-access", refresh_token: "restored-refresh", token_type: "DPoP",
+      expires_in: 3600, scope: "atproto", sub: "did:plc:alice"
+    }.to_json)
+
+    restored.check_access.should == :refreshed
+    restored.oauth_client.get_tokens(session.session_id)[:refresh_token].should == "restored-refresh"
+    assert_requested :post, "https://auth.example.com/token", times: 1
+  end
+
   it "should raise from check_access when OAuth login has not completed" do
     expect { client.check_access }.to raise_error(Minisky::AuthError)
   end
