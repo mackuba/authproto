@@ -1,3 +1,5 @@
+require 'authproto/insecure_http_client'
+require 'authproto/localhost_server'
 require 'authproto/minisky'
 require 'dotenv/load'
 require 'uri'
@@ -10,41 +12,22 @@ AuthProto.configure do |config|
   )
 end
 
-$metadata = {
-  'application_type' => 'native',
-  'client_id' => 'http://localhost/',
-  'client_name' => 'AT Protocol OAuth Ruby Example',
-  'redirect_uris' => ['http://127.0.0.1:9292/callback'],
-  'grant_types' => ['authorization_code', 'refresh_token'],
-  'response_types' => ['code'],
-  'scope' => 'atproto repo:app.bsky.feed.post rpc:app.bsky.feed.getTimeline?aud=*',
-  'token_endpoint_auth_method' => 'none',
-  'dpop_bound_access_tokens' => true,
-}
-
-$client_id = $metadata['client_id'] + '?' + URI.encode_www_form({
-  redirect_uri: $metadata['redirect_uris'][0],
-  scope: $metadata['scope']
-})
-
-$metadata['client_id'] = $client_id
+REDIRECT_URI = 'http://127.0.0.1:9292/callback'
+SCOPE = 'atproto repo:app.bsky.feed.post rpc:app.bsky.feed.getTimeline?aud=*'
+CLIENT_ID = 'http://localhost/?' + URI.encode_www_form({ redirect_uri: REDIRECT_URI, scope: SCOPE })
 
 def create_client(pds)
-  Minisky::OAuthClient.new(pds,
-    client_id: $client_id,
-    redirect_uri: $metadata['redirect_uris'][0],
-    metadata: $metadata
-  )
+  Minisky::OAuthClient.new(pds, client_id: CLIENT_ID, redirect_uri: REDIRECT_URI)
 end
 
 def authorize(client)
-  auth = client.authorize(pds_url: "https://#{client.host}", scope: $metadata['scope'])
+  auth = client.authorize(pds_url: "https://#{client.host}", scope: SCOPE)
 
   puts "Open this URL in the browser and complete authorization:"
   puts auth[:url]
   puts
 
-  AuthProto::LocalhostServer.start($metadata) do |json|
+  AuthProto::LocalhostServer.start(client.oauth_client.client_metadata) do |json|
     client.handle_callback(**json)
   end
 

@@ -19,10 +19,14 @@ describe AuthProto::LocalhostServer do
 
   # Use a pre-bound ephemeral listener so the test knows the port without a
   # close/rebind race. The actual HTTP exchange still uses real TCP sockets.
-  def with_server(callback:, path: "/callback", timeout: 2)
+  def with_server(callback:, path: "/callback", timeout: 2, metadata_object: false)
     listener = TCPServer.new("127.0.0.1", 0)
     port = listener.addr[1]
     metadata = { "redirect_uris" => ["http://127.0.0.1:#{port}#{path}"] }
+    if metadata_object
+      client_id = "http://localhost/?" + URI.encode_www_form(redirect_uri: metadata["redirect_uris"].first)
+      metadata = AuthProto::ClientMetadata.from_url(client_id)
+    end
     TCPServer.stubs(:new).with("127.0.0.1", port).returns(listener)
     worker = Thread.new do
       [:ok, AuthProto::LocalhostServer.start(metadata, timeout: timeout, &callback)]
@@ -74,6 +78,17 @@ describe AuthProto::LocalhostServer do
         worker.value.should == [:ok, result]
         listener.closed?.should be true
       end
+    end
+  end
+
+  it "should accept a ClientMetadata object and use its redirect URI for the callback" do
+    received = nil
+    callback = ->(params) { received = params; :authenticated }
+    with_server(callback: callback, path: "/oauth/done", metadata_object: true) do |port, worker, listener|
+      request(port, callback_target("/oauth/done")).should include("200 OK")
+      worker.value.should == [:ok, :authenticated]
+      received.should == { code: "code + punctuation", state: "random-state", iss: "https://auth.example.com" }
+      listener.closed?.should be true
     end
   end
 

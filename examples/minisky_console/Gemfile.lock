@@ -1,7 +1,7 @@
 PATH
   remote: ../..
   specs:
-    authproto (0.2.5)
+    authproto (0.3.0.beta1)
       didkit (~> 0.5.0)
       jose (~> 1.2)
       jwt (~> 3.3)
@@ -91,7 +91,7 @@ DEPENDENCIES
   sqlite3
 
 CHECKSUMS
-  authproto (0.2.5)
+  authproto (0.3.0.beta1)
   base58 (0.2.3) sha256=fda5c5d3bda8b429ad0d1a5309c2d1e488ba46f0a2ab99a639890f26c61bf3be
   base64 (0.3.0) sha256=27337aeabad6ffae05c265c450490628ef3ebd4b67be58257393227588f5a97b
   bundler (4.0.23) sha256=407ba8a1d928f412847f819aa5f8b6aef7c59fb51feb517112af8a165487287b
