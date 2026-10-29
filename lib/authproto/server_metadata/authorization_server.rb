@@ -7,7 +7,7 @@ require_relative '../configuration'
 require_relative '../errors'
 require_relative '../http_client'
 require_relative '../server_metadata'
-require_relative 'origin_url'
+require_relative '../validated_uri'
 
 module AuthProto
   module ServerMetadata
@@ -185,14 +185,20 @@ module AuthProto
       end
 
       def validate_issuer(issuer)
-        is_valid = OriginURL.new(issuer).valid?
+        uri = ValidatedURI.new(issuer)
+
+        is_valid = (
+          uri.scheme == 'https' && (!uri.specified_port || uri.effective_port != 443) &&
+          uri.path.empty? && !uri.query && !uri.fragment && !uri.userinfo
+        )
+
         raise InvalidAuthorizationServer, "invalid issuer URL format" unless is_valid
 
         issuer
       end
 
       def validate_https_url(url)
-        uri = URI(url)
+        uri = ValidatedURI.new(url)
         raise InvalidAuthorizationServer, "URL must use HTTPS" unless uri.scheme == "https"
 
         url

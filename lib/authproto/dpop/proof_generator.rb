@@ -6,6 +6,7 @@ require 'securerandom'
 require 'uri'
 
 require_relative '../errors'
+require_relative '../validated_uri'
 require_relative 'key_manager'
 
 module AuthProto
@@ -76,8 +77,7 @@ module AuthProto
         raise ProofError, "http_method is required" if http_method.nil? || http_method.empty?
         raise ProofError, "http_uri is required" if http_uri.nil? || http_uri.empty?
 
-        uri = URI(http_uri)
-        raise ProofError, "invalid http_uri" unless uri.is_a?(URI::HTTP)
+        ValidatedURI.new(http_uri)
       rescue URI::InvalidURIError => e
         raise ProofError, "invalid http_uri: #{e.message}"
       end

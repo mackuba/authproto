@@ -207,7 +207,7 @@ describe AuthProto::ClientMetadata do
 
       it "should reject a custom scheme without a reverse-domain namespace" do
         @valid_metadata.merge!("client_id" => "http://localhost", "redirect_uris" => ["localhost:/callback"])
-        expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /reversed client_id domain/)
+        expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /include a '.'/)
       end
 
       ["http://user@127.0.0.1:9292/callback", "http://[::1]:9292/callback#fragment",

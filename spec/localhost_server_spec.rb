@@ -169,7 +169,7 @@ describe AuthProto::LocalhostServer do
     end
     %w[https://127.0.0.1:9292/callback http://example.com:9292/callback http://0.0.0.0:9292/callback
        http://192.168.1.1:9292/callback http://127.0.0.1:0/callback http://user@localhost:9292/callback
-       http://localhost:9292/callback#fragment].each do |url|
+       http://localhost:9292/callback#fragment http://@localhost:9292/callback].each do |url|
       expect { AuthProto::LocalhostServer.new("redirect_uris" => [url]) }.to raise_error(ArgumentError)
     end
   end

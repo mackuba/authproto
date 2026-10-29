@@ -6,6 +6,7 @@ require 'uri'
 
 require_relative 'configuration'
 require_relative 'errors'
+require_relative 'validated_uri'
 
 module AuthProto
 
@@ -144,7 +145,7 @@ module AuthProto
     # @raise [URI::InvalidURIError] if a URL cannot be parsed
     #
     def self.from_url(url)
-      uri = URI(url)
+      uri = ValidatedURI.new(url)
 
       unless uri.scheme == 'https' || (uri.scheme == 'http' && uri.host == 'localhost')
         raise InvalidClientMetadata, "client_id must use HTTPS except for localhost"
@@ -181,7 +182,7 @@ module AuthProto
     end
 
     def self.from_localhost_url(url)
-      uri = URI(url)
+      uri = ValidatedURI.new(url)
       params = URI.decode_www_form(uri.query.to_s)
 
       scopes = params.select { |k, v| k == 'scope' }.map(&:last)
@@ -260,20 +261,15 @@ module AuthProto
     end
 
     def valid_https_client_id?(client_id)
-      uri = URI(client_id)
-      userinfo, port = URI.split(client_id).values_at(1, 3)
-
-      uri.scheme == 'https' && uri.host.to_s != '' && port.nil? && userinfo.nil? && !uri.fragment
+      uri = ValidatedURI.new(client_id)
+      uri.scheme == 'https' && !uri.port && !uri.userinfo && !uri.fragment
     rescue URI::InvalidURIError
       false
     end
 
     def valid_localhost_client_id?(client_id)
-      uri = URI(client_id)
-      userinfo, port = URI.split(client_id).values_at(1, 3)
-
-      uri.scheme == 'http' && uri.host == 'localhost' && port.nil? && userinfo.nil? && !uri.fragment &&
-        uri.path.to_s.chomp('/').empty?
+      uri = ValidatedURI.new(client_id)
+      uri.scheme == 'http' && uri.host == 'localhost' && !uri.port && !uri.userinfo && !uri.fragment && uri.path.empty?
     rescue URI::InvalidURIError
       false
     end
@@ -316,55 +312,60 @@ module AuthProto
       uris
     end
 
-    def validate_redirect_uri(value)
-      raise InvalidClientMetadata, "redirect_uris entries must be strings" unless value.is_a?(String)
-
-      uri = URI(value)
-      userinfo, port = URI.split(value).values_at(1, 3)
-
-      raise InvalidClientMetadata, "redirect URI must be absolute" unless uri.absolute?
-      raise InvalidClientMetadata, "redirect URI must not contain credentials" unless userinfo.nil?
-      raise InvalidClientMetadata, "redirect URI must not contain a fragment" unless uri.fragment.nil?
+    def validate_redirect_uri(url)
+      raise InvalidClientMetadata, "redirect_uris entries must be strings" unless url.is_a?(String)
 
       case application_type
       when ApplicationType::WEB
-        validate_https_redirect_uri(uri, port)
+        validate_https_redirect_uri(url)
       when ApplicationType::NATIVE
-        validate_native_redirect_uri(uri, port)
+        validate_native_redirect_uri(url)
       end
     rescue URI::InvalidURIError => e
       raise InvalidClientMetadata, "Invalid redirect URI: #{e.message}"
     end
 
-    def validate_https_redirect_uri(uri, port)
-      unless uri.scheme == 'https' && !uri.host.to_s.empty?
+    def validate_https_redirect_uri(url)
+      uri = ValidatedURI.new(url)
+
+      unless uri.scheme == 'https'
         raise InvalidClientMetadata, "redirect URI must use HTTPS with a hostname"
       end
 
-      if port && uri.port == 443
+      raise InvalidClientMetadata, "redirect URI must not contain credentials" if uri.userinfo
+      raise InvalidClientMetadata, "redirect URI must not contain a fragment" if uri.fragment
+
+      if uri.specified_port && uri.effective_port == 443
         raise InvalidClientMetadata, "HTTPS redirect URI must not specify the default port"
       end
     end
 
-    def validate_redirect_uri_origin(uri)
-      client_uri = URI(@client_id)
+    def validate_redirect_uri_origin(url)
+      client_uri = ValidatedURI.new(@client_id)
+      uri = ValidatedURI.new(url)
 
       unless uri.origin.downcase == client_uri.origin.downcase
         raise InvalidClientMetadata, "redirect URI must match client_id origin"
       end
     end
 
-    def validate_native_redirect_uri(uri, port)
+    def validate_native_redirect_uri(url)
+      uri = URI(url)
+
       case uri.scheme
       when 'https'
-        validate_https_redirect_uri(uri, port)
-        validate_redirect_uri_origin(uri)
+        validate_https_redirect_uri(url)
+        validate_redirect_uri_origin(url)
       when 'http'
+        uri = ValidatedURI.new(url)
+        raise InvalidClientMetadata, "redirect URI must not contain credentials" if uri.userinfo
+        raise InvalidClientMetadata, "redirect URI must not contain a fragment" if uri.fragment
+
         unless ["127.0.0.1", "[::1]"].include?(uri.host)
           raise InvalidClientMetadata, "HTTP redirect URIs for native clients must use loopback IP"
         end
 
-        unless uri.port.between?(1, 65_535)
+        unless uri.effective_port.between?(1, 65_535)
           raise InvalidClientMetadata, "HTTP redirect URI must have a valid port"
         end
       else
@@ -375,13 +376,19 @@ module AuthProto
     def validate_custom_scheme(uri)
       reversed_host = URI(@client_id).host.downcase.split('.').reverse.join('.')
 
-      unless uri.scheme.include?('.') && uri.scheme == reversed_host
+      unless uri.scheme == reversed_host
         raise InvalidClientMetadata, "custom scheme must match reversed client_id domain"
       end
 
-      unless uri.host.nil? && uri.path && uri.path.start_with?('/')
+      unless uri.scheme.include?('.')
+        raise InvalidClientMetadata, "custom scheme must include a '.'"
+      end
+
+      unless !uri.host && uri.path && uri.path.start_with?('/')
         raise InvalidClientMetadata, "custom scheme redirect URI must use a single slash after the scheme"
       end
+
+      raise InvalidClientMetadata, "redirect URI must not contain a fragment" if uri.fragment
     end
 
     def validate_scope(scope)
@@ -425,17 +432,15 @@ module AuthProto
       return if uri.nil?
       raise InvalidClientMetadata, "client_uri must be a string" unless uri.is_a?(String)
 
-      parsed = URI(uri)
+      parsed = ValidatedURI.new(uri)
 
-      unless %w[http https].include?(parsed.scheme)
-        raise InvalidClientMetadata, "client_uri must use HTTP or HTTPS"
-      end
-
-      unless URI(uri).origin == URI(@client_id).origin
+      unless parsed.origin == URI(@client_id).origin
         raise InvalidClientMetadata, "client_uri must have the same hostname as client_id"
       end
 
       uri
+    rescue URI::InvalidURIError
+      raise InvalidClientMetadata, "client_uri must use HTTP or HTTPS and must have the same hostname as client_id"
     end
 
     def validate_https_uri(uri)
@@ -443,10 +448,12 @@ module AuthProto
 
       raise InvalidClientMetadata, "URI must be a string" unless uri.is_a?(String)
 
-      parsed = URI(uri)
-      raise InvalidClientMetadata, "URI must use HTTPS" unless parsed.scheme == "https" && !parsed.host.to_s.empty?
+      parsed = ValidatedURI.new(uri)
+      raise InvalidClientMetadata, "URI must use HTTPS" unless parsed.scheme == "https"
 
       uri
+    rescue URI::InvalidURIError
+      raise InvalidClientMetadata, "URI must use HTTPS with a hostname"
     end
 
     def validate_jwks(jwks)

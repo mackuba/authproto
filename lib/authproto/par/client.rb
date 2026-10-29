@@ -6,6 +6,7 @@ require 'uri'
 
 require_relative '../configuration'
 require_relative '../par'
+require_relative '../validated_uri'
 require_relative 'response'
 
 module AuthProto
@@ -157,7 +158,7 @@ module AuthProto
       private
 
       def validate_endpoint
-        uri = URI(@endpoint)
+        uri = ValidatedURI.new(@endpoint)
         raise Error, "endpoint must be HTTPS" unless uri.scheme == "https"
       rescue URI::InvalidURIError => e
         raise Error, "invalid endpoint URL: #{e.message}"

@@ -7,7 +7,7 @@ require_relative '../configuration'
 require_relative '../errors'
 require_relative '../http_client'
 require_relative '../server_metadata'
-require_relative 'origin_url'
+require_relative '../validated_uri'
 
 module AuthProto
   module ServerMetadata
@@ -68,9 +68,14 @@ module AuthProto
         raise InvalidAuthorizationServer, "authorization_servers is not an array" unless servers.is_a?(Array)
         raise InvalidAuthorizationServer, "must have exactly one authorization server" unless servers.length == 1
 
-        unless OriginURL.new(servers.first).valid?
-          raise InvalidAuthorizationServer, "invalid authorization server URL format for #{servers.first}"
-        end
+        uri = ValidatedURI.new(servers.first)
+
+        valid = (
+          uri.scheme == 'https' && (!uri.specified_port || uri.effective_port != 443) &&
+          uri.path.empty? && !uri.query && !uri.fragment && !uri.userinfo
+        )
+
+        raise InvalidAuthorizationServer, "invalid authorization server URL format for #{servers.first}" unless valid
 
         servers
       end
@@ -79,11 +84,9 @@ module AuthProto
         private
 
         def validate_source_url(url)
-          uri = URI.parse(url)
-          userinfo = URI.split(url)[1]
+          uri = ValidatedURI.new(url)
 
-          unless uri.is_a?(URI::HTTP) && uri.host && !uri.host.empty? &&
-                 (uri.path.empty? || uri.path == "/") && userinfo.nil? && !uri.query && !uri.fragment
+          unless uri.path.empty? && !uri.userinfo && !uri.query && !uri.fragment
             raise InvalidAuthorizationServer,
               "Resource server URL must be an HTTP(S) origin without userinfo, a path prefix, query or fragment"
           end

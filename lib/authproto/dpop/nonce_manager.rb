@@ -6,6 +6,7 @@ require_relative '../configuration'
 require_relative '../errors'
 require_relative '../serialization/stored_nonce'
 require_relative '../storage/key_builder'
+require_relative '../validated_uri'
 require_relative 'stored_nonce'
 
 module AuthProto
@@ -130,8 +131,7 @@ module AuthProto
       def validate_server_url(server_url)
         raise NonceError, "server_url is required" if server_url.nil? || server_url.empty?
 
-        uri = URI(server_url)
-        raise NonceError, "server_url must be HTTP(S)" unless uri.is_a?(URI::HTTP)
+        uri = ValidatedURI.new(server_url)
 
         # Allow HTTP for localhost only
         if uri.host != "localhost" && uri.scheme != "https"

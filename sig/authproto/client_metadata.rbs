@@ -76,11 +76,11 @@ module AuthProto
 
     def validate_redirect_uri: (String value) -> void
 
-    def validate_https_redirect_uri: (URI::Generic uri, String? port) -> void
+    def validate_https_redirect_uri: (String url) -> void
 
-    def validate_redirect_uri_origin: (URI::Generic uri) -> void
+    def validate_redirect_uri_origin: (String url) -> void
 
-    def validate_native_redirect_uri: (URI::Generic uri, String? port) -> void
+    def validate_native_redirect_uri: (String url) -> void
 
     def validate_custom_scheme: (URI::Generic uri) -> void
 

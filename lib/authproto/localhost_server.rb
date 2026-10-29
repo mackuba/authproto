@@ -6,6 +6,7 @@ require 'timeout'
 require 'uri'
 
 require_relative 'client_metadata'
+require_relative 'validated_uri'
 
 module AuthProto
 
@@ -106,15 +107,16 @@ module AuthProto
         raise ArgumentError, "metadata must contain a non-empty redirect_uris array"
       end
 
-      @uri = URI(redirects.first)
+      uri = ValidatedURI.new(redirects.first)
+      @uri = uri.to_uri
 
-      unless @uri.is_a?(URI::HTTP) && @uri.scheme == "http" && loopback_host?(@uri.hostname)
+      unless uri.scheme == "http" && loopback_host?(uri.hostname)
         raise ArgumentError, "The first redirect URI must be an HTTP loopback URL"
       end
 
       raise ArgumentError, "The redirect URI should have a valid port" unless @uri.port.between?(1, 65_535)
-      raise ArgumentError, "The redirect URI should not include user info" unless !@uri.userinfo
-      raise ArgumentError, "The redirect URI should not include a URL fragment" unless !@uri.fragment
+      raise ArgumentError, "The redirect URI should not include user info" if uri.userinfo
+      raise ArgumentError, "The redirect URI should not include a URL fragment" if uri.fragment
 
       @path = (@uri.path.empty?) ? "/" : @uri.path
     rescue URI::InvalidURIError

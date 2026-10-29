@@ -1,0 +1,36 @@
+module AuthProto
+  class ValidatedURI
+    @uri: URI::HTTP
+    @port: String?
+    @userinfo: String?
+    @path: String
+
+    attr_reader port: String?
+    attr_reader userinfo: String?
+    attr_reader path: String
+
+    def initialize: (String | URI::Generic url) -> void
+
+    def specified_port: () -> String?
+    def effective_port: () -> Integer
+    def to_uri: () -> URI::HTTP
+
+    def scheme: () -> String
+    def host: () -> String
+    def hostname: () -> String
+    def query: () -> String?
+    def fragment: () -> String?
+    def user: () -> String?
+    def password: () -> String?
+    def registry: () -> String?
+    def opaque: () -> String?
+    def default_port: () -> Integer
+    def request_uri: () -> String
+    def origin: () -> String
+    def absolute?: () -> bool
+    def relative?: () -> bool
+    def hierarchical?: () -> bool
+    def to_s: () -> String
+    def to_str: () -> String
+  end
+end

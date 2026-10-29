@@ -7,6 +7,7 @@ require 'resolv'
 require 'uri'
 
 require_relative 'errors'
+require_relative 'validated_uri'
 
 module AuthProto
 
@@ -157,17 +158,16 @@ module AuthProto
     private
 
     def validate_uri(url)
-      uri = URI(url)
+      uri = ValidatedURI.new(url)
       unless self.class::ALLOWED_SCHEMES.include?(uri.scheme)
         raise SSRFError, "URL scheme must be one of: #{self.class::ALLOWED_SCHEMES.join(", ")}"
       end
 
-      # Extract and validate host before any network activity
-      host = uri.host.to_s.strip
-      raise SSRFError, "URL must include host" if host.empty?
       raise SSRFError, "URL must not include fragment" if uri.fragment
 
-      uri
+      uri.to_uri
+    rescue URI::InvalidURIError => e
+      raise SSRFError, e.message
     end
 
     def validate_ip(uri)
