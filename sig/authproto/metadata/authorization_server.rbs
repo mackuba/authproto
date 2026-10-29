@@ -1,5 +1,5 @@
 module AuthProto
-  module ServerMetadata
+  module Metadata
     class AuthorizationServer
       @issuer: String
       @authorization_endpoint: String

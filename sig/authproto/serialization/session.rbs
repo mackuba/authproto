@@ -12,8 +12,8 @@ module AuthProto
 
       def serialize_token_set: (State::TokenSet? tokens) -> String?
       def deserialize_token_set: (String? data) -> State::TokenSet?
-      def serialize_auth_server: (ServerMetadata::AuthorizationServer? server) -> Hash[Symbol, untyped]?
-      def deserialize_auth_server: (json_object? data) -> ServerMetadata::AuthorizationServer?
+      def serialize_auth_server: (Metadata::AuthorizationServer? server) -> Hash[Symbol, untyped]?
+      def deserialize_auth_server: (json_object? data) -> Metadata::AuthorizationServer?
     end
   end
 end

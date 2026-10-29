@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative '../server_metadata/authorization_server'
+require_relative '../metadata/authorization_server'
 require_relative '../state/session'
 require_relative 'base'
 require_relative 'token_set'
@@ -81,7 +81,7 @@ module AuthProto
       def deserialize_auth_server(data)
         return nil unless data
 
-        AuthProto::ServerMetadata::AuthorizationServer.new(data)
+        AuthProto::Metadata::AuthorizationServer.new(data)
       end
     end
   end

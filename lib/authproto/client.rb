@@ -5,17 +5,17 @@ require 'jose'
 require 'json'
 require 'uri'
 
-require_relative 'client_metadata'
 require_relative 'configuration'
 require_relative 'dpop/client'
 require_relative 'dpop/key_manager'
 require_relative 'errors'
+require_relative 'metadata/authorization_server'
+require_relative 'metadata/client_metadata'
+require_relative 'metadata/resource_server'
 require_relative 'par'
 require_relative 'par/client'
 require_relative 'par/client_assertion'
 require_relative 'par/request'
-require_relative 'server_metadata/authorization_server'
-require_relative 'server_metadata/resource_server'
 require_relative 'state/session_manager'
 require_relative 'state/token_set'
 require_relative 'storage/key_builder'
@@ -66,7 +66,7 @@ module AuthProto
     attr_reader :redirect_uri
 
     # Validated client metadata.
-    # @return [ClientMetadata]
+    # @return [Metadata::ClientMetadata]
     attr_reader :client_metadata
 
     # Manager for stored OAuth sessions.
@@ -363,9 +363,9 @@ module AuthProto
 
     def load_client_metadata(metadata)
       if metadata
-        ClientMetadata.new(metadata)
+        Metadata::ClientMetadata.new(metadata)
       else
-        ClientMetadata.from_url(@client_id)
+        Metadata::ClientMetadata.from_url(@client_id)
       end
     end
 
@@ -452,11 +452,11 @@ module AuthProto
 
     def resolve_auth_server(pds_url)
       # Get resource server metadata
-      resource_server = ServerMetadata::ResourceServer.from_url(pds_url)
+      resource_server = Metadata::ResourceServer.from_url(pds_url)
       auth_server_url = resource_server.authorization_servers.first
 
       # Get and validate authorization server metadata
-      ServerMetadata::AuthorizationServer.from_issuer(auth_server_url)
+      Metadata::AuthorizationServer.from_issuer(auth_server_url)
     end
 
     def generate_authorization_url(auth_server, session, login_hint: nil)

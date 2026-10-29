@@ -4,7 +4,7 @@ describe AuthProto::State::SessionManager do
   let(:client_id) { "test_client_id" }
   let(:scope) { "read write" }
   let(:auth_server) do
-    AuthProto::ServerMetadata::AuthorizationServer.new(
+    AuthProto::Metadata::AuthorizationServer.new(
       "issuer" => "https://example.com",
       "token_endpoint" => "https://example.com/token",
       "authorization_endpoint" => "https://example.com/auth",

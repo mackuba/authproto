@@ -139,19 +139,19 @@ module AuthProto
       attr_reader :dpop_client
 
       # Server providing the token endpoint.
-      # @return [ServerMetadata::AuthorizationServer]
+      # @return [Metadata::AuthorizationServer]
       attr_reader :auth_server
 
       # Client metadata used for optional confidential-client assertions.
-      # @return [ClientMetadata]
+      # @return [Metadata::ClientMetadata]
       attr_reader :client_metadata
 
       # Creates a synchronized refresh operation for an existing OAuth session.
       #
       # @param session [State::Session] session with an access and refresh token
       # @param dpop_client [DPoP::Client] proof signer and nonce tracker
-      # @param auth_server [ServerMetadata::AuthorizationServer] server with a token endpoint
-      # @param client_metadata [ClientMetadata] client ID and authentication key configuration
+      # @param auth_server [Metadata::AuthorizationServer] server with a token endpoint
+      # @param client_metadata [Metadata::ClientMetadata] client ID and authentication key configuration
       # @param signing_key [Hash, JOSE::JWK, nil] private ES256 client-authentication key
       #
       def initialize(session:, dpop_client:, auth_server:, client_metadata:, signing_key: nil)

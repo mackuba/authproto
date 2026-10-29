@@ -3,8 +3,8 @@
 module AuthProto
 
   #
-  # Provides functionality for fetching and validating AT Protocol OAuth server metadata
-  # from both Resource Servers (PDS instances) and Authorization Servers (PDS/entryway).
+  # Provides functionality for fetching and validating AT Protocol OAuth metadata
+  # for clients, Resource Servers (PDS instances), and Authorization Servers (PDS/entryway).
   #
   # The flow for resolving an account's authorization server is:
   # 1. Start with PDS URL
@@ -13,16 +13,16 @@ module AuthProto
   # 4. Fetch Authorization Server metadata from /.well-known/oauth-authorization-server
   #
   # @example Resolving authorization server from PDS URL
-  #   resource_server = AuthProto::ServerMetadata::ResourceServer.from_url("https://pds.example.com")
+  #   resource_server = AuthProto::Metadata::ResourceServer.from_url("https://pds.example.com")
   #   auth_server_url = resource_server.authorization_servers.first
-  #   auth_server = AuthProto::ServerMetadata::AuthorizationServer.from_issuer(auth_server_url)
+  #   auth_server = AuthProto::Metadata::AuthorizationServer.from_issuer(auth_server_url)
   #
   # The module includes three main classes:
   # - {ResourceServer} - Handles PDS metadata validation and authorization server discovery
   # - {AuthorizationServer} - Handles authorization server metadata validation
-  # - {OriginURL} - Validates URLs conform to AT Protocol's "simple origin URL" requirements
+  # - {ClientMetadata} - Handles client metadata and registration requirements
   #
 
-  module ServerMetadata
+  module Metadata
   end
 end

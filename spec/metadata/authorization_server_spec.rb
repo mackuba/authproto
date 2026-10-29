@@ -2,7 +2,7 @@
 
 require 'json'
 
-describe AuthProto::ServerMetadata::AuthorizationServer do
+describe AuthProto::Metadata::AuthorizationServer do
   let(:valid_metadata) do
     {
       "issuer" => "https://auth.example.com",
@@ -29,20 +29,20 @@ describe AuthProto::ServerMetadata::AuthorizationServer do
 
   describe "#initialize" do
     it "should initialize successfully with valid metadata" do
-      server = AuthProto::ServerMetadata::AuthorizationServer.new(valid_metadata)
+      server = AuthProto::Metadata::AuthorizationServer.new(valid_metadata)
       server.issuer.should == valid_metadata["issuer"]
       server.authorization_endpoint.should == valid_metadata["authorization_endpoint"]
     end
 
     it "should raise an error if a required field is missing" do
       expect {
-        AuthProto::ServerMetadata::AuthorizationServer.new(invalid_metadata_missing_field)
+        AuthProto::Metadata::AuthorizationServer.new(invalid_metadata_missing_field)
       }.to raise_error(AuthProto::InvalidAuthorizationServer)
     end
 
     it "should raise an error for an invalid HTTPS URL" do
       expect {
-        AuthProto::ServerMetadata::AuthorizationServer.new(invalid_metadata_bad_url)
+        AuthProto::Metadata::AuthorizationServer.new(invalid_metadata_bad_url)
       }.to raise_error(AuthProto::InvalidAuthorizationServer)
     end
   end
@@ -54,7 +54,7 @@ describe AuthProto::ServerMetadata::AuthorizationServer do
     end
 
     it "should fetch and parse metadata successfully" do
-      server = AuthProto::ServerMetadata::AuthorizationServer.from_issuer(issuer_url)
+      server = AuthProto::Metadata::AuthorizationServer.from_issuer(issuer_url)
       server.issuer.should == valid_metadata["issuer"]
     end
 
@@ -62,14 +62,14 @@ describe AuthProto::ServerMetadata::AuthorizationServer do
       AuthProto.configuration.http_client.stubs(:get).raises(AuthProto::HTTPClient::HTTPError.new("Network error",
                                                                                                       {}))
       expect {
-        AuthProto::ServerMetadata::AuthorizationServer.from_issuer(issuer_url)
+        AuthProto::Metadata::AuthorizationServer.from_issuer(issuer_url)
       }.to raise_error(AuthProto::InvalidAuthorizationServer)
     end
 
     it "should raise an error if the metadata JSON is invalid" do
       AuthProto.configuration.http_client.stubs(:get).returns(body: "not-json")
       expect {
-        AuthProto::ServerMetadata::AuthorizationServer.from_issuer(issuer_url)
+        AuthProto::Metadata::AuthorizationServer.from_issuer(issuer_url)
       }.to raise_error(AuthProto::InvalidAuthorizationServer)
     end
 
@@ -78,14 +78,14 @@ describe AuthProto::ServerMetadata::AuthorizationServer do
       AuthProto.configuration.http_client.stubs(:get).returns(body: invalid_metadata.to_json)
 
       expect {
-        AuthProto::ServerMetadata::AuthorizationServer.from_issuer(issuer_url)
+        AuthProto::Metadata::AuthorizationServer.from_issuer(issuer_url)
       }.to raise_error(AuthProto::InvalidAuthorizationServer)
     end
   end
 
   describe "validation methods" do
     it "should validate required fields" do
-      server = AuthProto::ServerMetadata::AuthorizationServer.new(valid_metadata)
+      server = AuthProto::Metadata::AuthorizationServer.new(valid_metadata)
       expect {
         server.send(:validate_boolean_field, valid_metadata, "nonexistent_field", true)
       }.to raise_error(AuthProto::InvalidAuthorizationServer)
@@ -94,21 +94,21 @@ describe AuthProto::ServerMetadata::AuthorizationServer do
     it "should validate response types" do
       invalid_response_types = valid_metadata.merge("response_types_supported" => [])
       expect {
-        AuthProto::ServerMetadata::AuthorizationServer.new(invalid_response_types)
+        AuthProto::Metadata::AuthorizationServer.new(invalid_response_types)
       }.to raise_error(AuthProto::InvalidAuthorizationServer)
     end
 
     it "should validate grant types" do
       invalid_grant_types = valid_metadata.merge("grant_types_supported" => ["authorization_code"])
       expect {
-        AuthProto::ServerMetadata::AuthorizationServer.new(invalid_grant_types)
+        AuthProto::Metadata::AuthorizationServer.new(invalid_grant_types)
       }.to raise_error(AuthProto::InvalidAuthorizationServer)
     end
 
     it "should validate token endpoint auth methods" do
       invalid_auth_methods = valid_metadata.merge("token_endpoint_auth_methods_supported" => ["none"])
       expect {
-        AuthProto::ServerMetadata::AuthorizationServer.new(invalid_auth_methods)
+        AuthProto::Metadata::AuthorizationServer.new(invalid_auth_methods)
       }.to raise_error(AuthProto::InvalidAuthorizationServer)
     end
   end

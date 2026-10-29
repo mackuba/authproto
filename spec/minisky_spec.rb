@@ -29,7 +29,7 @@ describe Minisky::OAuthClient do
     )
   end
   let(:auth_server) do
-    AuthProto::ServerMetadata::AuthorizationServer.new(
+    AuthProto::Metadata::AuthorizationServer.new(
       "issuer" => "https://auth.example.com",
       "token_endpoint" => "https://auth.example.com/token",
       "authorization_endpoint" => "https://auth.example.com/authorize",

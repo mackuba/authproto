@@ -58,7 +58,7 @@ module AuthProto
   #
   # @example Handling authorization server errors
   #   begin
-  #     server = AuthProto::ServerMetadata::AuthorizationServer.from_issuer("https://auth.example.com")
+  #     server = AuthProto::Metadata::AuthorizationServer.from_issuer("https://auth.example.com")
   #   rescue AuthProto::InvalidAuthorizationServer => e
   #     puts "Failed to validate authorization server: #{e.message}"
   #   end

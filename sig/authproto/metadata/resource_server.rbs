@@ -1,5 +1,5 @@
 module AuthProto
-  module ServerMetadata
+  module Metadata
     class ResourceServer
       @authorization_servers: Array[String]
 

@@ -9,12 +9,12 @@ module AuthProto
       attr_reader scope: String
       attr_reader pkce_verifier: String
       attr_reader pkce_challenge: String
-      attr_reader auth_server: ServerMetadata::AuthorizationServer?
+      attr_reader auth_server: Metadata::AuthorizationServer?
       attr_reader did: String?
       attr_reader tokens: TokenSet?
 
-      def initialize: (client_id: String, scope: String, ?auth_server: ServerMetadata::AuthorizationServer?, ?did: String?) -> void
-      def authorization_server=: (ServerMetadata::AuthorizationServer server) -> ServerMetadata::AuthorizationServer
+      def initialize: (client_id: String, scope: String, ?auth_server: Metadata::AuthorizationServer?, ?did: String?) -> void
+      def authorization_server=: (Metadata::AuthorizationServer server) -> Metadata::AuthorizationServer
       def did=: (String did) -> String
       def tokens=: (TokenSet tokens) -> String
       def authorized?: () -> bool

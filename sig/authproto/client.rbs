@@ -11,7 +11,7 @@ module AuthProto
 
     attr_reader client_id: String
     attr_reader redirect_uri: String
-    attr_reader client_metadata: ClientMetadata
+    attr_reader client_metadata: Metadata::ClientMetadata
     attr_reader session_manager: State::SessionManager
     attr_reader dpop_client: DPoP::Client
 
@@ -26,15 +26,15 @@ module AuthProto
     def cleanup_expired_sessions: () -> void
 
     private
-    def load_client_metadata: (json_object? metadata) -> ClientMetadata
+    def load_client_metadata: (json_object? metadata) -> Metadata::ClientMetadata
     def validate_redirect_uri: () -> void
     def initialize_signing_key: ((json_object | JOSE::JWK)? key) -> JOSE::JWK?
     def initialize_dpop: ((json_object | JOSE::Map)? key) -> DPoP::Client
     def validate_auth_params!: (String? handle, String? pds_url, String scope) -> void
-    def resolve_from_handle: (String handle, State::Session session) -> { server: ServerMetadata::AuthorizationServer, pds: String }
-    def resolve_from_pds: (String pds_url, State::Session session) -> { server: ServerMetadata::AuthorizationServer, pds: String }
-    def resolve_auth_server: (String pds_url) -> ServerMetadata::AuthorizationServer
-    def generate_authorization_url: (ServerMetadata::AuthorizationServer auth_server, State::Session session, ?login_hint: String?) -> String
+    def resolve_from_handle: (String handle, State::Session session) -> { server: Metadata::AuthorizationServer, pds: String }
+    def resolve_from_pds: (String pds_url, State::Session session) -> { server: Metadata::AuthorizationServer, pds: String }
+    def resolve_auth_server: (String pds_url) -> Metadata::AuthorizationServer
+    def generate_authorization_url: (Metadata::AuthorizationServer auth_server, State::Session session, ?login_hint: String?) -> String
     def exchange_code: (code: String, session: State::Session) -> json_object
     def make_token_request: (String code, State::Session session) -> http_response
     def requires_dpop_nonce?: (http_response response) -> bool

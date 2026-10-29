@@ -6,11 +6,11 @@ require 'uri'
 require_relative '../configuration'
 require_relative '../errors'
 require_relative '../http_client'
-require_relative '../server_metadata'
+require_relative '../metadata'
 require_relative '../validated_uri'
 
 module AuthProto
-  module ServerMetadata
+  module Metadata
 
     #
     # This class represents a Resource Server (PDS) and is responsible for

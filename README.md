@@ -103,7 +103,7 @@ Client metadata must explicitly set `token_endpoint_auth_method` to `none` for
 public clients or `private_key_jwt` for confidential clients. Omitting it defaults
 to `client_secret_basic` in OAuth metadata, which this library does not support.
 
-For localhost development, `ClientMetadata.from_url` generates virtual metadata
+For localhost development, `Metadata::ClientMetadata.from_url` generates virtual metadata
 without making an HTTP request. It defaults to native public authentication,
 the `atproto` scope, and redirects `http://127.0.0.1/` and `http://[::1]/`.
 The client ID query can specify one `scope` parameter and multiple `redirect_uri`

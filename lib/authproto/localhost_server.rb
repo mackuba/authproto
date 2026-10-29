@@ -5,7 +5,7 @@ require 'socket'
 require 'timeout'
 require 'uri'
 
-require_relative 'client_metadata'
+require_relative 'metadata/client_metadata'
 require_relative 'validated_uri'
 
 module AuthProto
@@ -92,12 +92,12 @@ module AuthProto
     # Accepts `localhost`, IPv4 loopback, or IPv6 loopback. The URI must have a valid
     # port and no user information or fragment. Its path is used as the callback path.
     #
-    # @param metadata [Hash{String, Symbol => Object}, ClientMetadata]
+    # @param metadata [Hash{String, Symbol => Object}, Metadata::ClientMetadata]
     #   metadata containing a nonempty `redirect_uris` array of strings
     # @raise [ArgumentError] if the first redirect URI is missing, malformed or not a supported HTTP loopback URL
     #
     def initialize(metadata)
-      redirects = if metadata.is_a?(ClientMetadata)
+      redirects = if metadata.is_a?(Metadata::ClientMetadata)
         metadata.redirect_uris
       else
         metadata['redirect_uris'] || metadata[:redirect_uris]

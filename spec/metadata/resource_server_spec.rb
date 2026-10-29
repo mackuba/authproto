@@ -2,7 +2,7 @@
 
 require 'json'
 
-describe AuthProto::ServerMetadata::ResourceServer do
+describe AuthProto::Metadata::ResourceServer do
   let(:valid_metadata) { { "resource" => valid_url, "authorization_servers" => ["https://auth.example.com"] } }
   let(:invalid_metadata_missing_servers) { {} }
   let(:invalid_metadata_multiple_servers) { { "authorization_servers" => ["https://auth1.example.com", "https://auth2.example.com"] } }
@@ -14,25 +14,25 @@ describe AuthProto::ServerMetadata::ResourceServer do
 
   describe "#initialize" do
     it "should initialize successfully with valid metadata" do
-      server = AuthProto::ServerMetadata::ResourceServer.new(valid_metadata)
+      server = AuthProto::Metadata::ResourceServer.new(valid_metadata)
       server.authorization_servers.should == valid_metadata["authorization_servers"]
     end
 
     it "should raise an error if authorization_servers is missing" do
       expect {
-        AuthProto::ServerMetadata::ResourceServer.new(invalid_metadata_missing_servers)
+        AuthProto::Metadata::ResourceServer.new(invalid_metadata_missing_servers)
       }.to raise_error(AuthProto::InvalidAuthorizationServer)
     end
 
     it "should raise an error if there are multiple authorization_servers" do
       expect {
-        AuthProto::ServerMetadata::ResourceServer.new(invalid_metadata_multiple_servers)
+        AuthProto::Metadata::ResourceServer.new(invalid_metadata_multiple_servers)
       }.to raise_error(AuthProto::InvalidAuthorizationServer)
     end
 
     it "should raise an error for invalid authorization server URL format" do
       expect {
-        AuthProto::ServerMetadata::ResourceServer.new(invalid_metadata_bad_url)
+        AuthProto::Metadata::ResourceServer.new(invalid_metadata_bad_url)
       }.to raise_error(AuthProto::InvalidAuthorizationServer)
     end
   end
@@ -45,7 +45,7 @@ describe AuthProto::ServerMetadata::ResourceServer do
     end
 
     it "should fetch and parse metadata successfully" do
-      server = AuthProto::ServerMetadata::ResourceServer.from_url(valid_url)
+      server = AuthProto::Metadata::ResourceServer.from_url(valid_url)
       server.authorization_servers.should == valid_metadata["authorization_servers"]
     end
 
@@ -53,14 +53,14 @@ describe AuthProto::ServerMetadata::ResourceServer do
       AuthProto.configuration.http_client.stubs(:get).raises(AuthProto::HTTPClient::HTTPError.new("Network error",
                                                                                                       {}))
       expect {
-        AuthProto::ServerMetadata::ResourceServer.from_url(valid_url)
+        AuthProto::Metadata::ResourceServer.from_url(valid_url)
       }.to raise_error(AuthProto::InvalidAuthorizationServer)
     end
 
     it "should raise an error if the metadata JSON is invalid" do
       mock_response[:body] = "not-json"
       expect {
-        AuthProto::ServerMetadata::ResourceServer.from_url(valid_url)
+        AuthProto::Metadata::ResourceServer.from_url(valid_url)
       }.to raise_error(AuthProto::InvalidAuthorizationServer)
     end
 

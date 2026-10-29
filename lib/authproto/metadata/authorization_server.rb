@@ -6,11 +6,11 @@ require 'uri'
 require_relative '../configuration'
 require_relative '../errors'
 require_relative '../http_client'
-require_relative '../server_metadata'
+require_relative '../metadata'
 require_relative '../validated_uri'
 
 module AuthProto
-  module ServerMetadata
+  module Metadata
 
     #
     # Handles fetching and validation of AT Protocol OAuth Authorization Server metadata.
@@ -23,7 +23,7 @@ module AuthProto
     #
     # @example Fetching and validating Authorization Server metadata
     #   begin
-    #     auth_server = AuthProto::ServerMetadata::AuthorizationServer.from_issuer("https://auth.example.com")
+    #     auth_server = AuthProto::Metadata::AuthorizationServer.from_issuer("https://auth.example.com")
     #     puts "Authorization endpoint: #{auth_server.authorization_endpoint}"
     #     puts "Supported scopes: #{auth_server.scopes_supported}"
     #   rescue AuthProto::InvalidAuthorizationServer => e

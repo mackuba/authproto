@@ -41,7 +41,7 @@ module AuthProto
       attr_reader :pkce_challenge
 
       # Bound authorization server, once discovered.
-      # @return [ServerMetadata::AuthorizationServer, nil]
+      # @return [Metadata::AuthorizationServer, nil]
       attr_reader :auth_server
 
       # Bound account DID, once resolved.
@@ -56,7 +56,7 @@ module AuthProto
       #
       # @param client_id [String] OAuth client ID
       # @param scope [String] requested space-separated scopes
-      # @param auth_server [ServerMetadata::AuthorizationServer, nil] pre-resolved authorization server
+      # @param auth_server [Metadata::AuthorizationServer, nil] pre-resolved authorization server
       # @param did [String, nil] pre-resolved account DID
       # @raise [PKCE::Error] if PKCE generation fails
       #
@@ -79,8 +79,8 @@ module AuthProto
 
       # Binds this session to an authorization server.
       #
-      # @param server [ServerMetadata::AuthorizationServer] resolved authorization server
-      # @return [ServerMetadata::AuthorizationServer] assigned server when called as a method
+      # @param server [Metadata::AuthorizationServer] resolved authorization server
+      # @return [Metadata::AuthorizationServer] assigned server when called as a method
       # @raise [SessionError] if already bound to a server with a different issuer
       #
       def authorization_server=(server)

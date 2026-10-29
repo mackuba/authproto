@@ -16,7 +16,7 @@ describe AuthProto::Token::Refresh do
       configuration.http_client = AuthProto::HTTPClient.new
     end
 
-    client_metadata = AuthProto::ClientMetadata.new(
+    client_metadata = AuthProto::Metadata::ClientMetadata.new(
       "client_id" => "https://example.com/metadata.json",
       "grant_types" => %w[authorization_code refresh_token],
       "response_types" => ["code"],
@@ -32,7 +32,7 @@ describe AuthProto::Token::Refresh do
     session = AuthProto::State::Session.new(
       client_id: "mock_client",
       scope: "atproto",
-      auth_server: AuthProto::ServerMetadata::AuthorizationServer.new(
+      auth_server: AuthProto::Metadata::AuthorizationServer.new(
         "issuer" => "https://example.com",
         "token_endpoint" => "https://example.com/token",
         "authorization_endpoint" => "https://example.com/auth",

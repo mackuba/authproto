@@ -25,7 +25,7 @@ module AuthProto
       #
       # @param client_id [String] OAuth client ID
       # @param scope [String] requested space-separated scopes
-      # @param auth_server [ServerMetadata::AuthorizationServer, nil] pre-resolved authorization server
+      # @param auth_server [Metadata::AuthorizationServer, nil] pre-resolved authorization server
       # @param did [String, nil] pre-resolved account DID
       #
       # @return [Session] newly created session
