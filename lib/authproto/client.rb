@@ -85,6 +85,7 @@ module AuthProto
     # @param client_id [String] OAuth client ID URL
     # @param redirect_uri [String] callback URI listed in `redirect_uris`
     # @param metadata [Hash{String => Object}, nil] preloaded metadata, or `nil` to fetch `client_id`
+    # @param signing_key [Hash, JOSE::JWK, nil] private ES256 client-authentication key, separate from public metadata
     # @param dpop_key [Hash{String => Object}, nil] existing private DPoP JWK, or `nil` to generate one
     #
     # @raise [InvalidClientMetadata] if client metadata is invalid or unavailable
@@ -92,13 +93,14 @@ module AuthProto
     # @raise [DPoP::KeyManager::KeyError] if the DPoP key cannot be imported or generated
     # @raise [HTTPClient::HTTPError, HTTPClient::SSRFError] if fetching client metadata fails
     #
-    def initialize(client_id:, redirect_uri:, metadata: nil, dpop_key: nil)
+    def initialize(client_id:, redirect_uri:, metadata: nil, dpop_key: nil, signing_key: nil)
       @client_id = client_id
       @redirect_uri = redirect_uri
 
       # Initialize core dependencies
       @client_metadata = load_client_metadata(metadata)
       validate_redirect_uri
+      @signing_key = initialize_signing_key(signing_key)
 
       @session_manager = State::SessionManager.new
       @dpop_client = initialize_dpop(dpop_key)
@@ -272,7 +274,8 @@ module AuthProto
           session: session,
           dpop_client: @dpop_client,
           auth_server: session.auth_server,
-          client_metadata: client_metadata
+          client_metadata: client_metadata,
+          signing_key: @signing_key
         )
 
         new_tokens = refresher.perform
@@ -371,6 +374,36 @@ module AuthProto
       raise Error, "redirect_uri not found in client metadata" unless valid
     end
 
+    def initialize_signing_key(key)
+      if client_metadata.confidential?
+        raise InvalidClientMetadata, "Confidential clients require a signing_key" if key.nil?
+      else
+        raise InvalidClientMetadata, "Public clients must not supply a signing_key" unless key.nil?
+        return nil
+      end
+
+      assertion = PAR::ClientAssertion.new(client_id: client_id, signing_key: key)
+      private_key = assertion.signing_key
+
+      if client_metadata.jwks
+        public_key = private_key.to_public.to_map.to_h
+
+        key_in_jwks = client_metadata.jwks['keys'].any? { |candidate|
+          !candidate['revoked'] &&
+            (!candidate.key?('alg') || candidate['alg'] == 'ES256') &&
+            (!candidate.key?('use') || candidate['use'] == 'sig') &&
+            (!candidate.key?('key_ops') || candidate['key_ops'].include?('verify')) &&
+            %w[kid kty crv x y].all? { |field| candidate[field] == public_key[field] }
+        }
+
+        unless key_in_jwks
+          raise InvalidClientMetadata, "signing_key must match an active public key advertised in jwks"
+        end
+      end
+
+      private_key
+    end
+
     def initialize_dpop(key)
       key_manager = if key
                       DPoP::KeyManager.from_jwk(key)
@@ -447,8 +480,7 @@ module AuthProto
 
         # Public clients use PKCE and DPoP without client authentication.
         if client_metadata.confidential?
-          signing_key = JOSE::JWK.from_map(client_metadata.jwks.fetch("keys").first)
-          client_assertion = PAR::ClientAssertion.new(client_id: client_id, signing_key: signing_key)
+          client_assertion = PAR::ClientAssertion.new(client_id: client_id, signing_key: @signing_key)
           config.client_assertion = client_assertion.generate_jwt(audience: auth_server.issuer)
           config.client_assertion_type = PAR::CLIENT_ASSERTION_TYPE
         end
@@ -512,10 +544,9 @@ module AuthProto
 
       # Add client authentication
       if client_metadata.confidential?
-        signing_key = JOSE::JWK.from_map(client_metadata.jwks["keys"].first)
         client_assertion = PAR::ClientAssertion.new(
           client_id: client_id,
-          signing_key: signing_key
+          signing_key: @signing_key
         )
 
         body.merge!(

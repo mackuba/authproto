@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'jose'
 require 'uri'
 
 require_relative 'configuration'
@@ -451,22 +452,58 @@ module AuthProto
     def validate_jwks(jwks)
       raise InvalidClientMetadata, "jwks must be a hash" unless jwks.is_a?(Hash)
       raise InvalidClientMetadata, "jwks must have a 'keys' array" unless jwks['keys'].is_a?(Array)
+      raise InvalidClientMetadata, "jwks must contain at least one public key" if jwks['keys'].empty?
 
       jwks['keys'].each_with_index do |key, index|
-        raise InvalidClientMetadata, "jwks.keys.#{index} must be a hash" unless key.is_a?(Hash)
+        path = "jwks.keys.#{index}"
 
-        if key.key?('key_ops') && !key['key_ops'].is_a?(Array)
-          raise InvalidClientMetadata, "jwks.keys.#{index}.key_ops must be an array"
+        raise InvalidClientMetadata, "#{path} must be a hash" unless key.is_a?(Hash)
+
+        unless key['kid'].is_a?(String) && !key['kid'].empty?
+          raise InvalidClientMetadata, "#{path} must have a nonempty string kid"
         end
 
-        has_key_use_sig = (key['use'] == 'sig')
-        has_key_ops_sign = (key['key_ops']&.include?('sign'))
-
-        if !has_key_use_sig && !has_key_ops_sign
-          raise InvalidClientMetadata, "jwks.keys.#{index} must have use='sig' or key_ops including 'sign'"
+        if %w[d p q dp dq qi oth k].any? { |field| key.key?(field) }
+          raise InvalidClientMetadata, "#{path} must contain only public key material"
         end
 
-        raise InvalidClientMetadata, "jwks.keys.#{index} must have a 'kid' field" unless key['kid']
+        if key.key?('use') && !%w[sig enc].include?(key['use'])
+          raise InvalidClientMetadata, "#{path}.use must be sig or enc"
+        end
+
+        if key.key?('key_ops')
+          raise InvalidClientMetadata, "#{path}.key_ops must be an array" unless key['key_ops'].is_a?(Array)
+
+          operations = key['key_ops']
+          unless !operations.empty? && operations.uniq == operations &&
+                 operations.all? { |operation| %w[verify encrypt wrapKey].include?(operation) }
+            raise InvalidClientMetadata,
+              "#{path}.key_ops must contain distinct public operations: verify, encrypt or wrapKey"
+          end
+
+          if (key['use'] == 'sig' && operations.any? { |operation| operation != 'verify' }) ||
+             (key['use'] == 'enc' && operations.include?('verify'))
+            raise InvalidClientMetadata, "#{path}.key_ops must be consistent with use"
+          end
+        end
+
+        fields = case key['kty']
+                 when 'EC' then %w[crv x y]
+                 when 'RSA' then %w[n e]
+                 when 'OKP' then %w[crv x]
+                 else
+                   raise InvalidClientMetadata, "#{path} must be an asymmetric public JWK"
+                 end
+
+        unless fields.all? { |field| key[field].is_a?(String) && !key[field].empty? }
+          raise InvalidClientMetadata, "#{path} is missing public key material"
+        end
+
+        begin
+          JOSE::JWK.from_map(key).to_public
+        rescue StandardError
+          raise InvalidClientMetadata, "#{path} contains invalid public key material"
+        end
       end
     end
 
@@ -478,6 +515,16 @@ module AuthProto
       @token_endpoint_auth_signing_alg = metadata["token_endpoint_auth_signing_alg"]
 
       raise InvalidClientMetadata, "token_endpoint_auth_method is required" if @token_endpoint_auth_method.nil?
+
+      @jwks = metadata["jwks"]
+      @jwks_uri = metadata["jwks_uri"]
+
+      if !@jwks.nil? && !@jwks_uri.nil?
+        raise InvalidClientMetadata, "cannot use both jwks and jwks_uri"
+      end
+
+      validate_jwks(@jwks) unless @jwks.nil?
+      validate_https_uri(@jwks_uri) unless @jwks_uri.nil?
 
       case @token_endpoint_auth_method
       when AUTH_METHOD_NONE
@@ -500,14 +547,7 @@ module AuthProto
         raise InvalidClientMetadata, "token_endpoint_auth_signing_alg must be ES256"
       end
 
-      @jwks = metadata["jwks"]
-      @jwks_uri = metadata["jwks_uri"]
-
-      raise InvalidClientMetadata, "cannot use both jwks and jwks_uri" if @jwks && @jwks_uri
-      raise InvalidClientMetadata, "confidential clients must provide jwks or jwks_uri" unless @jwks || @jwks_uri
-
-      validate_jwks(@jwks) if @jwks
-      validate_https_uri(@jwks_uri) if @jwks_uri
+      raise InvalidClientMetadata, "confidential clients must provide jwks or jwks_uri" if @jwks.nil? && @jwks_uri.nil?
     end
   end
 end

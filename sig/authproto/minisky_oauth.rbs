@@ -1,12 +1,13 @@
 # Signatures for the methods defined by the optional Minisky adapter.
 # Additional methods mixed in from Minisky::Requests belong to the minisky gem.
-class MiniskyOAuth
+class Minisky
+class OAuthClient
   MAX_NONCE_RETRIES: Integer
   attr_reader host: String
   attr_reader oauth_client: AuthProto::Client
   attr_reader session_id: String?
 
-  def initialize: (String host, client_id: String, redirect_uri: String, ?metadata: AuthProto::json_object?, ?dpop_key: (AuthProto::json_object | JOSE::Map)?) -> void
+  def initialize: (String host, client_id: String, redirect_uri: String, ?metadata: AuthProto::json_object?, ?dpop_key: (AuthProto::json_object | JOSE::Map)?, ?signing_key: (AuthProto::json_object | JOSE::JWK)?, ?session_id: String?) -> void
   def config: () -> nil
   def authorize: (?handle: String?, ?pds_url: String?, ?scope: String) -> AuthProto::authorization_result
   def handle_callback: (code: String, state: String, iss: String) -> AuthProto::callback_result
@@ -19,4 +20,5 @@ class MiniskyOAuth
   private
   def oauth_request: (singleton(Net::HTTP::Get) | singleton(Net::HTTP::Post) request_class, URI::HTTP url, Hash[String, String] headers, ?body: String?) -> Net::HTTPResponse
   def authentication_error: (Net::HTTPResponse response) -> String?
+end
 end

@@ -3,7 +3,8 @@ module AuthProto
     class ClientAssertion
       class Error < AuthProto::Error
       end
-      def initialize: (client_id: String, signing_key: JOSE::JWK) -> void
+      attr_reader signing_key: JOSE::JWK
+      def initialize: (client_id: String, signing_key: (json_object | JOSE::JWK)) -> void
       def generate_jwt: (audience: String, ?lifetime: Integer) -> String
     end
   end

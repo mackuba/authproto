@@ -1,5 +1,6 @@
 .env
 /config/client-metadata.json
+/config/oauth-client-metadata.json
 /config/keys.json
+/config/public-keys.json
 /db/
-/public/client-metadata.json

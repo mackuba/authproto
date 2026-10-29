@@ -197,11 +197,24 @@ end
 
 Here's a basic example of using the library in a confidential client application:
 
+Supply the private EC P-256 client-authentication JWK through `signing_key:`,
+separately from metadata. It must have a nonempty `kid` and permit ES256 signing.
+Metadata's `jwks` contains only public keys; the client checks that the matching
+public key and `kid` are advertised and active. A public key may declare
+`use: "sig"` or `key_ops: ["verify"]`.
+Other advertised public keys may serve other purposes, such as encryption;
+the matching authentication key must permit signature verification.
+
+With `jwks_uri`, the client still uses your separate private signing key. It does
+not fetch that URL or check the advertised key locally; the authorization server
+fetches it to verify assertions.
+
 ```ruby
 # Initialize client with metadata
 client = AuthProto::Client.new(
   client_id: "https://app.example.com/oauth-client-metadata.json",
   redirect_uri: "https://app.example.com/callback",
+  signing_key: JSON.parse(File.read("config/keys.json")).fetch("keys").first,
   metadata: {
     # Your client metadata...
   }

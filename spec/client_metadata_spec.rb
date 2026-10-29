@@ -3,6 +3,9 @@
 require 'json'
 
 describe AuthProto::ClientMetadata do
+  let(:public_jwk) do
+    JOSE::JWK.generate_key([:ec, "P-256"]).to_public.to_map.to_h.merge("kid" => "client-key", "use" => "sig")
+  end
   before do
     @valid_metadata = {
       "client_id" => "https://example.com/metadata.json",
@@ -417,6 +420,11 @@ describe AuthProto::ClientMetadata do
   end
 
   describe "client authentication methods" do
+    it "should reject private key material even in public-client metadata" do
+      @valid_metadata['jwks'] = { 'keys' => [public_jwk.merge('d' => 'private')] }
+      expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /only public key material/)
+    end
+
     it "should reject an omitted authentication method" do
       @valid_metadata.delete("token_endpoint_auth_method")
       expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /token_endpoint_auth_method is required/)
@@ -455,13 +463,49 @@ describe AuthProto::ClientMetadata do
   describe "confidential client metadata" do
     before do
       @valid_metadata.merge!("token_endpoint_auth_method" => "private_key_jwt", "token_endpoint_auth_signing_alg" => "ES256",
-                             "jwks" => { "keys" => [{ "kid" => "client-key", "use" => "sig" }] })
+                             "jwks" => { "keys" => [public_jwk] })
     end
 
     it "should accept an inline signing-key set" do
       metadata = described_class.new(@valid_metadata)
       metadata.confidential?.should be true
       metadata.jwks.should == @valid_metadata["jwks"]
+    end
+
+    it "should reject an empty public key set" do
+      @valid_metadata['jwks']['keys'] = []
+      expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /at least one public key/)
+    end
+
+    it "should accept a public key without optional use or key_ops" do
+      @valid_metadata['jwks']['keys'] = [public_jwk.except('use')]
+      described_class.new(@valid_metadata).should be_confidential
+    end
+
+    [nil, '', 123].each do |kid|
+      it "should reject a non-string or empty kid #{kid.inspect}" do
+        @valid_metadata['jwks']['keys'].first['kid'] = kid
+        expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /nonempty string kid/)
+      end
+    end
+
+    %w[d p q dp dq qi oth k].each do |field|
+      it "should reject private key material #{field} in metadata" do
+        @valid_metadata['jwks']['keys'].first[field] = 'private'
+        expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /only public key material/)
+      end
+    end
+
+    %w[x y crv].each do |field|
+      it "should reject missing public key material #{field}" do
+        @valid_metadata['jwks']['keys'].first.delete(field)
+        expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /public key material/)
+      end
+    end
+
+    it "should reject malformed EC public key material" do
+      @valid_metadata['jwks']['keys'].first['x'] = 'invalid'
+      expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /invalid public key material/)
     end
 
     [[], 42, { "keys" => "not an array" }, { "keys" => nil }].each do |jwks|
@@ -481,14 +525,36 @@ describe AuthProto::ClientMetadata do
       expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /kid/)
     end
 
-    it "should accept key_ops sign without use sig" do
-      @valid_metadata["jwks"] = { "keys" => [{ "kid" => "client-key", "key_ops" => ["sign"] }] }
+    it "should accept key_ops verify without use sig" do
+      @valid_metadata["jwks"] = { "keys" => [public_jwk.except("use").merge("key_ops" => ["verify"])] }
       described_class.new(@valid_metadata).confidential?.should be true
     end
 
-    it "should reject a key not designated for signing" do
-      @valid_metadata["jwks"] = { "keys" => [{ "kid" => "client-key", "key_ops" => ["verify"] }] }
-      expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /use='sig'/)
+    [{ 'use' => 'enc' }, { 'key_ops' => ['encrypt'] }, { 'key_ops' => ['wrapKey'] },
+     { 'use' => 'enc', 'key_ops' => ['encrypt', 'wrapKey'] }].each do |usage|
+      it "should accept public encryption key usage #{usage.inspect}" do
+        @valid_metadata['jwks']['keys'] = [public_jwk.except('use').merge(usage)]
+        described_class.new(@valid_metadata).jwks.should == @valid_metadata['jwks']
+      end
+    end
+
+    [{ 'use' => 'sig', 'key_ops' => ['encrypt'] }, { 'use' => 'enc', 'key_ops' => ['verify'] }].each do |usage|
+      it "should reject inconsistent public key usage #{usage.inspect}" do
+        @valid_metadata['jwks']['keys'] = [public_jwk.merge(usage)]
+        expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /consistent with use/)
+      end
+    end
+
+    [[], ['verify', 'verify'], ['decrypt'], ['unknown'], [123]].each do |operations|
+      it "should reject invalid public operations #{operations.inspect}" do
+        @valid_metadata['jwks']['keys'] = [public_jwk.except('use').merge('key_ops' => operations)]
+        expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /public operations/)
+      end
+    end
+
+    it "should reject a public key designated for sign" do
+      @valid_metadata["jwks"] = { "keys" => [public_jwk.except("use").merge("key_ops" => ["sign"])] }
+      expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /verify/)
     end
 
     it "should reject a non-array key_ops" do
@@ -759,7 +825,7 @@ describe AuthProto::ClientMetadata do
     it "should return true for confidential clients using private_key_jwt" do
       @valid_metadata["token_endpoint_auth_method"] = "private_key_jwt"
       @valid_metadata["token_endpoint_auth_signing_alg"] = "ES256"
-      @valid_metadata["jwks"] = { "keys" => [] }
+      @valid_metadata["jwks"] = { "keys" => [public_jwk] }
       client_metadata = AuthProto::ClientMetadata.new(@valid_metadata)
       client_metadata.confidential?.should be true
     end

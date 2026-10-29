@@ -62,12 +62,16 @@ class ExampleApp < Sinatra::Base
       client_id += "?scope=#{scope}&redirect_uri=#{redirect_uri}"
     end
 
+    # Private client-authentication keys are kept outside public metadata.
+    signing_key = JSON.parse(File.read(File.join(__dir__, "config", "keys.json")))["keys"].first
+
     # Create OAuth client
     set :oauth_client, AuthProto::Client.new(
       client_id: client_id,
       redirect_uri: metadata["redirect_uris"][0],
       metadata: metadata,
-      dpop_key: metadata["jwks"]["keys"][0]
+      signing_key: signing_key,
+      dpop_key: signing_key
     )
   end
 
@@ -115,14 +119,7 @@ class ExampleApp < Sinatra::Base
     metadata_path = File.join(__dir__, "config", "oauth-client-metadata.json")
     metadata = JSON.parse(File.read(metadata_path))
 
-    # Strip private key 'd' component from each key in the JWKS
-    if metadata["jwks"] && metadata["jwks"]["keys"]
-      metadata["jwks"]["keys"] = metadata["jwks"]["keys"].map do |key|
-        key.except("d")
-      end
-    end
-
-    # Return sanitized metadata
+    # This file contains only the public counterparts of config/keys.json.
     JSON.generate(metadata)
   end
 

@@ -43,7 +43,7 @@ bundle install
 3. Generate EC keys for client authentication:
 
 ```bash
-bundle exec ruby scripts/generate_keys.rb > config/keys.json
+bundle exec ruby scripts/generate_keys.rb
 ```
 
 4. Generate session & encryption keys:
@@ -64,7 +64,7 @@ SESSION_SECRET=<hex value from second command>
      ```
    - Set the correct `client_id` URL where your metadata will be hosted
    - Configure valid `redirect_uris` for your application
-   - Add your generated keys from step 3 to the `jwks` field
+   - Copy the public JWKS from `config/public-keys.json` (not `config/keys.json`, which is the private keys) into the `jwks` field in oauth-client-metadata.json.
    - For localhost testing, set `client_id` to `http://localhost/` and `redirect_uris` to `["http://127.0.0.1:9292/callback"]`
 
 6. Set up environment variables:

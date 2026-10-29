@@ -26,7 +26,7 @@ module AuthProto
       attr_reader auth_server: ServerMetadata::AuthorizationServer
       attr_reader client_metadata: ClientMetadata
 
-      def initialize: (session: State::Session, dpop_client: DPoP::Client, auth_server: ServerMetadata::AuthorizationServer, client_metadata: ClientMetadata) -> void
+      def initialize: (session: State::Session, dpop_client: DPoP::Client, auth_server: ServerMetadata::AuthorizationServer, client_metadata: ClientMetadata, ?signing_key: (json_object | JOSE::JWK)?) -> void
       def perform: () -> State::TokenSet
 
       private

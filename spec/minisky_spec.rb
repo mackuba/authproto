@@ -25,7 +25,7 @@ describe Minisky::OAuthClient do
   let(:client) do
     Minisky::OAuthClient.new(
       host, client_id: client_metadata["client_id"], redirect_uri: client_metadata["redirect_uris"].first,
-            metadata: client_metadata
+            metadata: client_metadata, signing_key: @signing_key
     )
   end
   let(:auth_server) do
@@ -125,21 +125,42 @@ describe Minisky::OAuthClient do
     URI(client.authorize(pds_url: host)[:url]).host.should == "auth.example.com"
   end
 
-  it "should include a verifiable client assertion when authorizing a confidential client" do
-    key = JOSE::JWK.generate_key([:ec, "P-256"])
-    key_data = key.to_map.to_h.merge("kid" => "client-key", "use" => "sig")
-    client_metadata.merge!("token_endpoint_auth_method" => "private_key_jwt",
-                           "token_endpoint_auth_signing_alg" => "ES256", "jwks" => { "keys" => [key_data] })
-    stub_authorization_metadata
-    public_key = JWT::JWK.import(key.to_public.to_map.to_h).public_key
-    stub_request(:post, "#{auth_server.issuer}/par").with do |request|
-      form = URI.decode_www_form(request.body).to_h
-      payload, header = JWT.decode(form.fetch("client_assertion"), public_key, true, algorithm: "ES256")
-      payload["iss"] == client_metadata["client_id"] && payload["aud"] == auth_server.issuer &&
-        header["kid"] == "client-key" && form["client_assertion_type"] == AuthProto::PAR::CLIENT_ASSERTION_TYPE
-    end.to_return(status: 201, body: { request_uri: "urn:example:par", expires_in: 90 }.to_json)
+  [false, true].each do |use_uri|
+    it "should sign PAR, code exchange and refresh with the separate key when jwks_uri is #{use_uri}" do
+      key = JOSE::JWK.generate_key([:ec, "P-256"])
+      @signing_key = key.to_map.to_h.merge("kid" => "client-key", "key_ops" => ["sign"])
+      client_metadata.merge!("token_endpoint_auth_method" => "private_key_jwt", "token_endpoint_auth_signing_alg" => "ES256")
+      if use_uri
+        client_metadata["jwks_uri"] = "https://client.example.com/keys.json"
+      else
+        client_metadata["jwks"] = { "keys" => [@signing_key.except("d").merge("key_ops" => ["verify"])] }
+      end
+      stub_authorization_metadata
+      public_key = JWT::JWK.import(key.to_public.to_map.to_h).public_key
+      assertions = []
+      validate_assertion = lambda do |request|
+        form = URI.decode_www_form(request.body).to_h
+        payload, header = JWT.decode(form.fetch("client_assertion"), public_key, true, algorithm: "ES256")
+        assertions << payload["jti"]
+        payload["iss"] == client_metadata["client_id"] && payload["sub"] == client_metadata["client_id"] &&
+          payload["aud"] == auth_server.issuer && header["kid"] == "client-key" &&
+          form["client_assertion_type"] == AuthProto::PAR::CLIENT_ASSERTION_TYPE
+      end
+      stub_request(:post, "#{auth_server.issuer}/par").with(&validate_assertion)
+        .to_return(status: 201, body: { request_uri: "urn:example:par", expires_in: 90 }.to_json)
+      stub_request(:post, auth_server.token_endpoint).with(&validate_assertion).to_return(status: 200, body: {
+        access_token: "new-access", refresh_token: "new-refresh", token_type: "DPoP",
+        expires_in: 3600, scope: "atproto", sub: "did:plc:alice"
+      }.to_json)
 
-    client.authorize(pds_url: host)[:url].should include("urn%3Aexample%3Apar")
+      auth = client.authorize(pds_url: host)
+      session = client.oauth_client.session_manager.get_session(auth[:session_id])
+      client.handle_callback(code: "code", state: session.state_token, iss: auth_server.issuer)
+      client.perform_token_refresh[:refresh_token].should == "new-refresh"
+      assertions.length.should == 3
+      assertions.uniq.length.should == 3
+      assert_not_requested :get, "https://client.example.com/keys.json"
+    end
   end
 
   it "should authorize a resolved handle and persist its DID and discovered issuer" do

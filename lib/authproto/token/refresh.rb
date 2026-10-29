@@ -152,14 +152,16 @@ module AuthProto
       # @param dpop_client [DPoP::Client] proof signer and nonce tracker
       # @param auth_server [ServerMetadata::AuthorizationServer] server with a token endpoint
       # @param client_metadata [ClientMetadata] client ID and authentication key configuration
+      # @param signing_key [Hash, JOSE::JWK, nil] private ES256 client-authentication key
       #
-      def initialize(session:, dpop_client:, auth_server:, client_metadata:)
+      def initialize(session:, dpop_client:, auth_server:, client_metadata:, signing_key: nil)
         super() # Initialize MonitorMixin
         @session = session
         @dpop_client = dpop_client
         @auth_server = auth_server
         @attempt_count = 0
         @client_metadata = client_metadata
+        @signing_key = signing_key
       end
 
       # Exchanges a refresh token for a replacement token set.
@@ -281,12 +283,9 @@ module AuthProto
       end
 
       def add_client_authentication(body)
-        return unless client_metadata.jwks && !client_metadata.jwks["keys"].empty?
-
-        signing_key = JOSE::JWK.from_map(client_metadata.jwks["keys"].first)
         client_assertion = PAR::ClientAssertion.new(
           client_id: client_metadata.client_id,
-          signing_key: signing_key
+          signing_key: @signing_key
         )
 
         body.merge!(
