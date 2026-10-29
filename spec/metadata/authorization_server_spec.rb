@@ -25,7 +25,9 @@ describe AuthProto::Metadata::AuthorizationServer do
   let(:invalid_metadata_missing_field) { valid_metadata.except("issuer") }
   let(:invalid_metadata_bad_url) { valid_metadata.merge("issuer" => "http://auth.example.com") }
   let(:issuer_url) { "https://auth.example.com" }
-  let(:mock_response) { { body: valid_metadata.to_json } }
+  let(:mock_response) do
+    { status: 200, headers: { 'content-type' => 'application/json' }, body: valid_metadata.to_json }
+  end
 
   describe "#initialize" do
     it "should initialize successfully with valid metadata" do
@@ -50,7 +52,8 @@ describe AuthProto::Metadata::AuthorizationServer do
   describe ".from_issuer" do
     before do
       AuthProto.configuration.stubs(:http_client).returns(mock_http_client = mock)
-      mock_http_client.stubs(:get).with("#{issuer_url}/.well-known/oauth-authorization-server").returns(mock_response)
+      mock_http_client.stubs(:get).with(URI.join(issuer_url, '/.well-known/oauth-authorization-server').to_s,
+                                      follow_redirects: false).returns(mock_response)
     end
 
     it "should fetch and parse metadata successfully" do
@@ -67,7 +70,7 @@ describe AuthProto::Metadata::AuthorizationServer do
     end
 
     it "should raise an error if the metadata JSON is invalid" do
-      AuthProto.configuration.http_client.stubs(:get).returns(body: "not-json")
+      mock_response[:body] = 'not-json'
       expect {
         AuthProto::Metadata::AuthorizationServer.from_issuer(issuer_url)
       }.to raise_error(AuthProto::InvalidAuthorizationServer)
@@ -75,11 +78,87 @@ describe AuthProto::Metadata::AuthorizationServer do
 
     it "should raise an error if the issuer in metadata does not match the request issuer" do
       invalid_metadata = valid_metadata.merge("issuer" => "https://other.example.com")
-      AuthProto.configuration.http_client.stubs(:get).returns(body: invalid_metadata.to_json)
+      mock_response[:body] = invalid_metadata.to_json
 
       expect {
         AuthProto::Metadata::AuthorizationServer.from_issuer(issuer_url)
       }.to raise_error(AuthProto::InvalidAuthorizationServer)
+    end
+
+    ['http://auth.example.com', 'https://auth.example.com:443', 'https://auth.example.com:0443',
+     'https://auth.example.com:', 'https://auth.example.com/path', 'https://user@auth.example.com',
+     'https://@auth.example.com', 'https://auth.example.com?', 'https://auth.example.com#',
+     'https:///path', '/relative', 'https://bad host'].each do |url|
+      it "should reject invalid issuer URL #{url.inspect} before fetching metadata" do
+        AuthProto.configuration.http_client.expects(:get).never
+        expect { described_class.from_issuer(url) }
+          .to raise_error(AuthProto::InvalidAuthorizationServer, /issuer URL/)
+      end
+    end
+
+    ['https://auth.example.com/', 'https://auth.example.com:8443'].each do |url|
+      context "with issuer #{url}" do
+        let(:issuer_url) { url }
+
+        it "should accept a root path or nondefault port with matching metadata" do
+          mock_response[:body] = valid_metadata.merge('issuer' => issuer_url).to_json
+          described_class.from_issuer(issuer_url).issuer.should == issuer_url
+        end
+      end
+    end
+
+    [201, 204, 301, 302, 303, 307, 308, 400, 404, 500].each do |status|
+      it "should reject HTTP #{status} even with valid metadata" do
+        mock_response[:status] = status
+        expect { described_class.from_issuer(issuer_url) }
+          .to raise_error(AuthProto::InvalidAuthorizationServer, /HTTP 200/)
+      end
+    end
+
+    [nil, 'text/plain', 'text/html', 'application/jwk-set+json', 'application/jsonp'].each do |content_type|
+      it "should reject content type #{content_type.inspect}" do
+        mock_response[:headers]['content-type'] = content_type
+        expect { described_class.from_issuer(issuer_url) }
+          .to raise_error(AuthProto::InvalidAuthorizationServer, /application\/json/)
+      end
+    end
+
+    it "should accept a JSON media type with parameters and case differences" do
+      mock_response[:headers]['content-type'] = 'Application/JSON; charset=utf-8'
+      described_class.from_issuer(issuer_url).issuer.should == issuer_url
+    end
+
+    [[], 'metadata', 42, true, nil].each do |metadata|
+      it "should reject a JSON value that is not an object: #{metadata.inspect}" do
+        mock_response[:body] = metadata.to_json
+        expect { described_class.from_issuer(issuer_url) }
+          .to raise_error(AuthProto::InvalidAuthorizationServer, /JSON object/)
+      end
+    end
+
+    it "should reject an absent response body" do
+      mock_response[:body] = nil
+      expect { described_class.from_issuer(issuer_url) }
+        .to raise_error(AuthProto::InvalidAuthorizationServer, /Invalid JSON/)
+    end
+
+    it "should require an exact issuer match" do
+      mock_response[:body] = valid_metadata.merge('issuer' => "#{issuer_url}/").to_json
+      expect { described_class.from_issuer(issuer_url) }
+        .to raise_error(AuthProto::InvalidAuthorizationServer, /issuer mismatch/)
+    end
+
+    it "should not request a redirect destination" do
+      AuthProto.configuration.stubs(:http_client).returns(AuthProto::HTTPClient.new)
+      Resolv::DNS.any_instance.stubs(:getaddresses).returns([Resolv::IPv4.create('93.184.216.34')])
+      stub_request(:get, "#{issuer_url}/.well-known/oauth-authorization-server")
+        .to_return(status: 302, headers: { 'Location' => 'https://other.example.com/metadata' })
+      destination = stub_request(:get, 'https://other.example.com/metadata')
+        .to_return(status: 200, headers: { 'Content-Type' => 'application/json' }, body: valid_metadata.to_json)
+
+      expect { described_class.from_issuer(issuer_url) }
+        .to raise_error(AuthProto::InvalidAuthorizationServer, /HTTP 200/)
+      destination.should_not have_been_requested
     end
   end
 

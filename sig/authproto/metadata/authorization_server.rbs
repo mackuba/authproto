@@ -63,7 +63,11 @@ module AuthProto
 
       private def self.fetch_metadata: (String issuer) -> http_response
 
-      private def self.parse_metadata: (String body) -> Hash[String, untyped]
+      private def self.validate_source_url: (String issuer) -> void
+
+      private def self.validate_response: (http_response response) -> void
+
+      private def self.parse_metadata: (String? body) -> Hash[String, untyped]
 
       private def self.validate_issuer: (String metadata_issuer, String request_issuer) -> void
     end

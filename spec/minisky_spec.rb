@@ -93,7 +93,7 @@ describe Minisky::OAuthClient do
       .to_return(status: 200, headers: { "Content-Type" => "application/json" },
                  body: { resource: host, authorization_servers: [auth_server.issuer] }.to_json)
     stub_request(:get, "#{auth_server.issuer}/.well-known/oauth-authorization-server")
-      .to_return(status: 200, body: auth_server.to_h.to_json)
+      .to_return(status: 200, headers: { 'Content-Type' => 'application/json' }, body: auth_server.to_h.to_json)
   end
 
   it "should authorize a localhost public client using PKCE and DPoP without a client assertion" do

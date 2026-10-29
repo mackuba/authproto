@@ -106,6 +106,7 @@ module AuthProto
       end
 
       # Fetches `/.well-known/oauth-authorization-server` using the configured transport.
+      # Requires HTTP 200 without redirects and a JSON object served as application/json.
       #
       # The document's issuer must exactly match the requested issuer.
       #
@@ -116,7 +117,11 @@ module AuthProto
       # @raise [URI::InvalidURIError] if the issuer or a metadata URI cannot be parsed
       #
       def self.from_issuer(issuer)
+        validate_source_url(issuer)
+
         response = fetch_metadata(issuer)
+        validate_response(response)
+
         metadata = parse_metadata(response[:body])
         validate_issuer(metadata["issuer"], issuer)
         new(metadata)
@@ -249,15 +254,46 @@ module AuthProto
       class << self
         private
 
+        def validate_source_url(issuer)
+          uri = ValidatedURI.new(issuer)
+
+          valid = (
+            uri.scheme == 'https' && (!uri.specified_port || uri.effective_port != 443) &&
+            uri.path.empty? && !uri.userinfo && !uri.query && !uri.fragment
+          )
+
+          raise InvalidAuthorizationServer, "Invalid authorization server issuer URL" unless valid
+        rescue URI::InvalidURIError => e
+          raise InvalidAuthorizationServer, "Invalid authorization server issuer URL: #{e.message}"
+        end
+
         def fetch_metadata(issuer)
           metadata_url = URI.join(issuer, "/.well-known/oauth-authorization-server")
-          AuthProto.configuration.http_client.get(metadata_url.to_s)
+          AuthProto.configuration.http_client.get(metadata_url.to_s, follow_redirects: false)
         rescue HTTPClient::HTTPError => e
           raise InvalidAuthorizationServer, "Failed to fetch authorization server metadata: #{e.message}"
         end
 
+        def validate_response(response)
+          unless response[:status] == 200
+            raise InvalidAuthorizationServer, "Authorization server metadata must return HTTP 200"
+          end
+
+          content_type = response[:headers]["content-type"].to_s.split(";", 2).first.to_s.strip
+
+          unless content_type.casecmp?('application/json')
+            raise InvalidAuthorizationServer, "Authorization server metadata must use application/json"
+          end
+        end
+
         def parse_metadata(body)
-          JSON.parse(body)
+          metadata = JSON.parse(body.to_s)
+
+          unless metadata.is_a?(Hash)
+            raise InvalidAuthorizationServer, "Authorization server metadata must be a JSON object"
+          end
+
+          metadata
         rescue JSON::ParserError => e
           raise InvalidAuthorizationServer, "Invalid JSON in authorization server metadata: #{e.message}"
         end
