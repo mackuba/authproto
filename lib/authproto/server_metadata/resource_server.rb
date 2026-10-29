@@ -64,28 +64,15 @@ module AuthProto
       private
 
       def validate_authorization_servers(servers)
-        ensure_servers_exist(servers)
-        ensure_exactly_one_server(servers)
-        validate_server_url_format(servers.first)
+        raise InvalidAuthorizationServer, "authorization_servers missing" if servers.nil?
+        raise InvalidAuthorizationServer, "authorization_servers is not an array" unless servers.is_a?(Array)
+        raise InvalidAuthorizationServer, "must have exactly one authorization server" unless servers.length == 1
+
+        unless OriginURL.new(servers.first).valid?
+          raise InvalidAuthorizationServer, "invalid authorization server URL format for #{servers.first}"
+        end
+
         servers
-      end
-
-      def ensure_servers_exist(servers)
-        return if servers.is_a?(Array)
-
-        raise InvalidAuthorizationServer, "authorization_servers missing"
-      end
-
-      def ensure_exactly_one_server(servers)
-        return if servers.size == 1
-
-        raise InvalidAuthorizationServer, "must have exactly one authorization server"
-      end
-
-      def validate_server_url_format(server_url)
-        return if OriginURL.new(server_url).valid?
-
-        raise InvalidAuthorizationServer, "invalid authorization server URL format for #{server_url}"
       end
 
       class << self
@@ -106,6 +93,7 @@ module AuthProto
 
         def fetch_metadata(url)
           metadata_url = URI.join(url, "/.well-known/oauth-protected-resource")
+
           AuthProto.configuration.http_client.get(metadata_url.to_s, follow_redirects: false)
         rescue HTTPClient::HTTPError => e
           raise InvalidAuthorizationServer, "Failed to fetch resource server metadata: #{e.message}"
