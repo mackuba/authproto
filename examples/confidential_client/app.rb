@@ -12,6 +12,9 @@ require 'faraday'
 require 'sinatra/base'
 require 'sinatra/reloader'
 
+session_secret = ENV.fetch("SESSION_SECRET") { SecureRandom.hex(32) }
+raise "SESSION_SECRET must be at least 64 characters long (got: #{session_secret})" unless session_secret.length >= 64
+
 # Main app entry point
 class ExampleApp < Sinatra::Base
   def check_stored_session(session_id)
@@ -82,7 +85,7 @@ class ExampleApp < Sinatra::Base
   use Rack::Session::Cookie,
       key: "atproto.session",
       expire_after: 86_400, # 1 day in seconds
-      secret: ENV.fetch("SESSION_SECRET") { SecureRandom.hex(32) },
+      secret: session_secret,
       secure: ENV.fetch("RACK_ENV", "development") == "production",  # Only send over HTTPS
       httponly: true,     # Not accessible via JavaScript
       same_site: :lax     # CSRF protection
