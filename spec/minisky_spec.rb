@@ -90,7 +90,8 @@ describe Minisky::OAuthClient do
   def stub_authorization_metadata
     Resolv::DNS.any_instance.stubs(:getaddresses).returns([Resolv::IPv4.create("93.184.216.34")])
     stub_request(:get, "#{host}/.well-known/oauth-protected-resource")
-      .to_return(status: 200, body: { authorization_servers: [auth_server.issuer] }.to_json)
+      .to_return(status: 200, headers: { "Content-Type" => "application/json" },
+                 body: { resource: host, authorization_servers: [auth_server.issuer] }.to_json)
     stub_request(:get, "#{auth_server.issuer}/.well-known/oauth-authorization-server")
       .to_return(status: 200, body: auth_server.to_h.to_json)
   end

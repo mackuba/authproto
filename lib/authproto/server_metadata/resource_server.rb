@@ -37,6 +37,10 @@ module AuthProto
       end
 
       # Fetches `/.well-known/oauth-protected-resource` using the configured transport.
+      # Requires HTTP 200 without redirects, a JSON object served as application/json,
+      # and a resource identifier that exactly matches the requested URL.
+      # URL scheme restrictions are enforced by the configured transport.
+      # The PDS URL must have no userinfo, path prefix, query or fragment.
       #
       # @param url [String] resource server/PDS base URL
       # @return [ResourceServer] validated resource server metadata
@@ -45,8 +49,15 @@ module AuthProto
       # @raise [URI::InvalidURIError] if the PDS or authorization server URL cannot be parsed
       #
       def self.from_url(url)
+        validate_source_url(url)
+
         response = fetch_metadata(url)
-        new(parse_metadata(response[:body]))
+        validate_response(response)
+
+        metadata = parse_metadata(response[:body])
+        validate_resource(metadata["resource"], url)
+
+        new(metadata)
       end
 
 
@@ -80,17 +91,54 @@ module AuthProto
       class << self
         private
 
+        def validate_source_url(url)
+          uri = URI.parse(url)
+          userinfo = URI.split(url)[1]
+
+          unless uri.is_a?(URI::HTTP) && uri.host && !uri.host.empty? &&
+                 (uri.path.empty? || uri.path == "/") && userinfo.nil? && !uri.query && !uri.fragment
+            raise InvalidAuthorizationServer,
+              "Resource server URL must be an HTTP(S) origin without userinfo, a path prefix, query or fragment"
+          end
+        rescue URI::InvalidURIError => e
+          raise InvalidAuthorizationServer, "Invalid resource server URL: #{e.message}"
+        end
+
         def fetch_metadata(url)
           metadata_url = URI.join(url, "/.well-known/oauth-protected-resource")
-          AuthProto.configuration.http_client.get(metadata_url.to_s)
+          AuthProto.configuration.http_client.get(metadata_url.to_s, follow_redirects: false)
         rescue HTTPClient::HTTPError => e
           raise InvalidAuthorizationServer, "Failed to fetch resource server metadata: #{e.message}"
         end
 
+        def validate_response(response)
+          unless response[:status] == 200
+            raise InvalidAuthorizationServer, "Resource server metadata must return HTTP 200"
+          end
+
+          content_type = response[:headers]["content-type"].to_s.split(";", 2).first.to_s.strip
+
+          unless content_type.casecmp?("application/json")
+            raise InvalidAuthorizationServer, "Resource server metadata must use application/json"
+          end
+        end
+
         def parse_metadata(body)
-          JSON.parse(body)
+          metadata = JSON.parse(body.to_s)
+
+          unless metadata.is_a?(Hash)
+            raise InvalidAuthorizationServer, "Resource server metadata must be a JSON object"
+          end
+
+          metadata
         rescue JSON::ParserError => e
           raise InvalidAuthorizationServer, "Invalid JSON in resource server metadata: #{e.message}"
+        end
+
+        def validate_resource(resource, url)
+          unless resource.is_a?(String) && resource == url
+            raise InvalidAuthorizationServer, "Resource server metadata resource must match the requested resource URL"
+          end
         end
       end
     end
