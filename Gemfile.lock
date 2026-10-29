@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    authproto (0.2.5)
+    authproto (0.3.0.beta1)
       didkit (~> 0.5.0)
       jose (~> 1.2)
       jwt (~> 3.3)
