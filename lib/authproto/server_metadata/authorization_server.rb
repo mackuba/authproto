@@ -3,6 +3,12 @@
 require 'json'
 require 'uri'
 
+require_relative '../configuration'
+require_relative '../errors'
+require_relative '../http_client'
+require_relative '../server_metadata'
+require_relative 'origin_url'
+
 module AuthProto
   module ServerMetadata
 

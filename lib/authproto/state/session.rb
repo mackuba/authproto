@@ -3,6 +3,9 @@
 require 'monitor'
 require 'securerandom'
 
+require_relative '../pkce'
+require_relative '../state'
+
 module AuthProto
   module State
 

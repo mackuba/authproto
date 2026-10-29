@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require_relative '../dpop/stored_nonce'
+require_relative 'base'
+
 module AuthProto
   module Serialization
 
@@ -18,7 +21,7 @@ module AuthProto
       private
 
       def validate_object(obj)
-        return if obj.is_a?(AuthProto::DPoP::NonceManager::StoredNonce)
+        return if obj.is_a?(AuthProto::DPoP::StoredNonce)
 
         raise ValidationError, "Expected StoredNonce object, got #{obj.class}"
       end
@@ -32,7 +35,7 @@ module AuthProto
       end
 
       def deserialize_data(data)
-        AuthProto::DPoP::NonceManager::StoredNonce.new(
+        AuthProto::DPoP::StoredNonce.new(
           data["value"],
           data["server_url"],
           timestamp: Time.at(data["timestamp"])

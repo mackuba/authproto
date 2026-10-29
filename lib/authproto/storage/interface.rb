@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../errors'
+
 module AuthProto
 
   #
@@ -7,6 +9,10 @@ module AuthProto
   #
 
   module Storage
+
+    autoload :Memory, File.expand_path('memory', __dir__)
+    autoload :Redis, File.expand_path('redis', __dir__)
+    autoload :SQLite, File.expand_path('sqlite', __dir__)
 
     # Base error class for storage operations
     class StorageError < AuthProto::Error; end

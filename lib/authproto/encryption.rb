@@ -4,6 +4,8 @@ require 'base64'
 require 'openssl'
 require 'securerandom'
 
+require_relative 'errors'
+
 module AuthProto
 
   #

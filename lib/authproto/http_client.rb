@@ -6,6 +6,8 @@ require 'openssl'
 require 'resolv'
 require 'uri'
 
+require_relative 'errors'
+
 module AuthProto
 
   #

@@ -2,6 +2,9 @@
 
 require 'time'
 
+require_relative '../state/token_set'
+require_relative 'base'
+
 module AuthProto
   module Serialization
 

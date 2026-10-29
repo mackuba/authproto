@@ -4,6 +4,10 @@ require 'cgi'
 require 'json'
 require 'uri'
 
+require_relative '../configuration'
+require_relative '../par'
+require_relative 'response'
+
 module AuthProto
   module PAR
 

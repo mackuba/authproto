@@ -2,6 +2,8 @@
 
 require 'cgi'
 
+require_relative '../par'
+
 module AuthProto
   module PAR
 

@@ -7,13 +7,6 @@ module AuthProto
       class NonceError < AuthProto::Error
       end
 
-      class StoredNonce
-        attr_reader value: String
-        attr_reader server_url: String
-        attr_reader timestamp: Integer | Time
-        def initialize: (String value, String server_url, ?timestamp: (Integer | Time)?) -> void
-      end
-
       DEFAULT_TTL: Integer
       def initialize: (?ttl: Integer?) -> void
       def update: (nonce: String, server_url: String) -> void

@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
 require 'base64'
+require 'jose'
 require 'json'
 require 'openssl'
+
+require_relative '../errors'
 
 module AuthProto
   module DPoP

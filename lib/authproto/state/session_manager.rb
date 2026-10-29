@@ -1,5 +1,10 @@
 # frozen_string_literal: true
 
+require_relative '../configuration'
+require_relative '../serialization/session'
+require_relative '../storage/key_builder'
+require_relative 'session'
+
 module AuthProto
   module State
 

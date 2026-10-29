@@ -1,14 +1,14 @@
 module AuthProto
   module Serialization
-    class StoredNonce < Base[DPoP::NonceManager::StoredNonce]
-      def self.serialize: (DPoP::NonceManager::StoredNonce obj) -> String
-      def self.deserialize: (String data) -> DPoP::NonceManager::StoredNonce
+    class StoredNonce < Base[DPoP::StoredNonce]
+      def self.serialize: (DPoP::StoredNonce obj) -> String
+      def self.deserialize: (String data) -> DPoP::StoredNonce
       def type_identifier: () -> String
 
       private
-      def validate_object: (DPoP::NonceManager::StoredNonce obj) -> void
-      def serialize_data: (DPoP::NonceManager::StoredNonce obj) -> data_hash
-      def deserialize_data: (json_object data) -> DPoP::NonceManager::StoredNonce
+      def validate_object: (DPoP::StoredNonce obj) -> void
+      def serialize_data: (DPoP::StoredNonce obj) -> data_hash
+      def deserialize_data: (json_object data) -> DPoP::StoredNonce
     end
   end
 end

@@ -2,6 +2,9 @@
 
 require 'monitor'
 
+require_relative '../configuration'
+require_relative 'interface'
+
 module AuthProto
   module Storage
 

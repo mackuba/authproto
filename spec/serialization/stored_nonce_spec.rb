@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 
+require 'authproto/serialization/stored_nonce'
+
 describe AuthProto::Serialization::StoredNonce do
   let(:stored_nonce) do
-    AuthProto::DPoP::NonceManager::StoredNonce.new(
+    AuthProto::DPoP::StoredNonce.new(
       "test_nonce",
       "https://example.com"
     )

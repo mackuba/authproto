@@ -1,7 +1,15 @@
 # frozen_string_literal: true
 
+require 'jose'
 require 'json'
 require 'monitor'
+
+require_relative '../configuration'
+require_relative '../errors'
+require_relative '../http_client'
+require_relative '../par'
+require_relative '../par/client_assertion'
+require_relative '../state/token_set'
 
 module AuthProto
 

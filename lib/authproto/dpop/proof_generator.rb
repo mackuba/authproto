@@ -5,6 +5,9 @@ require 'openssl'
 require 'securerandom'
 require 'uri'
 
+require_relative '../errors'
+require_relative 'key_manager'
+
 module AuthProto
   module DPoP
 

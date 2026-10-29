@@ -1,5 +1,10 @@
 # frozen_string_literal: true
 
+require_relative '../server_metadata/authorization_server'
+require_relative '../state/session'
+require_relative 'base'
+require_relative 'token_set'
+
 module AuthProto
   module Serialization
 

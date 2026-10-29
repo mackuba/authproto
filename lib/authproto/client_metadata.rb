@@ -3,6 +3,9 @@
 require 'json'
 require 'uri'
 
+require_relative 'configuration'
+require_relative 'errors'
+
 module AuthProto
 
   #

@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require_relative '../dpop/key_manager'
+require_relative 'base'
+
 module AuthProto
   module Serialization
 

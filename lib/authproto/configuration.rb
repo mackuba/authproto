@@ -2,7 +2,65 @@
 
 require 'logger'
 
+require_relative 'errors'
+require_relative 'storage/interface'
+
 module AuthProto
+  class << self
+
+    # Global settings object, replaced without validation.
+    #
+    # @param value [Configuration] replacement global settings
+    # @return [Configuration]
+    #
+    attr_writer :configuration
+
+    # Returns the process-wide configuration, creating defaults on first access.
+    #
+    # The default storage is in memory; `http_client` is initially `nil` and must be
+    # configured before discovery or OAuth requests.
+    #
+    # @return [Configuration] current global settings
+    #
+    def configuration
+      @configuration ||= Configuration.new
+    end
+
+    # Yields the global configuration, validates it, and returns it.
+    #
+    # Changes remain on the global object even if validation fails.
+    #
+    # @yield [config] block that changes settings
+    # @yieldparam config [Configuration] mutable global settings
+    # @yieldreturn [Object] ignored
+    # @return [Configuration] validated global settings
+    # @raise [ConfigurationError] if the storage or HTTP client is invalid
+    # @example Configure the default transport
+    #   AuthProto.configure do |config|
+    #     config.http_client = AuthProto::HTTPClient.new
+    #   end
+    #
+    def configure
+      yield(configuration)
+      configuration.validate
+      configuration
+    end
+
+    # Gets the configured storage backend
+    # @return [Storage::Interface] The configured storage implementation
+    def storage
+      configuration.storage
+    end
+
+    # Replaces the global configuration with a fresh set of defaults.
+    # Existing client instances and their dependencies are not rebuilt.
+    #
+    # @return [Configuration] new global settings
+    #
+    def reset_configuration
+      @configuration = Configuration.new
+    end
+  end
 
   # Raised when global storage or HTTP transport settings are invalid.
   class ConfigurationError < Error; end

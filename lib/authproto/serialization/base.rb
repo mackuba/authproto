@@ -3,6 +3,9 @@
 require 'json'
 require 'time'
 
+require_relative '../encryption'
+require_relative '../errors'
+
 module AuthProto
 
   #

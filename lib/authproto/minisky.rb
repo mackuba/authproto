@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'minisky'
 require 'net/http'
 require 'uri'
 
-require 'authproto'
-require 'minisky'
+require_relative 'client'
 
 #
 # Experimental Minisky client backed by an AuthProto session.

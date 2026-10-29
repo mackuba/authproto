@@ -3,6 +3,8 @@
 require 'fileutils'
 require 'securerandom'
 
+require_relative 'interface'
+
 begin
   require 'sqlite3'
 rescue LoadError

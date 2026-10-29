@@ -2,6 +2,11 @@
 
 require 'uri'
 
+require_relative '../errors'
+require_relative 'key_manager'
+require_relative 'nonce_manager'
+require_relative 'proof_generator'
+
 module AuthProto
 
   #

@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
+require 'jwt'
 require 'securerandom'
+
+require_relative '../errors'
 
 module AuthProto
   module PAR

@@ -1,8 +1,25 @@
 # frozen_string_literal: true
 
 require 'didkit/did'
+require 'jose'
 require 'json'
 require 'uri'
+
+require_relative 'client_metadata'
+require_relative 'configuration'
+require_relative 'dpop/client'
+require_relative 'dpop/key_manager'
+require_relative 'errors'
+require_relative 'par'
+require_relative 'par/client'
+require_relative 'par/client_assertion'
+require_relative 'par/request'
+require_relative 'server_metadata/authorization_server'
+require_relative 'server_metadata/resource_server'
+require_relative 'state/session_manager'
+require_relative 'state/token_set'
+require_relative 'storage/key_builder'
+require_relative 'token/refresh'
 
 module AuthProto
 

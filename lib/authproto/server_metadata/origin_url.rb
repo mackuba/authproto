@@ -2,6 +2,8 @@
 
 require 'uri'
 
+require_relative '../server_metadata'
+
 module AuthProto
   module ServerMetadata
 
