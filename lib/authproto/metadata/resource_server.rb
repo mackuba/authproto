@@ -22,9 +22,9 @@ module AuthProto
 
     class ResourceServer
 
-      # Authorization server origins; validation requires exactly one entry.
-      # @return [Array<String>]
-      attr_reader :authorization_servers
+      # The single authorization server origin advertised by the resource server.
+      # @return [String]
+      attr_reader :authorization_server
 
       # Validates resource server metadata and its single authorization server origin.
       #
@@ -33,7 +33,7 @@ module AuthProto
       # @raise [URI::InvalidURIError] if the authorization server URI cannot be parsed
       #
       def initialize(metadata)
-        @authorization_servers = validate_authorization_servers(metadata["authorization_servers"])
+        @authorization_server = validate_authorization_servers(metadata["authorization_servers"])
       end
 
       # Fetches `/.well-known/oauth-protected-resource` using the configured transport.
@@ -77,7 +77,7 @@ module AuthProto
 
         raise InvalidAuthorizationServer, "invalid authorization server URL format for #{servers.first}" unless valid
 
-        servers
+        servers.first
       end
 
       class << self

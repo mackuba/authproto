@@ -453,7 +453,7 @@ module AuthProto
     def resolve_auth_server(pds_url)
       # Get resource server metadata
       resource_server = Metadata::ResourceServer.from_url(pds_url)
-      auth_server_url = resource_server.authorization_servers.first
+      auth_server_url = resource_server.authorization_server
 
       # Get and validate authorization server metadata
       Metadata::AuthorizationServer.from_issuer(auth_server_url)

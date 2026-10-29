@@ -15,7 +15,7 @@ describe AuthProto::Metadata::ResourceServer do
   describe "#initialize" do
     it "should initialize successfully with valid metadata" do
       server = AuthProto::Metadata::ResourceServer.new(valid_metadata)
-      server.authorization_servers.should == valid_metadata["authorization_servers"]
+      server.authorization_server.should == valid_metadata["authorization_servers"].first
     end
 
     it "should raise an error if authorization_servers is missing" do
@@ -46,7 +46,7 @@ describe AuthProto::Metadata::ResourceServer do
 
     it "should fetch and parse metadata successfully" do
       server = AuthProto::Metadata::ResourceServer.from_url(valid_url)
-      server.authorization_servers.should == valid_metadata["authorization_servers"]
+      server.authorization_server.should == valid_metadata["authorization_servers"].first
     end
 
     it "should raise an error if fetching metadata fails" do
@@ -88,7 +88,7 @@ describe AuthProto::Metadata::ResourceServer do
 
     it "accepts a JSON media type with parameters and case differences" do
       mock_response[:headers]["content-type"] = "Application/JSON; charset=utf-8"
-      described_class.from_url(valid_url).authorization_servers.should == valid_metadata["authorization_servers"]
+      described_class.from_url(valid_url).authorization_server.should == valid_metadata["authorization_servers"].first
     end
 
     [[], "metadata", 42, true, nil].each do |metadata|
@@ -128,7 +128,7 @@ describe AuthProto::Metadata::ResourceServer do
         let(:valid_url) { url }
 
         it "accepts a root URL with an optional port and preserves exact resource matching" do
-          described_class.from_url(valid_url).authorization_servers.should == valid_metadata["authorization_servers"]
+          described_class.from_url(valid_url).authorization_server.should == valid_metadata["authorization_servers"].first
         end
       end
     end
@@ -141,7 +141,7 @@ describe AuthProto::Metadata::ResourceServer do
         stub_request(:get, "#{valid_url}/.well-known/oauth-protected-resource")
           .to_return(status: 200, headers: { "Content-Type" => "application/json" }, body: valid_metadata.to_json)
 
-        described_class.from_url(valid_url).authorization_servers.should == valid_metadata["authorization_servers"]
+        described_class.from_url(valid_url).authorization_server.should == valid_metadata["authorization_servers"].first
       end
 
       it "lets the standard HTTPClient reject HTTP before making a request" do
@@ -156,7 +156,7 @@ describe AuthProto::Metadata::ResourceServer do
 
     it "compares the resource after JSON unescaping" do
       mock_response[:body] = valid_metadata.to_json.gsub("https://example.com", 'https:\/\/example.com')
-      described_class.from_url(valid_url).authorization_servers.should == valid_metadata["authorization_servers"]
+      described_class.from_url(valid_url).authorization_server.should == valid_metadata["authorization_servers"].first
     end
 
     it "does not request a redirect destination" do
