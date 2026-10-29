@@ -134,6 +134,7 @@ module AuthProto
     #
     # Requires HTTP 200 and application/json, without following redirects.
     # The document's `client_id` must equal the requested URL.
+    # Localhost HTTP client IDs generate virtual metadata without a network request.
     #
     # @param url [String] HTTPS metadata URL, or localhost URL for development
     # @return [ClientMetadata] validated metadata
@@ -147,6 +148,8 @@ module AuthProto
       unless uri.scheme == 'https' || (uri.scheme == 'http' && uri.host == 'localhost')
         raise InvalidClientMetadata, "client_id must use HTTPS except for localhost"
       end
+
+      return from_localhost_url(url) if uri.scheme == 'http'
 
       raise InvalidClientMetadata, "HTTP client not configured" unless AuthProto.configuration.http_client
 
@@ -175,6 +178,34 @@ module AuthProto
     rescue JSON::ParserError => e
       raise InvalidClientMetadata, "Invalid JSON in client metadata: #{e.message}"
     end
+
+    def self.from_localhost_url(url)
+      uri = URI(url)
+      params = URI.decode_www_form(uri.query.to_s)
+
+      scopes = params.select { |k, v| k == 'scope' }.map(&:last)
+
+      raise InvalidClientMetadata, "localhost client_id must not contain multiple scope parameters" if scopes.length > 1
+
+      redirects = params.select { |k, v| k == 'redirect_uri' }.map(&:last)
+      redirects = ['http://127.0.0.1/', 'http://[::1]/'] if redirects.empty?
+
+      self.new(
+        'client_id' => url,
+        'client_name' => 'Development client',
+        'application_type' => ApplicationType::NATIVE,
+        'token_endpoint_auth_method' => AUTH_METHOD_NONE,
+        'dpop_bound_access_tokens' => true,
+        'grant_types' => ['authorization_code', 'refresh_token'],
+        'response_types' => ['code'],
+        'scope' => scopes.first || 'atproto',
+        'redirect_uris' => redirects
+      )
+    rescue ArgumentError => e
+      raise InvalidClientMetadata, "Invalid localhost client_id query: #{e.message}"
+    end
+
+    private_class_method :from_localhost_url
 
     # Determines if the client is confidential (has authentication keys).
     # @return [Boolean] true if client is confidential.
@@ -330,6 +361,10 @@ module AuthProto
       when 'http'
         unless ["127.0.0.1", "[::1]"].include?(uri.host)
           raise InvalidClientMetadata, "HTTP redirect URIs for native clients must use loopback IP"
+        end
+
+        unless uri.port.between?(1, 65_535)
+          raise InvalidClientMetadata, "HTTP redirect URI must have a valid port"
         end
       else
         validate_custom_scheme(uri)

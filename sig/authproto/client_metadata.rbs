@@ -1,7 +1,8 @@
 module AuthProto
   # Handles and validates AT Protocol OAuth client metadata.
   class ClientMetadata
-    AUTH_PRIVATE_KEY_JWT: String
+    AUTH_METHOD_PRIVATE_KEY_JWT: String
+    AUTH_METHOD_NONE: String
     SCOPE_PATTERN: Regexp
 
     @client_id: String
@@ -52,6 +53,8 @@ module AuthProto
     def initialize: (Hash[String, untyped] metadata) -> void
 
     def self.from_url: (String url) -> ClientMetadata
+
+    def self.from_localhost_url: (String url) -> ClientMetadata
 
     def confidential?: () -> bool
 

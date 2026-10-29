@@ -564,6 +564,95 @@ describe AuthProto::ClientMetadata do
     end
   end
 
+  describe ".from_url localhost virtual metadata" do
+    before do
+      @previous_configuration = AuthProto.configuration
+      AuthProto.reset_configuration
+      AuthProto.configuration.http_client = mock("unused HTTP client")
+      AuthProto.configuration.http_client.expects(:get).never
+    end
+
+    after { AuthProto.configuration = @previous_configuration }
+
+    ["http://localhost", "http://localhost/", "http://localhost/?"].each do |url|
+      it "should generate default localhost metadata for #{url.inspect}" do
+        metadata = described_class.from_url(url)
+        metadata.client_id.should == url
+        metadata.application_type.should == "native"
+        metadata.token_endpoint_auth_method.should == "none"
+        metadata.confidential?.should be false
+        metadata.grant_types.should == %w[authorization_code refresh_token]
+        metadata.response_types.should == ["code"]
+        metadata.scope.should == "atproto"
+        metadata.redirect_uris.should == ["http://127.0.0.1/", "http://[::1]/"]
+      end
+    end
+
+    it "should generate localhost metadata without a configured HTTP client" do
+      AuthProto.configuration.http_client = nil
+      described_class.from_url("http://localhost").scope.should == "atproto"
+    end
+
+    it "should decode scope and repeated redirect_uri parameters once while preserving the client ID" do
+      scope = "atproto repo:app.bsky.feed.post rpc:app.bsky.feed.getTimeline?aud=*"
+      redirects = ["http://127.0.0.1:9292/callback?next=%2Ffeed", "http://[::1]:8080/other"]
+      url = "http://localhost/?" + URI.encode_www_form([
+        ["scope", scope], ["redirect_uri", redirects.first], ["redirect_uri", redirects.last]
+      ])
+      metadata = described_class.from_url(url)
+      metadata.client_id.should == url
+      metadata.scope.should == scope
+      metadata.redirect_uris.should == redirects
+    end
+
+    it "should accept percent-encoded spaces in scope" do
+      described_class.from_url("http://localhost?scope=atproto%20transition%3Ageneric").scope.should == "atproto transition:generic"
+    end
+
+    ["scope=atproto&scope=atproto", "scope=&scope=atproto", "scope=atproto&%73cope=atproto"].each do |query|
+      it "should reject duplicate scope parameters #{query.inspect}" do
+        expect { described_class.from_url("http://localhost/?#{query}") }
+          .to raise_error(AuthProto::InvalidClientMetadata, /multiple scope parameters/)
+      end
+    end
+
+    ["", "other", "atproto  other", "atproto\tother"].each do |scope|
+      it "should reject an invalid decoded scope #{scope.inspect}" do
+        url = "http://localhost/?" + URI.encode_www_form(scope: scope)
+        expect { described_class.from_url(url) }.to raise_error(AuthProto::InvalidClientMetadata, /scope/)
+      end
+    end
+
+    ["", "/callback", "http://localhost:9292/callback", "https://127.0.0.1/callback",
+     "http://example.com/callback", "http://127.0.0.2/callback", "http://user@127.0.0.1/callback",
+     "http://127.0.0.1/callback#fragment", "http://127.0.0.1:0/", "http://127.0.0.1:65536/",
+     "http%3A%2F%2F127.0.0.1%2Fcallback"].each do |redirect|
+      it "should reject an invalid decoded redirect #{redirect.inspect}" do
+        url = "http://localhost/?" + URI.encode_www_form(redirect_uri: redirect)
+        expect { described_class.from_url(url) }.to raise_error(AuthProto::InvalidClientMetadata)
+      end
+    end
+
+    ["http://localhost/path", "http://localhost//", "http://localhost:80/", "http://localhost:1234/",
+     "http://user@localhost/", "http://@localhost/", "http://localhost/#fragment", "http://127.0.0.1/"].each do |url|
+      it "should reject an invalid localhost client ID #{url.inspect} without fetching it" do
+        expect { described_class.from_url(url) }.to raise_error(AuthProto::InvalidClientMetadata)
+      end
+    end
+
+    it "should ignore query fields that do not configure virtual metadata" do
+      metadata = described_class.from_url("http://localhost/?token_endpoint_auth_method=private_key_jwt")
+      metadata.token_endpoint_auth_method.should == "none"
+    end
+
+    it "should support a client using virtual metadata without fetching a document" do
+      url = "http://localhost/?" + URI.encode_www_form(redirect_uri: "http://127.0.0.1:9292/callback")
+      client = AuthProto::Client.new(client_id: url, redirect_uri: "http://127.0.0.1:9292/callback")
+      client.client_metadata.client_id.should == url
+      client.client_metadata.redirect_uris.should == ["http://127.0.0.1:9292/callback"]
+    end
+  end
+
   describe ".from_url response validation" do
     before do
       @previous_configuration = AuthProto.configuration
