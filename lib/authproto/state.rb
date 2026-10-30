@@ -29,15 +29,15 @@ module AuthProto
   #   # Create a new session
   #   session = manager.create_session(
   #     client_id: "https://myapp.com/oauth-client-metadata.json",
-  #     scope: "atproto"
+  #     scope: 'atproto'
   #   )
   #
   #   # Update session with tokens
   #   tokens = AuthProto::State::TokenSet.new(
   #     access_token: "...",
-  #     token_type: "DPoP",
+  #     token_type: 'DPoP',
   #     expires_in: 3600,
-  #     scope: "atproto",
+  #     scope: 'atproto',
   #     sub: "did:plc:abcdef123"
   #   )
   #   session.tokens = tokens

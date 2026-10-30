@@ -114,8 +114,8 @@ module AuthProto
       def normalize_server_url(url)
         uri = URI(url)
         port = uri.port
-        port = nil if (uri.scheme == "https" && port == 443) ||
-                      (uri.scheme == "http" && port == 80)
+        port = nil if (uri.scheme == 'https' && port == 443) ||
+                      (uri.scheme == 'http' && port == 80)
 
         origin = "#{uri.scheme}://#{uri.host}"
         origin = "#{origin}:#{port}" if port
@@ -134,7 +134,7 @@ module AuthProto
         uri = ValidatedURI.new(server_url)
 
         # Allow HTTP for localhost only
-        if uri.host != "localhost" && uri.scheme != "https"
+        if uri.host != 'localhost' && uri.scheme != 'https'
           raise NonceError, "server_url must be HTTPS (except for localhost)"
         end
       rescue URI::InvalidURIError => e

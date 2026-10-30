@@ -84,25 +84,25 @@ module AuthProto
 
       def build_header
         {
-          typ: "dpop+jwt",
-          alg: "ES256",
+          typ: 'dpop+jwt',
+          alg: 'ES256',
           jwk: key_manager.public_jwk.to_h
         }
       end
 
       def build_payload(http_method:, http_uri:, nonce: nil, access_token: nil, include_ath: nil)
         payload = {
-          "jti" => SecureRandom.uuid,
-          "htm" => http_method.upcase,
-          "htu" => normalize_uri(http_uri),
-          "iat" => Time.now.to_i
+          'jti' => SecureRandom.uuid,
+          'htm' => http_method.upcase,
+          'htu' => normalize_uri(http_uri),
+          'iat' => Time.now.to_i
         }
 
         # Add the nonce if provided
-        payload["nonce"] = nonce if nonce
+        payload['nonce'] = nonce if nonce
 
         # Add access token hash if needed
-        payload["ath"] = generate_access_token_hash(access_token) if access_token && include_ath
+        payload['ath'] = generate_access_token_hash(access_token) if access_token && include_ath
 
         payload
       end
@@ -110,7 +110,7 @@ module AuthProto
       def normalize_uri(uri)
         uri = URI(uri)
         # Remove default ports
-        uri.port = nil if (uri.scheme == "https" && uri.port == 443) || (uri.scheme == "http" && uri.port == 80)
+        uri.port = nil if (uri.scheme == 'https' && uri.port == 443) || (uri.scheme == 'http' && uri.port == 80)
         uri.fragment = nil
         uri.to_s
       end

@@ -96,7 +96,7 @@ module AuthProto
         return unless response_headers
 
         # Look for DPoP-Nonce header (case insensitive)
-        nonce = response_headers.find { |k, _| k.downcase == "dpop-nonce" }&.last
+        nonce = response_headers.find { |k, v| k.downcase == 'dpop-nonce' }&.last
         return unless nonce
 
         # Store new nonce for future requests

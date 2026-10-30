@@ -75,7 +75,7 @@ class Minisky::OAuthClient
   # @param options [Hash{Symbol => Object}] options forwarded to {AuthProto::Client#authorize}
   # @option options [String] :handle account handle, optionally prefixed with `@`
   # @option options [String] :pds_url PDS URL, as an alternative to `handle`
-  # @option options [String] :scope ("atproto") requested scopes
+  # @option options [String] :scope ('atproto') requested scopes
   #
   # @return [Hash{Symbol => String}] `:url` to open and pending `:session_id`
   # @raise [AuthProto::Error] if authorization, discovery, PAR or persistence fails
@@ -247,7 +247,7 @@ class Minisky::OAuthClient
       oauth_client.dpop_client.process_response(response.each_header.to_h, url.to_s) if nonce && !nonce.empty?
       error = authentication_error(response)
 
-      if response.code.to_i == 401 && error == "use_dpop_nonce"
+      if response.code.to_i == 401 && error == 'use_dpop_nonce'
         unless nonce && !nonce.empty?
           raise AuthProto::DPoP::Client::Error, "DPoP nonce challenge (HTTP 401) is missing DPoP-Nonce"
         end

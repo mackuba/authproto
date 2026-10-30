@@ -126,7 +126,7 @@ module AuthProto
     # @raise [Storage::StorageError] if session storage or locking fails
     # @raise [Encryption::EncryptionError] if session serialization cannot encrypt secrets
     #
-    def authorize(handle: nil, pds_url: nil, scope: "atproto")
+    def authorize(handle: nil, pds_url: nil, scope: 'atproto')
       validate_auth_params(handle, pds_url, scope)
 
       # Create new session
@@ -201,12 +201,12 @@ module AuthProto
 
         # Create token set and store in session
         token_set = State::TokenSet.new(
-          access_token: token_response["access_token"],
-          token_type: token_response["token_type"],
-          expires_in: token_response["expires_in"],
-          refresh_token: token_response["refresh_token"],
-          scope: token_response["scope"],
-          sub: token_response["sub"]
+          access_token: token_response['access_token'],
+          token_type: token_response['token_type'],
+          expires_in: token_response['expires_in'],
+          refresh_token: token_response['refresh_token'],
+          scope: token_response['scope'],
+          sub: token_response['sub']
         )
         session.tokens = token_set
 
@@ -476,7 +476,7 @@ module AuthProto
 
         # Add PKCE parameters
         config.code_challenge = session.pkce_challenge
-        config.code_challenge_method = "S256"
+        config.code_challenge_method = 'S256'
 
         # Public clients use PKCE and DPoP without client authentication.
         if client_metadata.confidential?
@@ -487,7 +487,7 @@ module AuthProto
 
         # Add DPoP proof
         proof = @dpop_client.generate_proof(
-          http_method: "POST",
+          http_method: 'POST',
           http_uri: auth_server.pushed_authorization_request_endpoint
         )
         config.dpop_proof = proof
@@ -530,12 +530,12 @@ module AuthProto
     def make_token_request(code, session)
       # Generate proof
       proof = dpop_client.generate_proof(
-        http_method: "POST",
+        http_method: 'POST',
         http_uri: session.auth_server.token_endpoint
       )
 
       body = {
-        grant_type: "authorization_code",
+        grant_type: 'authorization_code',
         code: code,
         redirect_uri: redirect_uri,
         client_id: client_id,
@@ -571,7 +571,7 @@ module AuthProto
       return false unless response[:status] == 400
 
       error_data = JSON.parse(response[:body])
-      error_data["error"] == "use_dpop_nonce"
+      error_data['error'] == 'use_dpop_nonce'
     rescue JSON::ParserError
       false
     end
@@ -594,13 +594,13 @@ module AuthProto
       end
 
       # Token type must be DPoP
-      raise TokenError, "Invalid token_type: #{response["token_type"]}" unless response["token_type"] == "DPoP"
+      raise TokenError, "Invalid token_type: #{response['token_type']}" unless response['token_type'] == 'DPoP'
 
       # Scope must include atproto
-      raise TokenError, "Missing atproto scope in token response" unless response["scope"].split.include?("atproto")
+      raise TokenError, "Missing atproto scope in token response" unless response['scope'].split.include?('atproto')
 
       # If we have a pre-resolved DID, verify it matches
-      raise TokenError, "Subject mismatch in token response" if session.did && session.did != response["sub"]
+      raise TokenError, "Subject mismatch in token response" if session.did && session.did != response['sub']
 
       # Process DPoP-Nonce from response headers if present
       return unless response[:headers] && response[:headers]["DPoP-Nonce"]

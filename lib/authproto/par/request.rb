@@ -133,7 +133,7 @@ module AuthProto
       #
       def initialize(config)
         # Required parameters
-        @response_type = "code" # Always "code" for AT Protocol OAuth
+        @response_type = 'code' # Always "code" for AT Protocol OAuth
         @client_id = config.client_id
         @redirect_uri = config.redirect_uri
         @code_challenge = config.code_challenge
@@ -178,15 +178,15 @@ module AuthProto
       end
 
       def add_optional_params(params)
-        params["login_hint"] = login_hint if login_hint
-        params["nonce"] = nonce if nonce
+        params['login_hint'] = login_hint if login_hint
+        params['nonce'] = nonce if nonce
       end
 
       def add_client_auth_params(params)
         return unless client_assertion
 
-        params["client_assertion_type"] = CLIENT_ASSERTION_TYPE
-        params["client_assertion"] = client_assertion
+        params['client_assertion_type'] = CLIENT_ASSERTION_TYPE
+        params['client_assertion'] = client_assertion
       end
 
       def validate_request
@@ -205,20 +205,20 @@ module AuthProto
       end
 
       def validate_response_type
-        return if response_type == "code"
+        return if response_type == 'code'
 
         raise Error, "response_type must be 'code'"
       end
 
       def validate_code_challenge_method
-        return if code_challenge_method == "S256"
+        return if code_challenge_method == 'S256'
 
         raise Error, "code_challenge_method must be 'S256'"
       end
 
       def validate_scope
         scopes = scope.split
-        raise Error, "atproto scope is required" unless scopes.include?("atproto")
+        raise Error, "atproto scope is required" unless scopes.include?('atproto')
       end
 
       def validate_client_auth

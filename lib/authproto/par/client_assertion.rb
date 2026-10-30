@@ -79,14 +79,14 @@ module AuthProto
 
         # Header specifying ES256 algorithm for signing
         header = {
-          alg: "ES256",
-          typ: "JWT",
-          kid: @signing_key.fields["kid"]
+          alg: 'ES256',
+          typ: 'JWT',
+          kid: @signing_key.fields['kid']
         }
 
         # Sign and return the JWT
         key = JWT::JWK.import(@signing_key.to_map.to_h)
-        JWT.encode(payload, key, "ES256", header)
+        JWT.encode(payload, key, 'ES256', header)
       rescue JWT::Error, ArgumentError => e
         raise Error, "Failed to generate client assertion: #{e.message}"
       end

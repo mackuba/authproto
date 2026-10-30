@@ -230,24 +230,24 @@ module AuthProto
         raise InvalidClientMetadata, "metadata must be a hash" unless metadata.is_a?(Hash)
 
         # Optional (defaults to "web"), but must be set before validating redirect URIs
-        @application_type = validate_application_type(metadata["application_type"])
+        @application_type = validate_application_type(metadata['application_type'])
 
         # Required fields
-        @client_id = validate_client_id(metadata["client_id"])
-        @grant_types = validate_grant_types(metadata["grant_types"])
-        @response_types = validate_response_types(metadata["response_types"])
-        @redirect_uris = validate_redirect_uris(metadata["redirect_uris"])
-        @scope = validate_scope(metadata["scope"])
+        @client_id = validate_client_id(metadata['client_id'])
+        @grant_types = validate_grant_types(metadata['grant_types'])
+        @response_types = validate_response_types(metadata['response_types'])
+        @redirect_uris = validate_redirect_uris(metadata['redirect_uris'])
+        @scope = validate_scope(metadata['scope'])
 
         # Check dpop_bound_access_tokens
         validate_dpop(metadata)
 
         # Optional fields
-        @client_name = validate_client_name(metadata["client_name"])
-        @client_uri = validate_client_uri(metadata["client_uri"])
-        @logo_uri = validate_https_uri(metadata["logo_uri"])
-        @tos_uri = validate_https_uri(metadata["tos_uri"])
-        @policy_uri = validate_https_uri(metadata["policy_uri"])
+        @client_name = validate_client_name(metadata['client_name'])
+        @client_uri = validate_client_uri(metadata['client_uri'])
+        @logo_uri = validate_https_uri(metadata['logo_uri'])
+        @tos_uri = validate_https_uri(metadata['tos_uri'])
+        @policy_uri = validate_https_uri(metadata['policy_uri'])
 
         # Check token_endpoint_auth_method and jwks
         validate_auth_methods(metadata)
@@ -302,7 +302,7 @@ module AuthProto
       def validate_response_types(response_types)
         raise InvalidClientMetadata, "response_types is required" unless response_types
         raise InvalidClientMetadata, "response_types must be an array" unless response_types.is_a?(Array)
-        raise InvalidClientMetadata, "response_types must include 'code'" unless response_types.include?("code")
+        raise InvalidClientMetadata, "response_types must include 'code'" unless response_types.include?('code')
 
         unless response_types.all? { |type| type.is_a?(String) }
           raise InvalidClientMetadata, "response_types must contain only strings"
@@ -408,7 +408,7 @@ module AuthProto
         end
 
         scope_values = scope.split(' ')
-        raise InvalidClientMetadata, "atproto scope is required" unless scope_values.include?("atproto")
+        raise InvalidClientMetadata, "atproto scope is required" unless scope_values.include?('atproto')
 
         scope
       end
@@ -460,7 +460,7 @@ module AuthProto
         raise InvalidClientMetadata, "URI must be a string" unless uri.is_a?(String)
 
         parsed = ValidatedURI.new(uri)
-        raise InvalidClientMetadata, "URI must use HTTPS" unless parsed.scheme == "https"
+        raise InvalidClientMetadata, "URI must use HTTPS" unless parsed.scheme == 'https'
 
         uri
       rescue URI::InvalidURIError
@@ -529,13 +529,13 @@ module AuthProto
       # -- Auth fields validations --
 
       def validate_auth_methods(metadata)
-        @token_endpoint_auth_method = metadata["token_endpoint_auth_method"]
-        @token_endpoint_auth_signing_alg = metadata["token_endpoint_auth_signing_alg"]
+        @token_endpoint_auth_method = metadata['token_endpoint_auth_method']
+        @token_endpoint_auth_signing_alg = metadata['token_endpoint_auth_signing_alg']
 
         raise InvalidClientMetadata, "token_endpoint_auth_method is required" if @token_endpoint_auth_method.nil?
 
-        @jwks = metadata["jwks"]
-        @jwks_uri = metadata["jwks_uri"]
+        @jwks = metadata['jwks']
+        @jwks_uri = metadata['jwks_uri']
 
         if !@jwks.nil? && !@jwks_uri.nil?
           raise InvalidClientMetadata, "cannot use both jwks and jwks_uri"
@@ -561,7 +561,7 @@ module AuthProto
       end
 
       def validate_auth_confidential(metadata)
-        unless @token_endpoint_auth_signing_alg == "ES256"
+        unless @token_endpoint_auth_signing_alg == 'ES256'
           raise InvalidClientMetadata, "token_endpoint_auth_signing_alg must be ES256"
         end
 

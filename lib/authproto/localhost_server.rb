@@ -110,7 +110,7 @@ module AuthProto
       uri = ValidatedURI.new(redirects.first)
       @uri = uri.to_uri
 
-      unless uri.scheme == "http" && loopback_host?(uri.hostname)
+      unless uri.scheme == 'http' && loopback_host?(uri.hostname)
         raise ArgumentError, "The first redirect URI must be an HTTP loopback URL"
       end
 

@@ -35,9 +35,9 @@ module AuthProto
     #     config.client_id = "https://app.example.com/oauth-client-metadata.json"
     #     config.redirect_uri = "https://app.example.com/callback"
     #     config.code_challenge = "abc123..."
-    #     config.code_challenge_method = "S256"
+    #     config.code_challenge_method = 'S256'
     #     config.state = "xyz789..."
-    #     config.scope = "atproto"
+    #     config.scope = 'atproto'
     #   end
     #
     #   response = client.submit(request)
@@ -149,8 +149,8 @@ module AuthProto
       def authorization_url(authorize_endpoint:, request_uri:, client_id:)
         uri = URI(authorize_endpoint)
         uri.query = encode_params(
-          "request_uri" => request_uri,
-          "client_id" => client_id
+          'request_uri' => request_uri,
+          'client_id' => client_id
         )
         uri.to_s
       end
@@ -159,7 +159,7 @@ module AuthProto
 
       def validate_endpoint
         uri = ValidatedURI.new(@endpoint)
-        raise Error, "endpoint must be HTTPS" unless uri.scheme == "https"
+        raise Error, "endpoint must be HTTPS" unless uri.scheme == 'https'
       rescue URI::InvalidURIError => e
         raise Error, "invalid endpoint URL: #{e.message}"
       end
@@ -167,7 +167,7 @@ module AuthProto
       def make_request(request)
         # Generate DPoP proof for this request
         proof = dpop_client.generate_proof(
-          http_method: "POST",
+          http_method: 'POST',
           http_uri: endpoint,
           nonce: nonce_manager.get(server_origin)
         )
@@ -192,7 +192,7 @@ module AuthProto
 
       def requires_nonce?(response)
         body = JSON.parse(response[:body])
-        body["error"] == "use_dpop_nonce"
+        body['error'] == 'use_dpop_nonce'
       rescue JSON::ParserError
         false
       end
@@ -209,7 +209,7 @@ module AuthProto
       def handle_error_response(response)
         begin
           error_data = JSON.parse(response[:body])
-          error_message = error_data["error_description"] || error_data["error"] || "Unknown error"
+          error_message = error_data['error_description'] || error_data['error'] || "Unknown error"
         rescue JSON::ParserError
           error_message = "Invalid response from server"
         end
@@ -223,8 +223,8 @@ module AuthProto
         begin
           data = JSON.parse(response[:body])
           Response.new(
-            request_uri: data["request_uri"],
-            expires_in: data["expires_in"]
+            request_uri: data['request_uri'],
+            expires_in: data['expires_in']
           )
         rescue JSON::ParserError => e
           raise Error, "invalid JSON response: #{e.message}"

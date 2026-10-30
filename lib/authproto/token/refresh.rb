@@ -65,7 +65,7 @@ module AuthProto
         super(
           "Token has expired",
           token_type: token_type,
-          error_code: "token_expired",
+          error_code: 'token_expired',
           retry_possible: true
         )
       end
@@ -84,7 +84,7 @@ module AuthProto
         super(
           "Token is invalid",
           token_type: token_type,
-          error_code: "token_invalid",
+          error_code: 'token_invalid',
           retry_possible: false
         )
       end
@@ -104,8 +104,8 @@ module AuthProto
       def initialize(message, retry_possible: true)
         super(
           message,
-          token_type: "refresh",
-          error_code: "refresh_failed",
+          token_type: 'refresh',
+          error_code: 'refresh_failed',
           retry_possible: retry_possible
         )
       end
@@ -238,12 +238,12 @@ module AuthProto
       def make_token_request(session)
         # Generate proof
         proof = dpop_client.generate_proof(
-          http_method: "POST",
+          http_method: 'POST',
           http_uri: auth_server.token_endpoint
         )
 
         body = {
-          grant_type: "refresh_token",
+          grant_type: 'refresh_token',
           refresh_token: session.tokens.refresh_token,
           scope: session.scope,
           client_id: client_metadata.client_id
@@ -267,13 +267,13 @@ module AuthProto
         return false if response[:body].nil?
 
         error_data = JSON.parse(response[:body])
-        error_data.is_a?(Hash) && error_data["error"] == "use_dpop_nonce"
+        error_data.is_a?(Hash) && error_data['error'] == 'use_dpop_nonce'
       rescue JSON::ParserError
         false
       end
 
       def extract_dpop_nonce(response)
-        nonce = (response[:headers] || {}).detect { |k, v| k.downcase == "dpop-nonce" }&.last
+        nonce = (response[:headers] || {}).detect { |k, v| k.downcase == 'dpop-nonce' }&.last
 
         unless nonce.is_a?(String) && !nonce.empty?
           raise RefreshError.new("No DPoP nonce provided in error response", retry_possible: false)
@@ -318,12 +318,12 @@ module AuthProto
         validate_refresh_response(data)
 
         AuthProto::State::TokenSet.new(
-          access_token: data["access_token"],
-          token_type: data["token_type"],
-          expires_in: data["expires_in"],
-          refresh_token: data["refresh_token"],
-          scope: data["scope"],
-          sub: data["sub"]
+          access_token: data['access_token'],
+          token_type: data['token_type'],
+          expires_in: data['expires_in'],
+          refresh_token: data['refresh_token'],
+          scope: data['scope'],
+          sub: data['sub']
         )
       rescue JSON::ParserError => e
         raise RefreshError.new("Invalid response format: #{e.message}", retry_possible: false)
@@ -338,10 +338,10 @@ module AuthProto
           raise RefreshError.new("Invalid error response format", retry_possible: false)
         end
 
-        error_description = error_data["error_description"] || error_data["error"]
+        error_description = error_data['error_description'] || error_data['error']
 
-        case error_data["error"]
-        when "use_dpop_nonce"
+        case error_data['error']
+        when 'use_dpop_nonce'
           extract_dpop_nonce(response)
           dpop_client.process_response(response[:headers], auth_server.issuer)
           raise RefreshError.new("Retry with DPoP nonce", retry_possible: true)
@@ -383,28 +383,28 @@ module AuthProto
           end
         end
 
-        unless data["expires_in"].is_a?(Integer)
+        unless data['expires_in'].is_a?(Integer)
           raise RefreshError.new("Invalid expires_in in response", retry_possible: false)
         end
 
-        unless data["refresh_token"].nil? || data["refresh_token"].is_a?(String)
+        unless data['refresh_token'].nil? || data['refresh_token'].is_a?(String)
           raise RefreshError.new("Invalid refresh_token in response", retry_possible: false)
         end
 
         # Token type must be DPoP
-        unless data["token_type"] == "DPoP"
-          raise RefreshError.new("Invalid token_type: #{data["token_type"]}", retry_possible: false)
+        unless data['token_type'] == 'DPoP'
+          raise RefreshError.new("Invalid token_type: #{data['token_type']}", retry_possible: false)
         end
 
         # Scope must include original scopes
         original_scopes = session.scope.split
-        response_scopes = data["scope"].split
+        response_scopes = data['scope'].split
         unless (original_scopes - response_scopes).empty?
           raise RefreshError.new("Invalid scope in response", retry_possible: false)
         end
 
         # Subject must match
-        return if data["sub"] == session.tokens.sub
+        return if data['sub'] == session.tokens.sub
 
         raise RefreshError.new("Subject mismatch in response", retry_possible: false)
       end

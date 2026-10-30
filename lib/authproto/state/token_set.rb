@@ -52,9 +52,9 @@ module AuthProto
         refresh_token: nil
       )
         validate_token_type(token_type)
-        validate_required("access_token", access_token)
-        validate_required("scope", scope)
-        validate_required("sub", sub)
+        validate_required('access_token', access_token)
+        validate_required('scope', scope)
+        validate_required('sub', sub)
         validate_expires_in(expires_in)
 
         @access_token = access_token
@@ -84,7 +84,7 @@ module AuthProto
       private
 
       def validate_token_type(type)
-        raise ArgumentError, "token_type must be DPoP" unless type == "DPoP"
+        raise ArgumentError, "token_type must be DPoP" unless type == 'DPoP'
       end
 
       def validate_required(name, value)

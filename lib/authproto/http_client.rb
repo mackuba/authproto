@@ -209,7 +209,7 @@ module AuthProto
 
     def make_request(uri, headers = {}, redirect_count = 0, follow_redirects: true)
       http = Net::HTTP.new(uri.hostname, uri.port)
-      configure_http_client(http, ssl: uri.scheme == "https")
+      configure_http_client(http, ssl: uri.scheme == 'https')
 
       request = Net::HTTP::Get.new(uri.request_uri)
       add_security_headers(request, headers)
@@ -230,7 +230,7 @@ module AuthProto
 
     def make_post_request(uri, body, headers = {}, redirect_count = 0)
       http = Net::HTTP.new(uri.hostname, uri.port)
-      configure_http_client(http, ssl: uri.scheme == "https")
+      configure_http_client(http, ssl: uri.scheme == 'https')
 
       request = Net::HTTP::Post.new(uri.request_uri)
       add_security_headers(request, headers)

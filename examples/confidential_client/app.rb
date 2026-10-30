@@ -57,11 +57,11 @@ class ExampleApp < Sinatra::Base
     metadata_path = File.join(__dir__, "config", "oauth-client-metadata.json")
     metadata = JSON.parse(File.read(metadata_path))
 
-    client_id = metadata["client_id"]
+    client_id = metadata['client_id']
 
     if client_id.chomp("/") == "http://localhost"
-      scope = CGI.escape(metadata["scope"])
-      redirect_uri = CGI.escape(metadata["redirect_uris"][0])
+      scope = CGI.escape(metadata['scope'])
+      redirect_uri = CGI.escape(metadata['redirect_uris'][0])
       client_id += "?scope=#{scope}&redirect_uri=#{redirect_uri}"
     end
 
@@ -71,7 +71,7 @@ class ExampleApp < Sinatra::Base
     # Create OAuth client
     set :oauth_client, AuthProto::Client.new(
       client_id: client_id,
-      redirect_uri: metadata["redirect_uris"][0],
+      redirect_uri: metadata['redirect_uris'][0],
       metadata: metadata,
       signing_key: signing_key,
       dpop_key: signing_key
@@ -190,7 +190,7 @@ class ExampleApp < Sinatra::Base
       # Get auth headers for request
       headers = settings.oauth_client.auth_headers(
         session_id: session_id,
-        method: "GET",
+        method: 'GET',
         url: "https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle"
       )
 
@@ -236,7 +236,7 @@ class ExampleApp < Sinatra::Base
 
     headers = settings.oauth_client.auth_headers(
       session_id: session_id,
-      method: "POST",
+      method: 'POST',
       url: endpoint
     )
 

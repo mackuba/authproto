@@ -55,13 +55,13 @@ module AuthProto
 
         # Create new map with all required properties
         key_map = {
-          "kty" => base_map["kty"],
-          "crv" => base_map["crv"],
-          "x" => base_map["x"],
-          "y" => base_map["y"],
-          "d" => base_map["d"],
-          "use" => "sig",
-          "kid" => generate_kid(base_map)
+          'kty' => base_map['kty'],
+          'crv' => base_map['crv'],
+          'x' => base_map['x'],
+          'y' => base_map['y'],
+          'd' => base_map['d'],
+          'use' => 'sig',
+          'kid' => generate_kid(base_map)
         }
 
         # Create new JWK with all properties
@@ -78,8 +78,8 @@ module AuthProto
       def public_jwk
         jwk = @keypair.to_public.to_map.to_h
         # If somehow the properties aren't set, add them
-        jwk["use"] ||= "sig"
-        jwk["kid"] ||= generate_kid(jwk)
+        jwk['use'] ||= 'sig'
+        jwk['kid'] ||= generate_kid(jwk)
         jwk
       rescue StandardError => e
         raise KeyError, "Failed to export public key: #{e.message}"
@@ -111,7 +111,7 @@ module AuthProto
         payload = deep_stringify_keys(payload)
 
         # Configure JOSE to use ES256 for signing
-        signing_config = { "alg" => "ES256" }
+        signing_config = { 'alg' => 'ES256' }
 
         # Merge our header with JOSE's required fields
         full_header = header.merge(signing_config)
@@ -190,11 +190,11 @@ module AuthProto
       def generate_kid(jwk)
         # Generate a key ID based on the key's components
         components = [
-          jwk["kty"],
-          jwk["crv"],
-          jwk["x"],
-          jwk["y"]
-        ].join(":")
+          jwk['kty'],
+          jwk['crv'],
+          jwk['x'],
+          jwk['y']
+        ].join(':')
 
         # Create a SHA-256 hash and take first 8 bytes
         digest = OpenSSL::Digest::SHA256.digest(components)
@@ -208,11 +208,11 @@ module AuthProto
         raise KeyError, "Invalid key type: #{@keypair.kty}, must be :ec" unless @keypair.kty.is_a?(JOSE::JWK::KTY_EC)
 
         # Verify the curve
-        curve = @keypair.to_map["crv"]
+        curve = @keypair.to_map['crv']
         raise KeyError, "Invalid curve: #{curve}, must be #{CURVE}" unless curve == CURVE
 
         # Verify we can perform basic operations
-        test_data = "test"
+        test_data = 'test'
         signed = sign(test_data)
         raise KeyError, "Key validation failed: signature verification error" unless verify(signed)
       rescue StandardError => e

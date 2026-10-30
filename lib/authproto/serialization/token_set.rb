@@ -41,12 +41,12 @@ module AuthProto
 
       def deserialize_data(data)
         AuthProto::State::TokenSet.new(
-          access_token: data["access_token"],
-          refresh_token: data["refresh_token"],
-          token_type: data["token_type"],
-          expires_in: (Time.parse(data["expires_at"]) - Time.now).to_i,
-          scope: data["scope"],
-          sub: data["sub"]
+          access_token: data['access_token'],
+          refresh_token: data['refresh_token'],
+          token_type: data['token_type'],
+          expires_in: (Time.parse(data['expires_at']) - Time.now).to_i,
+          scope: data['scope'],
+          sub: data['sub']
         )
       end
     end
