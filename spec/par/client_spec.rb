@@ -82,5 +82,26 @@ describe AuthProto::PAR::Client do
       expected_url = "https://auth.example.com/authorize?request_uri=mocked_request_uri&client_id=mocked_client_id"
       url.should == expected_url
     end
+
+    it "should escape asterisks for terminal links while preserving the exact localhost client ID" do
+      client_id = 'http://localhost/?' + URI.encode_www_form(
+        redirect_uri: 'http://127.0.0.1:9292/callback',
+        scope: 'atproto repo:app.bsky.feed.post rpc:app.bsky.feed.getTimeline?aud=*'
+      )
+      request_uri = 'urn:ietf:params:oauth:request_uri:test'
+
+      url = @client.build_authorization_url(
+        authorization_endpoint: 'https://auth.example.com/authorize',
+        request_uri: request_uri,
+        client_id: client_id
+      )
+
+      url.should end_with('%2A')
+      url.should_not include('*')
+      URI.decode_www_form(URI(url).query).to_h.should == {
+        'request_uri' => request_uri,
+        'client_id' => client_id
+      }
+    end
   end
 end

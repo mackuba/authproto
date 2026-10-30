@@ -145,10 +145,12 @@ module AuthProto
       def build_authorization_url(authorization_endpoint:, request_uri:, client_id:)
         uri = URI(authorization_endpoint)
 
-        uri.query = URI.encode_www_form(
-          'request_uri' => request_uri,
-          'client_id' => client_id
-        )
+        params = {
+          request_uri: request_uri,
+          client_id: client_id
+        }
+
+        uri.query = URI.encode_www_form(params).gsub('*', '%2A')   # unescaped '*' may break links in the terminal
 
         uri.to_s
       end
