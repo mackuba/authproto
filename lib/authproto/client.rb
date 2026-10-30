@@ -128,25 +128,22 @@ module AuthProto
     def authorize(handle: nil, pds_url: nil, scope: 'atproto')
       validate_auth_params(handle, pds_url, scope)
 
-      session = session_manager.create_session(client_id: @client_id, scope: scope)
+      if !pds_url
+        did = DIDKit::DID.resolve_handle(handle)
+        raise Error, "Could not resolve or verify identity #{handle}" unless did
 
-      session_manager.update_session(session)
-
-      # Resolve identity and authorization server if handle provided
-      if handle
-        auth_info = resolve_from_handle(handle, session)
-      elsif pds_url
-        auth_info = resolve_from_pds(pds_url, session)
-      else
-        raise Error, "Either handle or pds_url must be provided"
+        pds_url = did.document.pds_endpoint
+        raise Error, "No HTTPS PDS location found for #{did}" unless pds_url && URI(pds_url).is_a?(URI::HTTPS)
       end
 
-      # Generate authorization URL
-      auth_url = generate_authorization_url(
-        auth_info[:server],
-        session,
-        login_hint: handle
-      )
+      authorization_server = resolve_auth_server(pds_url)
+
+      session = session_manager.create_session(client_id: @client_id, scope: scope)
+      session.authorization_server = authorization_server
+      session.did = did&.to_s
+      session_manager.update_session(session)
+
+      auth_url = submit_authorization_par(authorization_server, session, login_hint: handle)
 
       {
         url: auth_url,
@@ -396,49 +393,15 @@ module AuthProto
     end
 
     def initialize_dpop(key)
-      key_manager = if key
-                      DPoP::KeyManager.from_jwk(key)
-                    else
-                      DPoP::KeyManager.new
-                    end
+      key_manager = key ? DPoP::KeyManager.from_jwk(key) : DPoP::KeyManager.new
 
       DPoP::Client.new(key_manager: key_manager)
     end
 
     def validate_auth_params(handle, pds_url, scope)
-      raise Error, "scope must include 'atproto'" unless scope.split.include?("atproto")
+      raise Error, "scope must include 'atproto'" unless scope.split.include?('atproto')
       raise Error, "handle or pds_url must be provided" if handle.nil? && pds_url.nil?
       raise Error, "cannot provide both handle and pds_url" if handle && pds_url
-    end
-
-    def resolve_from_handle(handle, session)
-      did = DIDKit::DID.resolve_handle(handle)
-      raise Error, "Could not resolve or verify identity #{handle}" unless did
-
-      pds_url = did.document.pds_endpoint
-      raise Error, "No HTTPS PDS location found for #{did}" unless pds_url && URI(pds_url).is_a?(URI::HTTPS)
-
-      session.did = did.to_s
-
-      # Get authorization server from PDS
-      server = resolve_auth_server(pds_url)
-      session.authorization_server = server
-
-      # Update stored session
-      session_manager.update_session(session)
-
-      { server: server, pds: pds_url }
-    end
-
-    def resolve_from_pds(pds_url, session)
-      # Get authorization server from PDS
-      server = resolve_auth_server(pds_url)
-      session.authorization_server = server
-
-      # Update stored session
-      session_manager.update_session(session)
-
-      { server: server, pds: pds_url }
     end
 
     def resolve_auth_server(pds_url)
@@ -450,7 +413,7 @@ module AuthProto
       Metadata::AuthorizationServer.from_issuer(auth_server_url)
     end
 
-    def generate_authorization_url(authorization_server, session, login_hint: nil)
+    def submit_authorization_par(authorization_server, session, login_hint: nil)
       par_client = PAR::Client.new(
         endpoint: authorization_server.pushed_authorization_request_endpoint,
         dpop_client: @dpop_client
