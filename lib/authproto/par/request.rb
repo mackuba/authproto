@@ -8,97 +8,71 @@ module AuthProto
   module PAR
 
     #
-    # Represents a pushed authorization request
+    # Represents a pushed authorization request.
     #
 
     class Request
 
       #
-      # Configuration for request parameters
+      # Shared set of fields between {Request} (a read-only, validated request) and {Configuration} (a draft request
+      # with writable fields configured in the block passed to {Request.build}).
       #
 
-      class Configuration
+      module Fields
 
         # OAuth client identifier.
-        # @return [String, nil]
-        attr_accessor :client_id
+        # @return [String]
+        attr_reader :client_id
 
         # Registered OAuth callback URI.
-        # @return [String, nil]
-        attr_accessor :redirect_uri
+        # @return [String]
+        attr_reader :redirect_uri
 
         # S256 PKCE challenge.
-        # @return [String, nil]
-        attr_accessor :code_challenge
+        # @return [String]
+        attr_reader :code_challenge
 
         # Random state token to validate the callback.
-        # @return [String, nil]
-        attr_accessor :state
+        # @return [String]
+        attr_reader :state
 
         # Space-separated scopes including `atproto`.
-        # @return [String, nil]
-        attr_accessor :scope
+        # @return [String]
+        attr_reader :scope
 
         # Account handle to prefill at the authorization server.
         # @return [String, nil]
-        attr_accessor :login_hint
+        attr_reader :login_hint
 
         # Optional authorization nonce parameter.
         # @return [String, nil]
-        attr_accessor :nonce
+        attr_reader :nonce
 
         # Optional proof value retained on the request; {Client#submit} generates its own HTTP proof.
         # @return [String, nil]
-        attr_accessor :dpop_proof
+        attr_reader :dpop_proof
 
         # JWT bearer assertion type for confidential clients.
         # @return [String, nil]
-        attr_accessor :client_assertion_type
+        attr_reader :client_assertion_type
 
         # Signed client authentication JWT for confidential clients.
         # @return [String, nil]
-        attr_accessor :client_assertion
+        attr_reader :client_assertion
       end
 
-      # OAuth client identifier.
-      # @return [String]
-      attr_reader :client_id
+      #
+      # A draft PAR request with writable fields, configured inside the block passed to {Request.build}).
+      #
 
-      # Registered OAuth callback URI.
-      # @return [String]
-      attr_reader :redirect_uri
+      class Configuration
+        include Fields
 
-      # S256 PKCE challenge.
-      # @return [String]
-      attr_reader :code_challenge
+        send(:attr_writer, *Fields.instance_methods(false))
+      end
 
-      # Random state token to validate the callback.
-      # @return [String]
-      attr_reader :state
+      include Fields
 
-      # Space-separated scopes including `atproto`.
-      # @return [String]
-      attr_reader :scope
-
-      # Account handle to prefill at the authorization server.
-      # @return [String, nil]
-      attr_reader :login_hint
-
-      # Optional authorization nonce parameter.
-      # @return [String, nil]
-      attr_reader :nonce
-
-      # Optional proof value retained on the request; {Client#submit} generates its own HTTP proof.
-      # @return [String, nil]
-      attr_reader :dpop_proof
-
-      # JWT bearer assertion type for confidential clients.
-      # @return [String, nil]
-      attr_reader :client_assertion_type
-
-      # Signed client authentication JWT for confidential clients.
-      # @return [String, nil]
-      attr_reader :client_assertion
 
       # Builds a validated PAR request by yielding a mutable parameter configuration.
       #
@@ -120,21 +94,9 @@ module AuthProto
       # @raise [Error] if required values are missing or authentication/PKCE/scope values are invalid
       #
       def initialize(config)
-        # Required parameters
-        @client_id = config.client_id
-        @redirect_uri = config.redirect_uri
-        @code_challenge = config.code_challenge
-        @state = config.state
-        @scope = config.scope
-
-        # Optional parameters
-        @login_hint = config.login_hint
-        @nonce = config.nonce
-        @dpop_proof = config.dpop_proof
-
-        # Client authentication
-        @client_assertion_type = config.client_assertion_type
-        @client_assertion = config.client_assertion
+        Fields.instance_methods(false).each do |field|
+          self.instance_variable_set("@#{field}", config.send(field))
+        end
 
         validate_request
       end

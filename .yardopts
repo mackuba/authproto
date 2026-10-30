@@ -1,4 +1,5 @@
 --protected
 --no-private
 --markup markdown
+--load misc/yard_attributes.rb
 lib/**/*.rb
