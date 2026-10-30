@@ -6,10 +6,14 @@
 - additional validations for URLs, resource server and authorization server metadata
 - set `code_challenge_method` in the PAR request automatically to `S256`
 - various renames, refactors, cleanups
+- encode '*' in the authorization URL – unencoded asterisk might break click-to-open-URL in some terminals
+- strip query part from URLs in `htu` in the DPoP proof generator
+- verify that all scopes passed during authorization are declared in client metadata
 
-## [0.3.0.beta1], as AuthProto - 2026-10-28
+## [0.3.0.beta1], as AuthProto – 2026-10-28
 
 - modernized code
+- various renames, refactors, cleanups
 - removed some unused code
 - removed strict dependency on the Redis gem
 - added alternative SQLite storage
@@ -32,37 +36,37 @@
 
 # Earlier releases as `atproto_auth`:
 
-## [0.2.5] - 2024-12-13
+## [0.2.5] – 2024-12-13
 
 Fixed:
 
 - Additional token refresh edge case handling
 
-## [0.2.4] - 2024-12-13
+## [0.2.4] – 2024-12-13
 
 Fixed:
 
 - Token refresh now correctly handles expired tokens
 
-## [0.2.2] - 2024-12-12
+## [0.2.2] – 2024-12-12
 
 Added:
 
 - Added support for did:web users
 
-## [0.2.1] - 2024-12-11
+## [0.2.1] – 2024-12-11
 
 Fixed:
 
 - Fixed a bug with access token hash generation
 
-## [0.2.0] - 2024-12-10
+## [0.2.0] – 2024-12-10
 
 Added:
 
 - Client#handle_callback now returns session did as part of the response
 
-## [0.1.0] - 2024-12-07
+## [0.1.0] – 2024-12-07
 
 Added:
 
@@ -81,6 +85,6 @@ Changed:
 - Session and token management now use configured storage backend
 - Improved thread safety for all storage operations
 
-## [0.0.1] - 2024-12-05
+## [0.0.1] – 2024-12-05
 
 - Initial release

@@ -114,7 +114,7 @@ module AuthProto
     #
     # @param handle [String, nil] account handle (optionally prefixed with `@`) or DID
     # @param pds [String, nil] PDS URL when no handle is supplied
-    # @param scope [String] space-separated scopes, including `atproto`
+    # @param scope [String] space-separated scopes, which must all be declared in client metadata, including `atproto`
     #
     # @return [Hash{Symbol => String}] `:url` is the browser URL; `:session_id` identifies the pending session
     # @raise [Error] if identity arguments or scope are invalid, the handle cannot be verified, or no HTTPS PDS is found
@@ -404,7 +404,19 @@ module AuthProto
     end
 
     def validate_auth_params(handle, pds, scope)
-      raise Error, "scope must include 'atproto'" unless scope.split.include?('atproto')
+      unless scope.is_a?(String) && scope.valid_encoding? && Metadata::ClientMetadata::SCOPE_PATTERN.match?(scope)
+        raise Error, "scope must contain valid tokens separated by single spaces"
+      end
+
+      requested_scopes = scope.split(' ')
+      raise Error, "scope must include 'atproto'" unless requested_scopes.include?('atproto')
+
+      undeclared_scopes = requested_scopes - @client_metadata.scope.split(' ')
+
+      unless undeclared_scopes.empty?
+        raise Error, "scope contains values not declared in client metadata: #{undeclared_scopes.join(' ')}"
+      end
+
       raise Error, "handle or pds must be provided" if handle.nil? && pds.nil?
       raise Error, "cannot provide both handle and pds" if handle && pds
     end
