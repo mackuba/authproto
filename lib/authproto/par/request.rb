@@ -211,7 +211,7 @@ module AuthProto
       end
 
       def validate_code_challenge_method
-        return if code_challenge_method == 'S256'
+        return if code_challenge_method == PKCE::CHALLENGE_METHOD_S256
 
         raise Error, "code_challenge_method must be 'S256'"
       end

@@ -267,7 +267,7 @@ module AuthProto
         return false if response[:body].nil?
 
         error_data = JSON.parse(response[:body])
-        error_data.is_a?(Hash) && error_data['error'] == 'use_dpop_nonce'
+        error_data.is_a?(Hash) && error_data['error'] == DPoP::ERROR_USE_NONCE
       rescue JSON::ParserError
         false
       end
@@ -341,7 +341,7 @@ module AuthProto
         error_description = error_data['error_description'] || error_data['error']
 
         case error_data['error']
-        when 'use_dpop_nonce'
+        when DPoP::ERROR_USE_NONCE
           extract_dpop_nonce(response)
           dpop_client.process_response(response[:headers], auth_server.issuer)
           raise RefreshError.new("Retry with DPoP nonce", retry_possible: true)

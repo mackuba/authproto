@@ -35,7 +35,7 @@ module AuthProto
     #     config.client_id = "https://app.example.com/oauth-client-metadata.json"
     #     config.redirect_uri = "https://app.example.com/callback"
     #     config.code_challenge = "abc123..."
-    #     config.code_challenge_method = 'S256'
+    #     config.code_challenge_method = AuthProto::PKCE::CHALLENGE_METHOD_S256
     #     config.state = "xyz789..."
     #     config.scope = 'atproto'
     #   end
@@ -192,7 +192,7 @@ module AuthProto
 
       def requires_nonce?(response)
         body = JSON.parse(response[:body])
-        body['error'] == 'use_dpop_nonce'
+        body['error'] == DPoP::ERROR_USE_NONCE
       rescue JSON::ParserError
         false
       end

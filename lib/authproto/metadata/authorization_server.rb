@@ -240,7 +240,7 @@ module AuthProto
       def validate_code_challenge_methods
         validate_string_array(@code_challenge_methods_supported, 'code_challenge_methods_supported')
 
-        unless @code_challenge_methods_supported.include?('S256')
+        unless @code_challenge_methods_supported.include?(PKCE::CHALLENGE_METHOD_S256)
           raise InvalidAuthorizationServer, "code_challenge_methods_supported must include S256"
         end
       end

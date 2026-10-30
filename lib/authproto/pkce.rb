@@ -37,6 +37,8 @@ module AuthProto
     # @return [Regexp]
     ALLOWED_VERIFIER_CHARS = /^[A-Za-z0-9\-\._~]+$/
 
+    CHALLENGE_METHOD_S256 = "S256"
+
     class << self
 
       # Generates a cryptographically secure random code verifier

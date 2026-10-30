@@ -15,6 +15,8 @@ module AuthProto
 
   module DPoP
 
+    ERROR_USE_NONCE = "use_dpop_nonce"
+
     # High-level client for managing DPoP operations. Integrates key management,
     # proof generation, and nonce tracking to provide a complete DPoP client
     # implementation according to RFC 9449.
