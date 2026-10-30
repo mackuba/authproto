@@ -1,3 +1,37 @@
+## [Unreleased]
+
+- private keys for signing are now passed separately as `signing_key:` instead of being taken from the same `jwks` in the metadata that holds public keys
+- generate localhost metadata from `client_id` params
+- `confidential_client`: validate `SESSION_SECRET` before start and throw an error early
+- additional validations for URLs, resource server and authorization server metadata
+- set `code_challenge_method` in the PAR request automatically to `S256`
+- various renames, refactors, cleanups
+
+## [0.3.0.beta1], as AuthProto - 2026-10-28
+
+- modernized code
+- removed some unused code
+- removed strict dependency on the Redis gem
+- added alternative SQLite storage
+- added HTTP client version that allows `http://` connections
+- added experimental Minisky adapter and `minisky_console` example
+- added temporary in-process `localhost` HTTP server for receiving callbacks inside `irb`
+- additional validations for request IPs and URLs, responses, and client metadata
+- fixed `confidential_example` running on localhost
+- updated `confidential_example` with a UI for making a test post to Bluesky
+- updated examples to use `oauth-client-metadata.json` instead of `client-metadata.json`
+- converted test suite to RSpec
+- replaced `Identity` module with DIDKit
+- fixed randomly generated encryption key not being shared between different parts of the app
+- fixed some token refresh code failing due to wrong exception names
+- don't try to add client assertions for public clients
+- switched to JWT gem version 3.x
+
+
+---
+
+# Earlier releases as `atproto_auth`:
+
 ## [0.2.5] - 2024-12-13
 
 Fixed:
