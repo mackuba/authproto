@@ -8,7 +8,7 @@ module AuthProto
       def initialize: (endpoint: String, dpop_client: DPoP::Client) -> void
       def submit: (Request request) -> Response
       def extract_nonce: (http_response response) -> String
-      def authorization_url: (authorize_endpoint: String, request_uri: String, client_id: String) -> String
+      def build_authorization_url: (authorization_endpoint: String, request_uri: String, client_id: String) -> String
 
       private
       def validate_endpoint: () -> void

@@ -42,8 +42,8 @@ module AuthProto
     #   response = client.submit(request)
     #
     #   # Build authorization URL using response
-    #   auth_url = client.authorization_url(
-    #     authorize_endpoint: "https://auth.example.com/authorize",
+    #   auth_url = client.build_authorization_url(
+    #     authorization_endpoint: "https://auth.example.com/authorize",
     #     request_uri: response.request_uri,
     #     client_id: request.client_id
     #   )
@@ -139,20 +139,23 @@ module AuthProto
       #
       # The endpoint's existing query is replaced by these two parameters.
       #
-      # @param authorize_endpoint [String] authorization endpoint URL
+      # @param authorization_endpoint [String] authorization endpoint URL
       # @param request_uri [String] request URI from {Response#request_uri}
       # @param client_id [String] OAuth client ID
       # @return [String] browser authorization URL
       # @raise [URI::InvalidURIError] if the authorization endpoint cannot be parsed
       #
-      def authorization_url(authorize_endpoint:, request_uri:, client_id:)
-        uri = URI(authorize_endpoint)
+      def build_authorization_url(authorization_endpoint:, request_uri:, client_id:)
+        uri = URI(authorization_endpoint)
+
         uri.query = encode_params(
           'request_uri' => request_uri,
           'client_id' => client_id
         )
+
         uri.to_s
       end
+
 
       private
 

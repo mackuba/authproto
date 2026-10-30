@@ -8,7 +8,7 @@ module AuthProto
       def update_session: (Session session) -> Session
       def get_session: (String session_id) -> Session?
       def get_session_by_state: (String? state) -> Session?
-      def remove_session: (String session_id) -> void
+      def delete_session: (String session_id) -> void
       def cleanup_expired: () -> void
     end
   end

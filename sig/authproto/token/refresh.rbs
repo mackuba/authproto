@@ -27,7 +27,7 @@ module AuthProto
       attr_reader client_metadata: Metadata::ClientMetadata
 
       def initialize: (session: State::Session, dpop_client: DPoP::Client, auth_server: Metadata::AuthorizationServer, client_metadata: Metadata::ClientMetadata, ?signing_key: (json_object | JOSE::JWK)?) -> void
-      def perform: () -> State::TokenSet
+      def perform_refresh: () -> State::TokenSet
 
       private
       def with_retries: [T] () { () -> T } -> T

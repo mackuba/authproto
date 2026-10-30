@@ -62,15 +62,15 @@ describe AuthProto::PAR::Client do
     end
   end
 
-  describe "#authorization_url" do
+  describe "#build_authorization_url" do
     it "should construct a valid authorization URL" do
-      authorize_endpoint = "https://auth.example.com/authorize"
+      authorization_endpoint = "https://auth.example.com/authorize"
       request_uri = "mocked_request_uri"
       client_id = "mocked_client_id"
 
-      url = @client.authorization_url(authorize_endpoint: authorize_endpoint,
-                                      request_uri: request_uri,
-                                      client_id: client_id)
+      url = @client.build_authorization_url(authorization_endpoint: authorization_endpoint,
+                                            request_uri: request_uri,
+                                            client_id: client_id)
       expected_url = "https://auth.example.com/authorize?request_uri=mocked_request_uri&client_id=mocked_client_id"
       url.should == expected_url
     end

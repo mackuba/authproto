@@ -49,7 +49,7 @@ describe AuthProto::Metadata::AuthorizationServer do
     end
   end
 
-  describe ".from_issuer" do
+  describe ".from_url" do
     before do
       AuthProto.configuration.stubs(:http_client).returns(mock_http_client = mock)
       mock_http_client.stubs(:get).with(URI.join(issuer_url, '/.well-known/oauth-authorization-server').to_s,
@@ -57,7 +57,7 @@ describe AuthProto::Metadata::AuthorizationServer do
     end
 
     it "should fetch and parse metadata successfully" do
-      server = AuthProto::Metadata::AuthorizationServer.from_issuer(issuer_url)
+      server = AuthProto::Metadata::AuthorizationServer.from_url(issuer_url)
       server.issuer.should == valid_metadata["issuer"]
     end
 
@@ -65,14 +65,14 @@ describe AuthProto::Metadata::AuthorizationServer do
       AuthProto.configuration.http_client.stubs(:get).raises(AuthProto::HTTPClient::HTTPError.new("Network error",
                                                                                                       {}))
       expect {
-        AuthProto::Metadata::AuthorizationServer.from_issuer(issuer_url)
+        AuthProto::Metadata::AuthorizationServer.from_url(issuer_url)
       }.to raise_error(AuthProto::InvalidAuthorizationServer)
     end
 
     it "should raise an error if the metadata JSON is invalid" do
       mock_response[:body] = 'not-json'
       expect {
-        AuthProto::Metadata::AuthorizationServer.from_issuer(issuer_url)
+        AuthProto::Metadata::AuthorizationServer.from_url(issuer_url)
       }.to raise_error(AuthProto::InvalidAuthorizationServer)
     end
 
@@ -81,7 +81,7 @@ describe AuthProto::Metadata::AuthorizationServer do
       mock_response[:body] = invalid_metadata.to_json
 
       expect {
-        AuthProto::Metadata::AuthorizationServer.from_issuer(issuer_url)
+        AuthProto::Metadata::AuthorizationServer.from_url(issuer_url)
       }.to raise_error(AuthProto::InvalidAuthorizationServer)
     end
 
@@ -91,8 +91,10 @@ describe AuthProto::Metadata::AuthorizationServer do
      'https:///path', '/relative', 'https://bad host'].each do |url|
       it "should reject invalid issuer URL #{url.inspect} before fetching metadata" do
         AuthProto.configuration.http_client.expects(:get).never
-        expect { described_class.from_issuer(url) }
-          .to raise_error(AuthProto::InvalidAuthorizationServer, /issuer URL/)
+
+        expect { described_class.from_url(url) }.to raise_error(
+          AuthProto::InvalidAuthorizationServer, /Invalid authorization server URL/
+        )
       end
     end
 
@@ -102,7 +104,7 @@ describe AuthProto::Metadata::AuthorizationServer do
 
         it "should accept a root path or nondefault port with matching metadata" do
           mock_response[:body] = valid_metadata.merge('issuer' => issuer_url).to_json
-          described_class.from_issuer(issuer_url).issuer.should == issuer_url
+          described_class.from_url(issuer_url).issuer.should == issuer_url
         end
       end
     end
@@ -110,7 +112,7 @@ describe AuthProto::Metadata::AuthorizationServer do
     [201, 204, 301, 302, 303, 307, 308, 400, 404, 500].each do |status|
       it "should reject HTTP #{status} even with valid metadata" do
         mock_response[:status] = status
-        expect { described_class.from_issuer(issuer_url) }
+        expect { described_class.from_url(issuer_url) }
           .to raise_error(AuthProto::InvalidAuthorizationServer, /HTTP 200/)
       end
     end
@@ -118,33 +120,33 @@ describe AuthProto::Metadata::AuthorizationServer do
     [nil, 'text/plain', 'text/html', 'application/jwk-set+json', 'application/jsonp'].each do |content_type|
       it "should reject content type #{content_type.inspect}" do
         mock_response[:headers]['content-type'] = content_type
-        expect { described_class.from_issuer(issuer_url) }
+        expect { described_class.from_url(issuer_url) }
           .to raise_error(AuthProto::InvalidAuthorizationServer, /application\/json/)
       end
     end
 
     it "should accept a JSON media type with parameters and case differences" do
       mock_response[:headers]['content-type'] = 'Application/JSON; charset=utf-8'
-      described_class.from_issuer(issuer_url).issuer.should == issuer_url
+      described_class.from_url(issuer_url).issuer.should == issuer_url
     end
 
     [[], 'metadata', 42, true, nil].each do |metadata|
       it "should reject a JSON value that is not an object: #{metadata.inspect}" do
         mock_response[:body] = metadata.to_json
-        expect { described_class.from_issuer(issuer_url) }
+        expect { described_class.from_url(issuer_url) }
           .to raise_error(AuthProto::InvalidAuthorizationServer, /JSON object/)
       end
     end
 
     it "should reject an absent response body" do
       mock_response[:body] = nil
-      expect { described_class.from_issuer(issuer_url) }
+      expect { described_class.from_url(issuer_url) }
         .to raise_error(AuthProto::InvalidAuthorizationServer, /Invalid JSON/)
     end
 
     it "should require an exact issuer match" do
       mock_response[:body] = valid_metadata.merge('issuer' => "#{issuer_url}/").to_json
-      expect { described_class.from_issuer(issuer_url) }
+      expect { described_class.from_url(issuer_url) }
         .to raise_error(AuthProto::InvalidAuthorizationServer, /issuer mismatch/)
     end
 
@@ -156,7 +158,7 @@ describe AuthProto::Metadata::AuthorizationServer do
       destination = stub_request(:get, 'https://other.example.com/metadata')
         .to_return(status: 200, headers: { 'Content-Type' => 'application/json' }, body: valid_metadata.to_json)
 
-      expect { described_class.from_issuer(issuer_url) }
+      expect { described_class.from_url(issuer_url) }
         .to raise_error(AuthProto::InvalidAuthorizationServer, /HTTP 200/)
       destination.should_not have_been_requested
     end

@@ -23,7 +23,7 @@ module AuthProto
     #
     # @example Fetching and validating Authorization Server metadata
     #   begin
-    #     auth_server = AuthProto::Metadata::AuthorizationServer.from_issuer("https://auth.example.com")
+    #     auth_server = AuthProto::Metadata::AuthorizationServer.from_url("https://auth.example.com")
     #     puts "Authorization endpoint: #{auth_server.authorization_endpoint}"
     #     puts "Supported scopes: #{auth_server.scopes_supported}"
     #   rescue AuthProto::InvalidAuthorizationServer => e
@@ -111,22 +111,22 @@ module AuthProto
       # Fetches `/.well-known/oauth-authorization-server` using the configured transport.
       # Requires HTTP 200 without redirects and a JSON object served as application/json.
       #
-      # The document's issuer must exactly match the requested issuer.
+      # The document's issuer must exactly match the requested url.
       #
-      # @param issuer [String] authorization server issuer origin
+      # @param url [String] authorization server issuer origin
       # @return [AuthorizationServer] validated discovery metadata
       # @raise [InvalidAuthorizationServer] if HTTP transport fails, JSON is invalid, or metadata/issuer validation fails
       # @raise [HTTPClient::SSRFError] if the transport rejects the initial destination
       # @raise [URI::InvalidURIError] if the issuer or a metadata URI cannot be parsed
       #
-      def self.from_issuer(issuer)
-        validate_source_url(issuer)
+      def self.from_url(url)
+        validate_source_url(url)
 
-        response = fetch_metadata(issuer)
+        response = fetch_metadata(url)
         validate_response(response)
 
         metadata = parse_metadata(response[:body])
-        validate_issuer_matches(metadata['issuer'], issuer)
+        validate_issuer_matches(metadata['issuer'], url)
 
         new(metadata)
       end
@@ -302,21 +302,21 @@ module AuthProto
       class << self
         private
 
-        def validate_source_url(issuer)
-          uri = ValidatedURI.new(issuer)
+        def validate_source_url(url)
+          uri = ValidatedURI.new(url)
 
           valid = (
             uri.scheme == 'https' && (!uri.specified_port || uri.effective_port != 443) &&
             uri.path.empty? && !uri.userinfo && !uri.query && !uri.fragment
           )
 
-          raise InvalidAuthorizationServer, "Invalid authorization server issuer URL" unless valid
+          raise InvalidAuthorizationServer, "Invalid authorization server URL" unless valid
         rescue URI::InvalidURIError => e
-          raise InvalidAuthorizationServer, "Invalid authorization server issuer URL: #{e.message}"
+          raise InvalidAuthorizationServer, "Invalid authorization server URL: #{e.message}"
         end
 
-        def fetch_metadata(issuer)
-          metadata_url = URI.join(issuer, "/.well-known/oauth-authorization-server")
+        def fetch_metadata(url)
+          metadata_url = URI.join(url, "/.well-known/oauth-authorization-server")
 
           AuthProto.configuration.http_client.get(metadata_url.to_s, follow_redirects: false)
         rescue HTTPClient::HTTPError => e
@@ -347,10 +347,10 @@ module AuthProto
           raise InvalidAuthorizationServer, "Invalid JSON in authorization server metadata: #{e.message}"
         end
 
-        def validate_issuer_matches(metadata_issuer, request_issuer)
-          return if metadata_issuer == request_issuer
+        def validate_issuer_matches(metadata_issuer, source_url)
+          return if metadata_issuer == source_url
 
-          raise InvalidAuthorizationServer, "issuer mismatch: #{metadata_issuer} != #{request_issuer}"
+          raise InvalidAuthorizationServer, "issuer mismatch: #{metadata_issuer} != #{source_url}"
         end
       end
     end

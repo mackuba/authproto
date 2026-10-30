@@ -97,7 +97,9 @@ module AuthProto
       @client_id = client_id
       @redirect_uri = redirect_uri
 
+      # Client metadata is fetched from .well-known if not provided directly
       @client_metadata = load_client_metadata(metadata)
+
       validate_redirect_uri
       @signing_key = initialize_signing_key(signing_key)
 
@@ -251,6 +253,7 @@ module AuthProto
     #
     def refresh_token(session_id)
       session = session_manager.get_session(session_id)
+
       raise TokenError, "Invalid session" unless session
       raise TokenError, "Session not authorized" unless session.renewable?
 
@@ -259,14 +262,13 @@ module AuthProto
           session: session,
           dpop_client: @dpop_client,
           auth_server: session.auth_server,
-          client_metadata: client_metadata,
+          client_metadata: @client_metadata,
           signing_key: @signing_key
         )
 
-        new_tokens = refresher.perform
-        session.tokens = new_tokens
+        new_tokens = refresher.perform_refresh
 
-        # Update stored session
+        session.tokens = new_tokens
         session_manager.update_session(session)
 
         {
@@ -306,6 +308,7 @@ module AuthProto
     #
     def auth_headers(session_id:, method:, url:)
       session = session_manager.get_session(session_id)
+
       raise TokenError, "Invalid session" unless session
       raise TokenError, "Session not authorized" unless session.authorized?
 
@@ -327,10 +330,11 @@ module AuthProto
     # @return [void]
     # @raise [Storage::StorageError] if deletion or locking fails
     #
-    def remove_session(session_id)
+    def delete_session(session_id)
       key = Storage::KeyBuilder.session_key(session_id)
+
       AuthProto.storage.delete(key)
-      session_manager.remove_session(session_id)
+      session_manager.delete_session(session_id)
     end
 
     # Invokes the session manager's expiry cleanup hook.
@@ -355,12 +359,13 @@ module AuthProto
     end
 
     def validate_redirect_uri
-      valid = @client_metadata.redirect_uris.include?(@redirect_uri)
-      raise Error, "redirect_uri not found in client metadata" unless valid
+      unless @client_metadata.redirect_uris.include?(@redirect_uri)
+        raise Error, "redirect_uri not found in client metadata"
+      end
     end
 
     def initialize_signing_key(key)
-      if client_metadata.confidential?
+      if @client_metadata.confidential?
         raise InvalidClientMetadata, "Confidential clients require a signing_key" if key.nil?
       else
         raise InvalidClientMetadata, "Public clients must not supply a signing_key" unless key.nil?
@@ -370,10 +375,10 @@ module AuthProto
       assertion = PAR::ClientAssertion.new(client_id: @client_id, signing_key: key)
       private_key = assertion.signing_key
 
-      if client_metadata.jwks
+      if @client_metadata.jwks
         public_key = private_key.to_public.to_map.to_h
 
-        key_in_jwks = client_metadata.jwks['keys'].any? { |candidate|
+        key_in_jwks = @client_metadata.jwks['keys'].any? { |candidate|
           metadata_key_matches_public_key?(candidate, public_key)
         }
 
@@ -408,8 +413,7 @@ module AuthProto
       resource_server = Metadata::ResourceServer.from_url(pds)
       auth_server_url = resource_server.authorization_server
 
-      # Get and validate authorization server metadata
-      Metadata::AuthorizationServer.from_issuer(auth_server_url)
+      Metadata::AuthorizationServer.from_url(auth_server_url)
     end
 
     def submit_authorization_par(authorization_server, session, login_hint: nil)
@@ -427,10 +431,10 @@ module AuthProto
 
         req.code_challenge = session.pkce_challenge
 
-        # Public clients use PKCE and DPoP without client authentication.
-        if client_metadata.confidential?
-          client_assertion = PAR::ClientAssertion.new(client_id: @client_id, signing_key: @signing_key)
-          req.client_assertion = client_assertion.generate_jwt(audience: authorization_server.issuer)
+        if @client_metadata.confidential?
+          assertion = PAR::ClientAssertion.new(client_id: @client_id, signing_key: @signing_key)
+
+          req.client_assertion = assertion.generate_jwt(audience: authorization_server.issuer)
           req.client_assertion_type = PAR::CLIENT_ASSERTION_TYPE
         end
 
@@ -440,11 +444,11 @@ module AuthProto
         )
       end
 
-      response = par_client.submit(par_request)
+      par_response = par_client.submit(par_request)
 
-      par_client.authorization_url(
-        authorize_endpoint: authorization_server.authorization_endpoint,
-        request_uri: response.request_uri,
+      par_client.build_authorization_url(
+        authorization_endpoint: authorization_server.authorization_endpoint,
+        request_uri: par_response.request_uri,
         client_id: @client_id
       )
     end
@@ -486,18 +490,15 @@ module AuthProto
         code_verifier: session.pkce_verifier
       }
 
-      # Add client authentication
-      if client_metadata.confidential?
-        client_assertion = PAR::ClientAssertion.new(
+      if @client_metadata.confidential?
+        assertion = PAR::ClientAssertion.new(
           client_id: @client_id,
           signing_key: @signing_key
         )
 
         body.merge!(
           client_assertion_type: PAR::CLIENT_ASSERTION_TYPE,
-          client_assertion: client_assertion.generate_jwt(
-            audience: session.auth_server.issuer
-          )
+          client_assertion: assertion.generate_jwt(audience: session.auth_server.issuer)
         )
       end
 
@@ -530,27 +531,19 @@ module AuthProto
     end
 
     def validate_token_response(response, session)
-      # Required fields
-      %w[access_token token_type expires_in scope sub].each do |field|
+      ['access_token', 'token_type', 'expires_in', 'scope', 'sub'].each do |field|
         raise TokenError, "Missing #{field} in token response" unless response[field]
       end
 
-      # Token type must be DPoP
       raise TokenError, "Invalid token_type: #{response['token_type']}" unless response['token_type'] == 'DPoP'
-
-      # Scope must include atproto
       raise TokenError, "Missing atproto scope in token response" unless response['scope'].split.include?('atproto')
 
-      # If we have a pre-resolved DID, verify it matches
+      # If we have a pre-resolved DID, verify that it matches
       raise TokenError, "Subject mismatch in token response" if session.did && session.did != response['sub']
 
-      # Process DPoP-Nonce from response headers if present
-      return unless response[:headers] && response[:headers]["DPoP-Nonce"]
-
-      dpop_client.process_response(
-        response[:headers],
-        session.auth_server.issuer
-      )
+      if response[:headers] && response[:headers]["DPoP-Nonce"]
+        dpop_client.process_response(response[:headers], session.auth_server.issuer)
+      end
     end
   end
 end

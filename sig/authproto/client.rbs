@@ -22,7 +22,7 @@ module AuthProto
     def refresh_token: (String session_id) -> refreshed_tokens
     def authorized?: (String session_id) -> bool
     def auth_headers: (session_id: String, method: String, url: String) -> Hash[String, String]
-    def remove_session: (String session_id) -> void
+    def delete_session: (String session_id) -> void
     def cleanup_expired_sessions: () -> void
 
     private

@@ -15,7 +15,7 @@ module AuthProto
   # @example Resolving authorization server from PDS URL
   #   resource_server = AuthProto::Metadata::ResourceServer.from_url("https://pds.example.com")
   #   auth_server_url = resource_server.authorization_server
-  #   auth_server = AuthProto::Metadata::AuthorizationServer.from_issuer(auth_server_url)
+  #   auth_server = AuthProto::Metadata::AuthorizationServer.from_url(auth_server_url)
   #
   # The module includes three main classes:
   # - {ResourceServer} - Handles PDS metadata validation and authorization server discovery

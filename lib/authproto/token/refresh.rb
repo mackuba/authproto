@@ -173,7 +173,7 @@ module AuthProto
       # @return [State::TokenSet] validated replacement tokens
       # @raise [RefreshError] if the session is not renewable, refresh fails, or retries are exhausted
       #
-      def perform
+      def perform_refresh
         synchronize do
           raise RefreshError.new("No refresh token available", retry_possible: false) unless session.renewable?
           raise RefreshError.new("No access token to refresh", retry_possible: false) if session.tokens.nil?

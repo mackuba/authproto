@@ -26,11 +26,9 @@ module AuthProto
     class Error < AuthProto::Error; end
 
     # Minimum PKCE verifier length in characters.
-    # @return [Integer]
     MIN_VERIFIER_LENGTH = 43
 
     # Maximum PKCE verifier length in characters.
-    # @return [Integer]
     MAX_VERIFIER_LENGTH = 128
 
     # Allowed PKCE verifier characters from RFC 7636.
@@ -50,7 +48,6 @@ module AuthProto
       def generate_verifier(length = MAX_VERIFIER_LENGTH)
         validate_verifier_length(length)
 
-        # Generate random bytes and encode as URL-safe base64
         random_bytes = SecureRandom.random_bytes(length * 3 / 4)
         Base64.urlsafe_encode64(random_bytes, padding: false)[0...length]
       rescue StandardError => e
@@ -66,7 +63,6 @@ module AuthProto
       def generate_challenge(verifier)
         validate_verifier(verifier)
 
-        # Hash with SHA-256 and encode as URL-safe base64
         digest = OpenSSL::Digest::SHA256.digest(verifier)
         Base64.urlsafe_encode64(digest, padding: false)
       rescue StandardError => e
@@ -81,11 +77,9 @@ module AuthProto
       # @raise [Error] if inputs are invalid
       #
       def verify(challenge, verifier)
-        # Generate challenge from verifier and compare
         calculated = generate_challenge(verifier)
         secure_compare(calculated, challenge)
       rescue Error
-        # Re-raise PKCE errors
         raise
       rescue StandardError => e
         raise Error, "Challenge verification failed: #{e.message}"
@@ -107,9 +101,7 @@ module AuthProto
         length = verifier.length
         validate_verifier_length(length)
 
-        return if verifier.match?(ALLOWED_VERIFIER_CHARS)
-
-        raise Error, "Verifier contains invalid characters"
+        raise Error, "Verifier contains invalid characters" unless verifier.match?(ALLOWED_VERIFIER_CHARS)
       end
 
       # Constant-time string comparison to prevent timing attacks
@@ -118,8 +110,10 @@ module AuthProto
 
         left = str1.unpack("C*")
         right = str2.unpack("C*")
+
         result = 0
         left.zip(right) { |x, y| result |= x ^ y }
+
         result.zero?
       end
     end

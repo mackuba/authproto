@@ -182,20 +182,20 @@ describe AuthProto::State::SessionManager do
     end
   end
 
-  describe "#remove_session" do
+  describe "#delete_session" do
     it "should remove a session and its state mapping" do
       session = session_manager.create_session(client_id: client_id, scope: scope)
       session_key = AuthProto::Storage::KeyBuilder.session_key(session.session_id)
       state_key = AuthProto::Storage::KeyBuilder.state_key(session.state_token)
 
-      session_manager.remove_session(session.session_id)
+      session_manager.delete_session(session.session_id)
 
       (storage.exists?(session_key)).should be_falsey
       (storage.exists?(state_key)).should be_falsey
     end
 
     it "should handle removal of non-existent session" do
-      session_manager.remove_session("non_existent_session_id").should be_nil
+      session_manager.delete_session("non_existent_session_id").should be_nil
     end
   end
 

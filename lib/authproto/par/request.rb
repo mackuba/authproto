@@ -145,6 +145,7 @@ module AuthProto
         encode_params(build_params)
       end
 
+
       private
 
       def build_params
@@ -158,26 +159,21 @@ module AuthProto
           "scope" => scope
         }
 
-        add_optional_params(params)
-        add_client_auth_params(params)
+        params['login_hint'] = login_hint if login_hint
+        params['nonce'] = nonce if nonce
+
+        if client_assertion
+          params['client_assertion_type'] = CLIENT_ASSERTION_TYPE
+          params['client_assertion'] = client_assertion
+        end
+
         params
       end
 
-      def add_optional_params(params)
-        params['login_hint'] = login_hint if login_hint
-        params['nonce'] = nonce if nonce
-      end
-
-      def add_client_auth_params(params)
-        return unless client_assertion
-
-        params['client_assertion_type'] = CLIENT_ASSERTION_TYPE
-        params['client_assertion'] = client_assertion
-      end
-
       def validate_request
+        raise Error, "atproto scope is required" unless scope.split.include?('atproto')
+
         validate_required_params
-        validate_scope
         validate_client_auth
       end
 
@@ -186,11 +182,6 @@ module AuthProto
           value = send(param)
           raise Error, "#{param} is required" if value.nil? || value.empty?
         end
-      end
-
-      def validate_scope
-        scopes = scope.split
-        raise Error, "atproto scope is required" unless scopes.include?('atproto')
       end
 
       def validate_client_auth

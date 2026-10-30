@@ -30,10 +30,10 @@ module AuthProto
       def initialize: (Hash[String, untyped] metadata) -> void
 
       # Fetches and validates Authorization Server metadata from an issuer URL
-      # @param issuer [String] Authorization Server issuer URL
+      # @param url [String] Authorization Server issuer URL
       # @return [AuthorizationServer] new instance with fetched metadata
       # @raise [InvalidAuthorizationServer] if metadata is invalid
-      def self.from_issuer: (String issuer) -> AuthorizationServer
+      def self.from_url: (String url) -> AuthorizationServer
 
       def to_h: () -> Hash[Symbol, untyped]
 

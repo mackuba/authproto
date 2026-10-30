@@ -28,8 +28,8 @@ module AuthProto
   #   end
   #
   #   response = par.submit(request)
-  #   auth_url = par.authorization_url(
-  #     authorize_endpoint: "https://auth.example.com/authorize",
+  #   auth_url = par.build_authorization_url(
+  #     authorization_endpoint: "https://auth.example.com/authorize",
   #     request_uri: response.request_uri,
   #     client_id: request.client_id
   #   )

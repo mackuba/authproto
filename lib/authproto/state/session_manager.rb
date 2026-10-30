@@ -136,7 +136,7 @@ module AuthProto
       # @return [void]
       # @raise [Storage::StorageError] if deletion or locking fails
       #
-      def remove_session(session_id)
+      def delete_session(session_id)
         session = get_session(session_id)
         return unless session
 
