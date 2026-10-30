@@ -97,7 +97,6 @@ module AuthProto
       @client_id = client_id
       @redirect_uri = redirect_uri
 
-      # Initialize core dependencies
       @client_metadata = load_client_metadata(metadata)
       validate_redirect_uri
       @signing_key = initialize_signing_key(signing_key)
@@ -129,13 +128,8 @@ module AuthProto
     def authorize(handle: nil, pds_url: nil, scope: 'atproto')
       validate_auth_params(handle, pds_url, scope)
 
-      # Create new session
-      session = session_manager.create_session(
-        client_id: client_id,
-        scope: scope
-      )
+      session = session_manager.create_session(client_id: @client_id, scope: scope)
 
-      # Store session with storage backend
       session_manager.update_session(session)
 
       # Resolve identity and authorization server if handle provided
@@ -182,24 +176,19 @@ module AuthProto
     # @raise [Encryption::EncryptionError] if tokens cannot be encrypted for storage
     #
     def handle_callback(code:, state:, iss:)
-      # Find and validate session
       session = session_manager.get_session_by_state(state)
-      raise CallbackError, "Invalid state parameter" unless session
 
-      # Verify issuer matches session
+      raise CallbackError, "Invalid state parameter" unless session
       raise CallbackError, "Issuer mismatch" unless session.auth_server && session.auth_server.issuer == iss
 
       AuthProto.storage.with_lock(Storage::KeyBuilder.lock_key("session", session.session_id), ttl: 30) do
-        # Exchange code for tokens
         token_response = exchange_code(
           code: code,
           session: session
         )
 
-        # Validate token response
         validate_token_response(token_response, session)
 
-        # Create token set and store in session
         token_set = State::TokenSet.new(
           access_token: token_response['access_token'],
           token_type: token_response['token_type'],
@@ -208,9 +197,8 @@ module AuthProto
           scope: token_response['scope'],
           sub: token_response['sub']
         )
-        session.tokens = token_set
 
-        # Update stored session
+        session.tokens = token_set
         session_manager.update_session(session)
 
         {
@@ -324,8 +312,7 @@ module AuthProto
       raise TokenError, "Invalid session" unless session
       raise TokenError, "Session not authorized" unless session.authorized?
 
-      # Generate DPoP proof
-      proof = dpop_client.generate_proof(
+      dpop_proof = dpop_client.generate_proof(
         http_method: method,
         http_uri: url,
         access_token: session.tokens.access_token
@@ -333,7 +320,7 @@ module AuthProto
 
       {
         "Authorization" => "DPoP #{session.tokens.access_token}",
-        "DPoP" => proof
+        "DPoP" => dpop_proof
       }
     end
 
@@ -359,6 +346,7 @@ module AuthProto
       session_manager.cleanup_expired
     end
 
+
     private
 
     def load_client_metadata(metadata)
@@ -382,26 +370,29 @@ module AuthProto
         return nil
       end
 
-      assertion = PAR::ClientAssertion.new(client_id: client_id, signing_key: key)
+      assertion = PAR::ClientAssertion.new(client_id: @client_id, signing_key: key)
       private_key = assertion.signing_key
 
       if client_metadata.jwks
         public_key = private_key.to_public.to_map.to_h
 
         key_in_jwks = client_metadata.jwks['keys'].any? { |candidate|
-          !candidate['revoked'] &&
-            (!candidate.key?('alg') || candidate['alg'] == 'ES256') &&
-            (!candidate.key?('use') || candidate['use'] == 'sig') &&
-            (!candidate.key?('key_ops') || candidate['key_ops'].include?('verify')) &&
-            %w[kid kty crv x y].all? { |field| candidate[field] == public_key[field] }
+          metadata_key_matches_public_key?(candidate, public_key)
         }
 
-        unless key_in_jwks
-          raise InvalidClientMetadata, "signing_key must match an active public key advertised in jwks"
-        end
+        raise InvalidClientMetadata, "signing_key must match an active public key advertised in jwks" if !key_in_jwks
       end
 
       private_key
+    end
+
+    def metadata_key_matches_public_key?(candidate, public_key)
+      return false if candidate['revoked']
+      return false if candidate.key?('alg') && candidate['alg'] != 'ES256'
+      return false if candidate.key?('use') && candidate['use'] != 'sig'
+      return false if candidate.key?('key_ops') && !candidate['key_ops'].include?('verify')
+
+      %w[kid kty crv x y].all? { |field| candidate[field] == public_key[field] }
     end
 
     def initialize_dpop(key)
@@ -459,48 +450,41 @@ module AuthProto
       Metadata::AuthorizationServer.from_issuer(auth_server_url)
     end
 
-    def generate_authorization_url(auth_server, session, login_hint: nil)
-      # Create PAR client
+    def generate_authorization_url(authorization_server, session, login_hint: nil)
       par_client = PAR::Client.new(
-        endpoint: auth_server.pushed_authorization_request_endpoint,
+        endpoint: authorization_server.pushed_authorization_request_endpoint,
         dpop_client: @dpop_client
       )
 
-      # Build PAR request
-      par_request = PAR::Request.build do |config|
-        config.client_id = client_id
-        config.redirect_uri = redirect_uri
-        config.state = session.state_token
-        config.scope = session.scope
-        config.login_hint = login_hint if login_hint
+      par_request = PAR::Request.build do |req|
+        req.client_id = @client_id
+        req.redirect_uri = @redirect_uri
+        req.state = session.state_token
+        req.scope = session.scope
+        req.login_hint = login_hint if login_hint
 
-        # Add PKCE parameters
-        config.code_challenge = session.pkce_challenge
-        config.code_challenge_method = 'S256'
+        req.code_challenge = session.pkce_challenge
+        req.code_challenge_method = 'S256'
 
         # Public clients use PKCE and DPoP without client authentication.
         if client_metadata.confidential?
-          client_assertion = PAR::ClientAssertion.new(client_id: client_id, signing_key: @signing_key)
-          config.client_assertion = client_assertion.generate_jwt(audience: auth_server.issuer)
-          config.client_assertion_type = PAR::CLIENT_ASSERTION_TYPE
+          client_assertion = PAR::ClientAssertion.new(client_id: @client_id, signing_key: @signing_key)
+          req.client_assertion = client_assertion.generate_jwt(audience: authorization_server.issuer)
+          req.client_assertion_type = PAR::CLIENT_ASSERTION_TYPE
         end
 
-        # Add DPoP proof
-        proof = @dpop_client.generate_proof(
+        req.dpop_proof = @dpop_client.generate_proof(
           http_method: 'POST',
-          http_uri: auth_server.pushed_authorization_request_endpoint
+          http_uri: authorization_server.pushed_authorization_request_endpoint
         )
-        config.dpop_proof = proof
       end
 
-      # Submit PAR request
       response = par_client.submit(par_request)
 
-      # Build final authorization URL
       par_client.authorization_url(
-        authorize_endpoint: auth_server.authorization_endpoint,
+        authorize_endpoint: authorization_server.authorization_endpoint,
         request_uri: response.request_uri,
-        client_id: client_id
+        client_id: @client_id
       )
     end
 
@@ -528,8 +512,7 @@ module AuthProto
     end
 
     def make_token_request(code, session)
-      # Generate proof
-      proof = dpop_client.generate_proof(
+      dpop_proof = dpop_client.generate_proof(
         http_method: 'POST',
         http_uri: session.auth_server.token_endpoint
       )
@@ -537,15 +520,15 @@ module AuthProto
       body = {
         grant_type: 'authorization_code',
         code: code,
-        redirect_uri: redirect_uri,
-        client_id: client_id,
+        redirect_uri: @redirect_uri,
+        client_id: @client_id,
         code_verifier: session.pkce_verifier
       }
 
       # Add client authentication
       if client_metadata.confidential?
         client_assertion = PAR::ClientAssertion.new(
-          client_id: client_id,
+          client_id: @client_id,
           signing_key: @signing_key
         )
 
@@ -562,7 +545,7 @@ module AuthProto
         body: body,
         headers: {
           "Content-Type" => "application/x-www-form-urlencoded",
-          "DPoP" => proof
+          "DPoP" => dpop_proof
         }
       )
     end
@@ -578,9 +561,7 @@ module AuthProto
 
     def extract_dpop_nonce(response)
       headers = response[:headers]
-      nonce = headers["DPoP-Nonce"] ||
-              headers["dpop-nonce"] ||
-              headers["Dpop-Nonce"]
+      nonce = headers.find { |k, v| k.downcase == 'dpop-nonce' }&.last
 
       raise TokenError, "No DPoP nonce provided in error response" unless nonce
 
