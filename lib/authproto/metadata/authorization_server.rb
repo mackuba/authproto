@@ -194,6 +194,10 @@ module AuthProto
         validate_boolean_field(data, 'authorization_response_iss_parameter_supported', true)
         validate_boolean_field(data, 'require_pushed_authorization_requests', true)
         validate_boolean_field(data, 'client_id_metadata_document_supported', true)
+
+        if data.key?('require_request_uri_registration')
+          validate_boolean_field(data, 'require_request_uri_registration', true)
+        end
       end
 
       def validate_issuer(issuer)
@@ -211,15 +215,14 @@ module AuthProto
 
       def validate_https_url(url)
         uri = ValidatedURI.new(url)
-        raise InvalidAuthorizationServer, "URL must use HTTPS" unless uri.scheme == "https"
+        raise InvalidAuthorizationServer, "URL must use HTTPS" unless uri.scheme == 'https'
+        raise InvalidAuthorizationServer, "Endpoint URL must not contain a fragment" if uri.fragment
 
         url
       end
 
       def validate_response_types
-        unless @response_types_supported.is_a?(Array)
-          raise InvalidAuthorizationServer, "response_types_supported must be an array"
-        end
+        validate_string_array(@response_types_supported, 'response_types_supported')
 
         unless @response_types_supported.include?('code')
           raise InvalidAuthorizationServer, "response_types_supported must include 'code'"
@@ -227,9 +230,7 @@ module AuthProto
       end
 
       def validate_grant_types
-        unless @grant_types_supported.is_a?(Array)
-          raise InvalidAuthorizationServer, "grant_types_supported must be an array"
-        end
+        validate_string_array(@grant_types_supported, 'grant_types_supported')
 
         unless %w[authorization_code refresh_token] - @grant_types_supported == []
           raise InvalidAuthorizationServer, "grant types should include 'authorization_code' and 'refresh_token'"
@@ -237,9 +238,7 @@ module AuthProto
       end
 
       def validate_code_challenge_methods
-        unless @code_challenge_methods_supported.is_a?(Array)
-          raise InvalidAuthorizationServer, "code_challenge_methods_supported must be an array"
-        end
+        validate_string_array(@code_challenge_methods_supported, 'code_challenge_methods_supported')
 
         unless @code_challenge_methods_supported.include?('S256')
           raise InvalidAuthorizationServer, "code_challenge_methods_supported must include S256"
@@ -247,9 +246,7 @@ module AuthProto
       end
 
       def validate_token_endpoint_auth_methods
-        unless @token_endpoint_auth_methods_supported.is_a?(Array)
-          raise InvalidAuthorizationServer, "token_endpoint_auth_methods_supported must be an array"
-        end
+        validate_string_array(@token_endpoint_auth_methods_supported, 'token_endpoint_auth_methods_supported')
 
         unless %w[private_key_jwt none] - @token_endpoint_auth_methods_supported == []
           raise InvalidAuthorizationServer, "auth methods must include 'private_key_jwt' and 'none'"
@@ -257,9 +254,9 @@ module AuthProto
       end
 
       def validate_token_endpoint_auth_signing_algs
-        unless @token_endpoint_auth_signing_alg_values_supported.is_a?(Array)
-          raise InvalidAuthorizationServer, "token_endpoint_auth_signing_alg_values_supported must be an array"
-        end
+        validate_string_array(
+          @token_endpoint_auth_signing_alg_values_supported, 'token_endpoint_auth_signing_alg_values_supported'
+        )
 
         unless @token_endpoint_auth_signing_alg_values_supported.include?('ES256')
           raise InvalidAuthorizationServer, "token_endpoint_auth_signing_alg_values_supported must include ES256"
@@ -271,9 +268,7 @@ module AuthProto
       end
 
       def validate_dpop_signing_algs
-        unless @dpop_signing_alg_values_supported.is_a?(Array)
-          raise InvalidAuthorizationServer, "dpop_signing_alg_values_supported must be an array"
-        end
+        validate_string_array(@dpop_signing_alg_values_supported, 'dpop_signing_alg_values_supported')
 
         unless @dpop_signing_alg_values_supported.include?('ES256')
           raise InvalidAuthorizationServer, "dpop_signing_alg_values_supported must include ES256"
@@ -281,12 +276,20 @@ module AuthProto
       end
 
       def validate_scopes
-        unless @scopes_supported.is_a?(Array)
-          raise InvalidAuthorizationServer, "scopes_supported must be an array"
-        end
+        validate_string_array(@scopes_supported, 'scopes_supported')
 
         unless @scopes_supported.include?('atproto')
           raise InvalidAuthorizationServer, "scopes_supported must include 'atproto'"
+        end
+      end
+
+      def validate_string_array(values, field)
+        unless values.is_a?(Array)
+          raise InvalidAuthorizationServer, "#{field} must be an array"
+        end
+
+        unless values.all? { |value| value.is_a?(String) }
+          raise InvalidAuthorizationServer, "#{field} must contain only strings"
         end
       end
 

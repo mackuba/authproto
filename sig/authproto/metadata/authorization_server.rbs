@@ -59,6 +59,8 @@ module AuthProto
 
       def validate_scopes: () -> void
 
+      def validate_string_array: (untyped values, String field) -> void
+
       def validate_boolean_field: (Hash[String, untyped] metadata, String field, bool required_value) -> void
 
       private def self.fetch_metadata: (String issuer) -> http_response

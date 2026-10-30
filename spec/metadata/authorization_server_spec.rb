@@ -178,6 +178,41 @@ describe AuthProto::Metadata::AuthorizationServer do
             .to raise_error(AuthProto::InvalidAuthorizationServer, "#{field} must be an array")
         end
       end
+
+      it "should require #{field} to contain only strings" do
+        [nil, true, 42, {}, []].each do |value|
+          invalid_data = valid_metadata.merge(field => valid_metadata[field] + [value])
+          expect { described_class.new(invalid_data) }
+            .to raise_error(AuthProto::InvalidAuthorizationServer, "#{field} must contain only strings")
+        end
+      end
+    end
+
+    it "should accept omitted or true require_request_uri_registration" do
+      described_class.new(valid_metadata).issuer.should == issuer_url
+      described_class.new(valid_metadata.merge('require_request_uri_registration' => true)).issuer.should == issuer_url
+    end
+
+    [false, nil, 'true', 'false', 1, [], {}].each do |value|
+      it "should reject require_request_uri_registration set to #{value.inspect}" do
+        expect { described_class.new(valid_metadata.merge('require_request_uri_registration' => value)) }
+          .to raise_error(AuthProto::InvalidAuthorizationServer, 'require_request_uri_registration must be true')
+      end
+    end
+
+    ['authorization_endpoint', 'token_endpoint', 'pushed_authorization_request_endpoint'].each do |field|
+      ['#fragment', '#'].each do |fragment|
+        it "should reject #{field} with #{fragment.inspect}" do
+          invalid_data = valid_metadata.merge(field => valid_metadata[field] + fragment)
+          expect { described_class.new(invalid_data) }
+            .to raise_error(AuthProto::InvalidAuthorizationServer, /must not contain a fragment/)
+        end
+      end
+
+      it "should allow #{field} to have a path and query" do
+        url = 'https://auth.example.com/oauth/endpoint?tenant=example'
+        described_class.new(valid_metadata.merge(field => url)).public_send(field).should == url
+      end
     end
 
     it "should validate required fields" do
