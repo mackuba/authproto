@@ -163,6 +163,23 @@ describe AuthProto::Metadata::AuthorizationServer do
   end
 
   describe "validation methods" do
+    %w[
+      response_types_supported
+      grant_types_supported
+      code_challenge_methods_supported
+      token_endpoint_auth_methods_supported
+      token_endpoint_auth_signing_alg_values_supported
+      dpop_signing_alg_values_supported
+      scopes_supported
+    ].each do |field|
+      it "should require #{field} to be an array" do
+        [valid_metadata[field].join(' '), valid_metadata[field].to_h { |value| [value, true] }, 42, true].each do |value|
+          expect { described_class.new(valid_metadata.merge(field => value)) }
+            .to raise_error(AuthProto::InvalidAuthorizationServer, "#{field} must be an array")
+        end
+      end
+    end
+
     it "should validate required fields" do
       server = AuthProto::Metadata::AuthorizationServer.new(valid_metadata)
       expect {
