@@ -166,8 +166,8 @@ module AuthProto
       def make_request(request)
         # Generate DPoP proof for this request
         proof = dpop_client.generate_proof(
-          http_method: 'POST',
-          http_uri: endpoint,
+          method: 'POST',
+          uri: endpoint,
           nonce: nonce_manager.get(server_origin)
         )
 

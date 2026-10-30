@@ -238,8 +238,8 @@ module AuthProto
       def make_token_request(session)
         # Generate proof
         proof = dpop_client.generate_proof(
-          http_method: 'POST',
-          http_uri: auth_server.token_endpoint
+          method: 'POST',
+          uri: auth_server.token_endpoint
         )
 
         body = {

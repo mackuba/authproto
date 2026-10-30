@@ -15,8 +15,8 @@ describe AuthProto::DPoP::Client do
       nonce_ttl: 400
     )
   end
-  let(:http_method) { "POST" }
-  let(:http_uri) { "https://example.com/resource" }
+  let(:method) { 'POST' }
+  let(:uri) { "https://example.com/resource" }
   let(:nonce) { "valid_nonce" }
   let(:access_token) { "test_access_token" }
   let(:server_url) { "https://example.com" }
@@ -34,13 +34,13 @@ describe AuthProto::DPoP::Client do
     it "should generate a DPoP proof using proof_generator" do
       client.nonce_manager.expects(:get).with("https://example.com").returns(nonce)
       client.proof_generator.expects(:generate).with(
-        http_method: http_method,
-        http_uri: http_uri,
+        method: method,
+        uri: uri,
         nonce: nonce,
         access_token: access_token
       ).returns(proof)
 
-      generated_proof = client.generate_proof(http_method: http_method, http_uri: http_uri, access_token: access_token)
+      generated_proof = client.generate_proof(method: method, uri: uri, access_token: access_token)
       generated_proof.should == proof
     end
 
@@ -49,7 +49,7 @@ describe AuthProto::DPoP::Client do
       client.proof_generator.expects(:generate).raises(StandardError, "Generation failed")
 
       expect {
-        client.generate_proof(http_method: http_method, http_uri: http_uri)
+        client.generate_proof(method: method, uri: uri)
       }.to raise_error(AuthProto::DPoP::Client::Error)
     end
   end

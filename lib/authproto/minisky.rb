@@ -74,7 +74,7 @@ class Minisky::OAuthClient
   #
   # @param options [Hash{Symbol => Object}] options forwarded to {AuthProto::Client#authorize}
   # @option options [String] :handle account handle, optionally prefixed with `@`
-  # @option options [String] :pds_url PDS URL, as an alternative to `handle`
+  # @option options [String] :pds PDS URL, as an alternative to `handle`
   # @option options [String] :scope ('atproto') requested scopes
   #
   # @return [Hash{Symbol => String}] `:url` to open and pending `:session_id`

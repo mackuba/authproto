@@ -62,23 +62,25 @@ module AuthProto
 
       # Generates a fresh DPoP proof using a supplied or stored nonce for the origin.
       #
-      # @param http_method [String] HTTP method, converted to uppercase
-      # @param http_uri [String] absolute HTTP(S) URL; callers should omit the query and fragment
+      # @param method [String] HTTP method, converted to uppercase
+      # @param uri [String] absolute HTTP(S) URL; callers should omit the query and fragment
       # @param access_token [String, nil] token to bind with an `ath` claim
       # @param nonce [String, nil] explicit nonce; `nil` looks up the origin's stored nonce
       # @return [JOSE::SignedBinary] compact signed DPoP JWT
       # @raise [Error] if URI parsing, nonce lookup or signing fails
       #
-      def generate_proof(http_method:, http_uri:, access_token: nil, nonce: nil)
-        uri = URI(http_uri)
-        server_url = "#{uri.scheme}://#{uri.host}#{":#{uri.port}" if uri.port != uri.default_port}"
+      def generate_proof(method:, uri:, access_token: nil, nonce: nil)
+        parsed_uri = URI(uri)
+
+        server_url = "#{parsed_uri.scheme}://#{parsed_uri.host}"
+        server_url += ":#{parsed_uri.port}" if parsed_uri.port != parsed_uri.default_port
 
         # Use provided nonce or get one from the manager
         nonce ||= @nonce_manager.get(server_url)
 
         @proof_generator.generate(
-          http_method: http_method,
-          http_uri: http_uri,
+          method: method,
+          uri: uri,
           nonce: nonce,
           access_token: access_token
         )

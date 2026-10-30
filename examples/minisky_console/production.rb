@@ -18,7 +18,7 @@ def create_client(server_hostname, pds)
 end
 
 def authorize(client)
-  auth = client.authorize(pds_url: "https://#{client.host}", scope: client.oauth_client.client_metadata.scope)
+  auth = client.authorize(pds: "https://#{client.host}", scope: client.oauth_client.client_metadata.scope)
 
   puts "Open this URL in the browser and complete authorization:"
   puts auth[:url]

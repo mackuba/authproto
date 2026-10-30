@@ -107,11 +107,11 @@ module AuthProto
 
     # Starts authorization, stores a pending session, and submits a PAR request.
     #
-    # Supply exactly one of `handle` or `pds_url`. Open the returned `:url` in a browser
+    # Supply exactly one of `handle` or `pds`. Open the returned `:url` in a browser
     # and pass the eventual callback parameters to {#handle_callback}.
     #
     # @param handle [String, nil] account handle (optionally prefixed with `@`) or DID
-    # @param pds_url [String, nil] PDS URL when no handle is supplied
+    # @param pds [String, nil] PDS URL when no handle is supplied
     # @param scope [String] space-separated scopes, including `atproto`
     #
     # @return [Hash{Symbol => String}] `:url` is the browser URL; `:session_id` identifies the pending session
@@ -125,18 +125,18 @@ module AuthProto
     # @raise [Storage::StorageError] if session storage or locking fails
     # @raise [Encryption::EncryptionError] if session serialization cannot encrypt secrets
     #
-    def authorize(handle: nil, pds_url: nil, scope: 'atproto')
-      validate_auth_params(handle, pds_url, scope)
+    def authorize(handle: nil, pds: nil, scope: 'atproto')
+      validate_auth_params(handle, pds, scope)
 
-      if !pds_url
+      if !pds
         did = DIDKit::DID.resolve_handle(handle)
         raise Error, "Could not resolve or verify identity #{handle}" unless did
 
-        pds_url = did.document.pds_endpoint
-        raise Error, "No HTTPS PDS location found for #{did}" unless pds_url && URI(pds_url).is_a?(URI::HTTPS)
+        pds = did.document.pds_endpoint
+        raise Error, "No HTTPS PDS location found for #{did}" unless pds && URI(pds).is_a?(URI::HTTPS)
       end
 
-      authorization_server = resolve_auth_server(pds_url)
+      authorization_server = resolve_auth_server(pds)
 
       session = session_manager.create_session(client_id: @client_id, scope: scope)
       session.authorization_server = authorization_server
@@ -310,8 +310,8 @@ module AuthProto
       raise TokenError, "Session not authorized" unless session.authorized?
 
       dpop_proof = dpop_client.generate_proof(
-        http_method: method,
-        http_uri: url,
+        method: method,
+        uri: url,
         access_token: session.tokens.access_token
       )
 
@@ -398,15 +398,14 @@ module AuthProto
       DPoP::Client.new(key_manager: key_manager)
     end
 
-    def validate_auth_params(handle, pds_url, scope)
+    def validate_auth_params(handle, pds, scope)
       raise Error, "scope must include 'atproto'" unless scope.split.include?('atproto')
-      raise Error, "handle or pds_url must be provided" if handle.nil? && pds_url.nil?
-      raise Error, "cannot provide both handle and pds_url" if handle && pds_url
+      raise Error, "handle or pds must be provided" if handle.nil? && pds.nil?
+      raise Error, "cannot provide both handle and pds" if handle && pds
     end
 
-    def resolve_auth_server(pds_url)
-      # Get resource server metadata
-      resource_server = Metadata::ResourceServer.from_url(pds_url)
+    def resolve_auth_server(pds)
+      resource_server = Metadata::ResourceServer.from_url(pds)
       auth_server_url = resource_server.authorization_server
 
       # Get and validate authorization server metadata
@@ -436,8 +435,8 @@ module AuthProto
         end
 
         req.dpop_proof = @dpop_client.generate_proof(
-          http_method: 'POST',
-          http_uri: authorization_server.pushed_authorization_request_endpoint
+          method: 'POST',
+          uri: authorization_server.pushed_authorization_request_endpoint
         )
       end
 
@@ -475,8 +474,8 @@ module AuthProto
 
     def make_token_request(code, session)
       dpop_proof = dpop_client.generate_proof(
-        http_method: 'POST',
-        http_uri: session.auth_server.token_endpoint
+        method: 'POST',
+        uri: session.auth_server.token_endpoint
       )
 
       body = {

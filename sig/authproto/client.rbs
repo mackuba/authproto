@@ -16,7 +16,7 @@ module AuthProto
     attr_reader dpop_client: DPoP::Client
 
     def initialize: (client_id: String, redirect_uri: String, ?metadata: json_object?, ?dpop_key: (json_object | JOSE::Map)?, ?signing_key: (json_object | JOSE::JWK)?) -> void
-    def authorize: (?handle: String?, ?pds_url: String?, ?scope: String) -> authorization_result
+    def authorize: (?handle: String?, ?pds: String?, ?scope: String) -> authorization_result
     def handle_callback: (code: String, state: String, iss: String) -> callback_result
     def get_tokens: (String session_id) -> token_info?
     def refresh_token: (String session_id) -> refreshed_tokens
@@ -30,11 +30,9 @@ module AuthProto
     def validate_redirect_uri: () -> void
     def initialize_signing_key: ((json_object | JOSE::JWK)? key) -> JOSE::JWK?
     def initialize_dpop: ((json_object | JOSE::Map)? key) -> DPoP::Client
-    def validate_auth_params!: (String? handle, String? pds_url, String scope) -> void
-    def resolve_from_handle: (String handle, State::Session session) -> { server: Metadata::AuthorizationServer, pds: String }
-    def resolve_from_pds: (String pds_url, State::Session session) -> { server: Metadata::AuthorizationServer, pds: String }
-    def resolve_auth_server: (String pds_url) -> Metadata::AuthorizationServer
-    def generate_authorization_url: (Metadata::AuthorizationServer auth_server, State::Session session, ?login_hint: String?) -> String
+    def validate_auth_params: (String? handle, String? pds, String scope) -> void
+    def resolve_auth_server: (String pds) -> Metadata::AuthorizationServer
+    def submit_authorization_par: (Metadata::AuthorizationServer authorization_server, State::Session session, ?login_hint: String?) -> String
     def exchange_code: (code: String, session: State::Session) -> json_object
     def make_token_request: (String code, State::Session session) -> http_response
     def requires_dpop_nonce?: (http_response response) -> bool

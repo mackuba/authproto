@@ -10,8 +10,8 @@ UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{1
 describe AuthProto::DPoP::ProofGenerator do
   let(:key_manager) { AuthProto::DPoP::KeyManager.new }
   let(:generator) { AuthProto::DPoP::ProofGenerator.new(key_manager) }
-  let(:http_method) { "POST" }
-  let(:http_uri) { "https://example.com/path" }
+  let(:method) { 'POST' }
+  let(:uri) { "https://example.com/path" }
 
   describe "initialization" do
     it "should require a key manager" do
@@ -29,7 +29,7 @@ describe AuthProto::DPoP::ProofGenerator do
 
   describe "#generate" do
     it "should generate valid proof JWT" do
-      proof = generator.generate(http_method: http_method, http_uri: http_uri)
+      proof = generator.generate(method: method, uri: uri)
       segments = proof.split(".")
       segments.length.should == 3 # header.payload.signature
 
@@ -41,16 +41,16 @@ describe AuthProto::DPoP::ProofGenerator do
       header["jwk"].should be_a(Hash)
 
       payload["jti"].should match(UUID_REGEX)
-      payload["htm"].should == http_method
-      payload["htu"].should == http_uri
+      payload["htm"].should == method
+      payload["htu"].should == uri
       payload["iat"].should be_a(Integer)
     end
 
     it "should include nonce when provided" do
       nonce = SecureRandom.hex
       proof = generator.generate(
-        http_method: http_method,
-        http_uri: http_uri,
+        method: method,
+        uri: uri,
         nonce: nonce
       )
       payload = extract_payload(proof)
@@ -60,8 +60,8 @@ describe AuthProto::DPoP::ProofGenerator do
     it "should optionally include access token hash" do
       token = "test_token"
       proof = generator.generate(
-        http_method: http_method,
-        http_uri: http_uri,
+        method: method,
+        uri: uri,
         access_token: token,
         ath: true
       )
@@ -74,26 +74,26 @@ describe AuthProto::DPoP::ProofGenerator do
 
     it "should normalize URIs" do
       uri = "https://example.com:443/path?query#fragment"
-      proof = generator.generate(http_method: http_method, http_uri: uri)
+      proof = generator.generate(method: method, uri: uri)
       payload = extract_payload(proof)
       payload["htu"].should == "https://example.com/path?query"
     end
 
     it "should validate http method" do
       expect {
-        generator.generate(http_method: "", http_uri: http_uri)
+        generator.generate(method: "", uri: uri)
       }.to raise_error(AuthProto::DPoP::ProofGenerator::ProofError)
     end
 
     it "should validate http uri" do
       expect {
-        generator.generate(http_method: http_method, http_uri: "invalid")
+        generator.generate(method: method, uri: "invalid")
       }.to raise_error(AuthProto::DPoP::ProofGenerator::ProofError)
     end
 
     it "should require https or http uri" do
       expect {
-        generator.generate(http_method: http_method, http_uri: "ftp://example.com")
+        generator.generate(method: method, uri: "ftp://example.com")
       }.to raise_error(AuthProto::DPoP::ProofGenerator::ProofError)
     end
   end

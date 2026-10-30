@@ -9,7 +9,7 @@ class OAuthClient
 
   def initialize: (String host, client_id: String, redirect_uri: String, ?metadata: AuthProto::json_object?, ?dpop_key: (AuthProto::json_object | JOSE::Map)?, ?signing_key: (AuthProto::json_object | JOSE::JWK)?, ?session_id: String?) -> void
   def config: () -> nil
-  def authorize: (?handle: String?, ?pds_url: String?, ?scope: String) -> AuthProto::authorization_result
+  def authorize: (?handle: String?, ?pds: String?, ?scope: String) -> AuthProto::authorization_result
   def handle_callback: (code: String, state: String, iss: String) -> AuthProto::callback_result
   def get_request: (String | URI::HTTP method, ?Hash[untyped, untyped]? params, ?auth: bool, ?headers: Hash[String, String]?) -> untyped
   def post_request: (String | URI::HTTP method, ?untyped data, ?auth: bool, ?headers: Hash[String, String]?, ?params: Hash[untyped, untyped]?) -> untyped

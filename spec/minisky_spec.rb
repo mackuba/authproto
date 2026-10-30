@@ -109,7 +109,7 @@ describe Minisky::OAuthClient do
         !form.key?("client_assertion") && !form.key?("client_assertion_type") && request.headers.key?("Dpop")
     end.to_return(status: 201, body: { request_uri: "urn:example:par", expires_in: 90 }.to_json)
 
-    result = client.authorize(pds_url: host)
+    result = client.authorize(pds: host)
     URI(result[:url]).host.should == "auth.example.com"
     client.session_id.should == result[:session_id]
   end
@@ -123,7 +123,7 @@ describe Minisky::OAuthClient do
       URI.decode_www_form(request.body).to_h["redirect_uri"] == callback
     end.to_return(status: 201, body: { request_uri: "urn:example:par", expires_in: 90 }.to_json)
 
-    URI(client.authorize(pds_url: host)[:url]).host.should == "auth.example.com"
+    URI(client.authorize(pds: host)[:url]).host.should == "auth.example.com"
   end
 
   [false, true].each do |use_uri|
@@ -154,7 +154,7 @@ describe Minisky::OAuthClient do
         expires_in: 3600, scope: "atproto", sub: "did:plc:alice"
       }.to_json)
 
-      auth = client.authorize(pds_url: host)
+      auth = client.authorize(pds: host)
       session = client.oauth_client.session_manager.get_session(auth[:session_id])
       client.handle_callback(code: "code", state: session.state_token, iss: auth_server.issuer)
       client.perform_token_refresh[:refresh_token].should == "new-refresh"

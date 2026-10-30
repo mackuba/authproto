@@ -45,22 +45,22 @@ module AuthProto
       # A nonce and access-token hash are added when requested. The URI normalizer removes
       # fragments and default ports; callers must remove query strings before calling.
       #
-      # @param http_method [String] nonempty HTTP method, converted to uppercase
-      # @param http_uri [String] absolute HTTP(S) request URL without a query string
+      # @param method [String] nonempty HTTP method, converted to uppercase
+      # @param uri [String] absolute HTTP(S) request URL without a query string
       # @param nonce [String, nil] server-provided nonce to include
       # @param access_token [String, nil] access token to bind to the proof
       # @param ath [Boolean, nil] include an access-token hash; `nil` enables it when a token is supplied
       # @return [JOSE::SignedBinary] compact signed DPoP JWT
       # @raise [ProofError] if input validation or proof generation fails
       #
-      def generate(http_method:, http_uri:, nonce: nil, access_token: nil, ath: nil)
-        validate_inputs(http_method, http_uri)
+      def generate(method:, uri:, nonce: nil, access_token: nil, ath: nil)
+        validate_inputs(method, uri)
         ath = !access_token.nil? if ath.nil?
 
         header = build_header
         payload = build_payload(
-          http_method: http_method,
-          http_uri: http_uri,
+          method: method,
+          uri: uri,
           nonce: nonce,
           access_token: access_token,
           include_ath: ath
@@ -73,13 +73,13 @@ module AuthProto
 
       private
 
-      def validate_inputs(http_method, http_uri)
-        raise ProofError, "http_method is required" if http_method.nil? || http_method.empty?
-        raise ProofError, "http_uri is required" if http_uri.nil? || http_uri.empty?
+      def validate_inputs(method, uri)
+        raise ProofError, "method is required" if method.nil? || method.empty?
+        raise ProofError, "uri is required" if uri.nil? || uri.empty?
 
-        ValidatedURI.new(http_uri)
+        ValidatedURI.new(uri)
       rescue URI::InvalidURIError => e
-        raise ProofError, "invalid http_uri: #{e.message}"
+        raise ProofError, "invalid uri: #{e.message}"
       end
 
       def build_header
@@ -90,11 +90,11 @@ module AuthProto
         }
       end
 
-      def build_payload(http_method:, http_uri:, nonce: nil, access_token: nil, include_ath: nil)
+      def build_payload(method:, uri:, nonce: nil, access_token: nil, include_ath: nil)
         payload = {
           'jti' => SecureRandom.uuid,
-          'htm' => http_method.upcase,
-          'htu' => normalize_uri(http_uri),
+          'htm' => method.upcase,
+          'htu' => normalize_uri(uri),
           'iat' => Time.now.to_i
         }
 
