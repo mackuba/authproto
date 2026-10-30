@@ -3,11 +3,12 @@
 - private keys for signing are now passed separately as `signing_key:` instead of being taken from the same `jwks` in the metadata that holds public keys
 - generate localhost metadata from `client_id` params
 - `confidential_client`: validate `SESSION_SECRET` before start and throw an error early
-- additional validations for URLs, resource server and authorization server metadata
+- additional validations for URLs, resource server and authorization server metadata, and PAR request and response
 - set `code_challenge_method` in the PAR request automatically to `S256`
 - various renames, refactors, cleanups
 - encode '*' in the authorization URL – unencoded asterisk might break click-to-open-URL in some terminals
 - strip query part from URLs in `htu` in the DPoP proof generator
+- keep existing query part in the PAR authorization endpoint when adding params to it
 - verify that all scopes passed during authorization are declared in client metadata
 
 ## [0.3.0.beta1], as AuthProto – 2026-10-28

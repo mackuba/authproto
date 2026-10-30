@@ -122,6 +122,16 @@ describe AuthProto::PAR::Client do
       url.should == expected_url
     end
 
+    it "should preserve endpoint query parameters including repeated keys and encoded values" do
+      endpoint = 'https://auth.example.com/authorize?tenant=a%2Bb&tag=one&tag=two&empty='
+
+      url = @client.build_authorization_url(
+        authorization_endpoint: endpoint, request_uri: 'urn:example:par', client_id: 'https://client.example/metadata'
+      )
+
+      url.should == endpoint + '&request_uri=urn%3Aexample%3Apar&client_id=https%3A%2F%2Fclient.example%2Fmetadata'
+    end
+
     it "should escape asterisks for terminal links while preserving the exact localhost client ID" do
       client_id = 'http://localhost/?' + URI.encode_www_form(
         redirect_uri: 'http://127.0.0.1:9292/callback',

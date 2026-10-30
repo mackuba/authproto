@@ -134,7 +134,7 @@ module AuthProto
 
       # Builds the browser URL using the client ID and returned PAR request URI.
       #
-      # The endpoint's existing query is replaced by these two parameters.
+      # Retains existing query parameters.
       #
       # @param authorization_endpoint [String] authorization endpoint URL
       # @param request_uri [String] request URI from {Response#request_uri}
@@ -150,7 +150,10 @@ module AuthProto
           client_id: client_id
         }
 
-        uri.query = URI.encode_www_form(params).gsub('*', '%2A')   # unescaped '*' may break links in the terminal
+        existing_query = uri.query || ''
+        params_query = URI.encode_www_form(params).gsub('*', '%2A')   # unescaped '*' may break links in the terminal
+
+        uri.query = existing_query + (existing_query.empty? ? '' : '&') + params_query
 
         uri.to_s
       end
