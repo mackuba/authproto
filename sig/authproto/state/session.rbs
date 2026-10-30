@@ -17,6 +17,7 @@ module AuthProto
       def authorization_server=: (Metadata::AuthorizationServer server) -> Metadata::AuthorizationServer
       def did=: (String did) -> String
       def tokens=: (TokenSet tokens) -> String
+      def session_data: () -> AuthProto::session_data?
       def authorized?: () -> bool
       def renewable?: () -> bool
     end

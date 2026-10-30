@@ -200,15 +200,7 @@ module AuthProto
         session.tokens = token_set
         session_manager.update_session(session)
 
-        {
-          access_token: token_set.access_token,
-          token_type: token_set.token_type,
-          expires_in: (token_set.expires_at - Time.now).to_i,
-          refresh_token: token_set.refresh_token,
-          scope: token_set.scope,
-          session_id: session.session_id,
-          did: session.did
-        }
+        session.session_data
       end
     end
 
@@ -217,6 +209,7 @@ module AuthProto
     # The result contains `:access_token` (String), `:token_type` (String, `DPoP`),
     # `:expires_in` (Integer seconds remaining), `:refresh_token` (String or nil),
     # and `:scope` (String).
+    # It also contains `:session_id` (String) and `:did` (String).
     # This method does not refresh expired tokens.
     #
     # @param session_id [String] session identifier
@@ -226,13 +219,7 @@ module AuthProto
       session = session_manager.get_session(session_id)
       return nil unless session&.authorized?
 
-      {
-        access_token: session.tokens.access_token,
-        token_type: session.tokens.token_type,
-        expires_in: (session.tokens.expires_at - Time.now).to_i,
-        refresh_token: session.tokens.refresh_token,
-        scope: session.tokens.scope
-      }
+      session.session_data
     end
 
     # Refreshes a renewable session and persists the replacement tokens.
@@ -240,11 +227,11 @@ module AuthProto
     # The result contains `:access_token` (String), `:token_type` (String, `DPoP`),
     # `:expires_in` (Integer seconds remaining), `:refresh_token` (String or nil),
     # and `:scope` (String).
-    # The result also contains `:session_id` (String). An expired access token can
+    # The result also contains `:session_id` (String) and `:did` (String). An expired access token can
     # still be refreshed when the stored session has a refresh token.
     #
     # @param session_id [String] session to refresh
-    # @return [Hash{Symbol => String, Integer, nil}] replacement tokens and session ID
+    # @return [Hash{Symbol => String, Integer, nil}] replacement tokens and session identifiers
     # @raise [TokenError] if the session is missing or has no refresh token
     # @raise [Token::RefreshError] if token refresh fails or exhausts retries
     # @raise [State::SessionError] if replacement tokens have a different subject
@@ -271,14 +258,7 @@ module AuthProto
         session.tokens = new_tokens
         session_manager.update_session(session)
 
-        {
-          access_token: new_tokens.access_token,
-          token_type: new_tokens.token_type,
-          expires_in: (new_tokens.expires_at - Time.now).to_i,
-          refresh_token: new_tokens.refresh_token,
-          scope: new_tokens.scope,
-          session_id: session.session_id
-        }
+        session.session_data
       end
     end
 

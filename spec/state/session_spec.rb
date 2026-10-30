@@ -105,6 +105,40 @@ describe AuthProto::State::Session do
     end
   end
 
+  describe "#session_data" do
+    it "should return nil before tokens are assigned" do
+      session.session_data.should be_nil
+    end
+
+    it "should return current tokens and session identifiers with the remaining lifetime" do
+      now = Time.now
+      Time.stubs(:now).returns(now)
+      session.tokens = tokens
+
+      Time.stubs(:now).returns(now + 60)
+      session.session_data.should == {
+        access_token: tokens.access_token,
+        token_type: tokens.token_type,
+        expires_in: 3540,
+        refresh_token: tokens.refresh_token,
+        scope: tokens.scope,
+        session_id: session.session_id,
+        did: did
+      }
+    end
+
+    it "should include a nil refresh token and preserve negative remaining lifetimes" do
+      now = Time.now
+      Time.stubs(:now).returns(now)
+      session.tokens = AuthProto::State::TokenSet.new(
+        access_token: 'expired_access_token', token_type: 'DPoP', expires_in: -10, scope: scope, sub: did
+      )
+
+      session.session_data[:refresh_token].should be_nil
+      session.session_data[:expires_in].should == -10
+    end
+  end
+
   describe "#authorized?" do
     it "should return true if tokens are set and not expired" do
       session.tokens = tokens

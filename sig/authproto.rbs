@@ -7,9 +7,11 @@ module AuthProto
   type json_object = Hash[String, untyped]
   type http_body = String | Hash[untyped, untyped] | nil
   type http_response = { status: Integer, headers: Hash[String, String], body: String? }
-  type token_info = { access_token: String, token_type: String, expires_in: Integer, refresh_token: String?, scope: String }
-  type refreshed_tokens = { access_token: String, token_type: String, expires_in: Integer, refresh_token: String?, scope: String, session_id: String }
-  type callback_result = { access_token: String, token_type: String, expires_in: Integer, refresh_token: String?, scope: String, session_id: String, did: String }
+  type session_data = { access_token: String, token_type: String, expires_in: Integer,
+                        refresh_token: String?, scope: String, session_id: String, did: String }
+  type token_info = session_data
+  type refreshed_tokens = session_data
+  type callback_result = session_data
   type authorization_result = { url: String, session_id: String }
 
   class Error < StandardError
