@@ -57,8 +57,6 @@ module AuthProto
       def validate_scope: () -> void
 
       def validate_client_auth: () -> void
-
-      def encode_params: (Hash[String, String]) -> String
     end
   end
 end

@@ -30,26 +30,8 @@ module AuthProto
       #
       def initialize(client_id:, signing_key:)
         @client_id = client_id
-
-        data = signing_key.is_a?(JOSE::JWK) ? signing_key.to_map.to_h : signing_key
-
-        unless data.is_a?(Hash) && data['kty'] == 'EC' && data['crv'] == 'P-256' &&
-               %w[kid x y d].all? { |field| data[field].is_a?(String) && !data[field].empty? }
-          raise Error, "signing_key must be a private EC P-256 JWK with a nonempty kid"
-        end
-
-        if data['revoked'] ||
-           (data.key?('alg') && data['alg'] != 'ES256') ||
-           (data.key?('use') && data['use'] != 'sig') ||
-           (data.key?('key_ops') && (!data['key_ops'].is_a?(Array) || !data['key_ops'].include?('sign')))
-          raise Error, "signing_key must be active and permit ES256 signing"
-        end
-
-        @signing_key = JOSE::JWK.from_map(data)
-        imported = JWT::JWK.import(data)
-        proof = JWT.encode({}, imported, 'ES256')
-        JWT.decode(proof, imported.public_key, true, algorithms: ['ES256'])
-      rescue Error
+        @signing_key = validate_signing_key(signing_key)
+      rescue ClientAssertion::Error
         raise
       rescue StandardError => e
         raise Error, "Invalid signing_key: #{e.message}"
@@ -68,27 +50,62 @@ module AuthProto
         now = Time.now.to_i
 
         payload = {
-          # Required claims
-          iss: @client_id, # Issuer is client_id
-          sub: @client_id, # Subject is client_id
-          aud: audience, # Audience is the authorization server issuer
-          jti: SecureRandom.uuid, # Unique identifier
-          exp: now + lifetime, # Expiration time
-          iat: now # Issued at time
+          iss: @client_id,        # issuer
+          sub: @client_id,        # subject
+          aud: audience,          # audience is the authorization server issuer
+          jti: SecureRandom.uuid, # token identifier
+          exp: now + lifetime,    # expiration time
+          iat: now                # issued at time
         }
 
-        # Header specifying ES256 algorithm for signing
         header = {
           alg: 'ES256',
           typ: 'JWT',
           kid: @signing_key.fields['kid']
         }
 
-        # Sign and return the JWT
         key = JWT::JWK.import(@signing_key.to_map.to_h)
         JWT.encode(payload, key, 'ES256', header)
       rescue JWT::Error, ArgumentError => e
         raise Error, "Failed to generate client assertion: #{e.message}"
+      end
+
+
+      private
+
+      def validate_signing_key(signing_key)
+        data = signing_key.is_a?(JOSE::JWK) ? signing_key.to_map.to_h : signing_key
+
+        raise Error, "signing_key must be a hash or a JOSE::JWK" unless data.is_a?(Hash)
+        raise Error, "signing_key must be active" if data['revoked']
+
+        unless data['kty'] == 'EC' && data['crv'] == 'P-256'
+          raise Error, "signing_key must be a EC P-256 JWK"
+        end
+
+        unless data['d'].is_a?(String) && !data['d'].empty?
+          raise Error, "signing_key must be a private key ('d' field must not be empty)"
+        end
+
+        %w[kid x y].each do |field|
+          unless data[field].is_a?(String) && !data[field].empty?
+            raise Error, "signing_key '#{field}' field must not be empty"
+          end
+        end
+
+        if (data.key?('alg') && data['alg'] != 'ES256') ||
+           (data.key?('use') && data['use'] != 'sig') ||
+           (data.key?('key_ops') && (!data['key_ops'].is_a?(Array) || !data['key_ops'].include?('sign')))
+          raise Error, "signing_key must be active and permit ES256 signing"
+        end
+
+        signing_key = JOSE::JWK.from_map(data)
+
+        imported = JWT::JWK.import(data)
+        proof = JWT.encode({}, imported, 'ES256')
+        JWT.decode(proof, imported.public_key, true, algorithms: ['ES256'])
+
+        signing_key
       end
     end
   end

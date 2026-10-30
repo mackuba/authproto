@@ -34,7 +34,9 @@ describe AuthProto::Client, 'client authentication keys' do
   end
 
   it 'should reject a public key supplied as the private signing key' do
-    expect { build_client(public_jwk) }.to raise_error(AuthProto::PAR::ClientAssertion::Error, /private EC P-256/)
+    expect { build_client(public_jwk) }.to raise_error(
+      AuthProto::PAR::ClientAssertion::Error, /signing_key must be a private key/
+    )
   end
 
   it 'should match key material as well as kid' do

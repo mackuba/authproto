@@ -418,7 +418,7 @@ module AuthProto
 
     def submit_authorization_par(authorization_server, session, login_hint: nil)
       par_client = PAR::Client.new(
-        endpoint: authorization_server.pushed_authorization_request_endpoint,
+        par_endpoint: authorization_server.pushed_authorization_request_endpoint,
         dpop_client: @dpop_client
       )
 
@@ -428,7 +428,6 @@ module AuthProto
         req.state = session.state_token
         req.scope = session.scope
         req.login_hint = login_hint if login_hint
-
         req.code_challenge = session.pkce_challenge
 
         if @client_metadata.confidential?

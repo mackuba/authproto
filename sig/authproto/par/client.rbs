@@ -1,17 +1,17 @@
 module AuthProto
   module PAR
     class Client
-      attr_reader endpoint: String
+      attr_reader par_endpoint: String
       attr_reader dpop_client: DPoP::Client
       attr_reader nonce_manager: DPoP::NonceManager
 
-      def initialize: (endpoint: String, dpop_client: DPoP::Client) -> void
+      def initialize: (par_endpoint: String, dpop_client: DPoP::Client) -> void
       def submit: (Request request) -> Response
       def extract_nonce: (http_response response) -> String
       def build_authorization_url: (authorization_endpoint: String, request_uri: String, client_id: String) -> String
 
       private
-      def validate_endpoint: () -> void
+      def validate_par_endpoint: () -> void
       def make_request: (Request request) -> http_response
       def build_headers: (Request request, String dpop_proof) -> Hash[String, String]
       def requires_nonce?: (http_response response) -> bool
@@ -19,7 +19,6 @@ module AuthProto
       def server_origin: () -> String
       def handle_error_response: (http_response response) -> bot
       def process_response: (http_response response) -> Response
-      def encode_params: (Hash[String, String] params) -> String
     end
   end
 end

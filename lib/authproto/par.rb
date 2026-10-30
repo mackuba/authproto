@@ -15,7 +15,7 @@ module AuthProto
   #
   # @example Basic PAR request
   #   par = AuthProto::PAR::Client.new(
-  #     endpoint: "https://auth.example.com/par",
+  #     par_endpoint: "https://auth.example.com/par",
   #     dpop_client: AuthProto::DPoP::Client.new
   #   )
   #

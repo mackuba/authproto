@@ -2,22 +2,22 @@
 
 describe AuthProto::PAR::Client do
   before do
-    @endpoint = "https://auth.example.com/par"
+    @par_endpoint = "https://auth.example.com/par"
     @dpop_client = mock("dpop_client")
     @nonce_manager = mock("nonce_manager")
     @dpop_client.stubs(:nonce_manager).returns(@nonce_manager)
-    @client = AuthProto::PAR::Client.new(endpoint: @endpoint, dpop_client: @dpop_client)
+    @client = AuthProto::PAR::Client.new(par_endpoint: @par_endpoint, dpop_client: @dpop_client)
   end
 
   describe "#initialize" do
     it "should raise an error if endpoint is not HTTPS" do
       expect {
-        AuthProto::PAR::Client.new(endpoint: "http://auth.example.com/par", dpop_client: @dpop_client)
+        AuthProto::PAR::Client.new(par_endpoint: "http://auth.example.com/par", dpop_client: @dpop_client)
       }.to raise_error(AuthProto::PAR::Error)
     end
 
     it "should initialize correctly with a valid HTTPS endpoint" do
-      @client.endpoint.should == @endpoint
+      @client.par_endpoint.should == @par_endpoint
       @client.dpop_client.should == @dpop_client
     end
   end
@@ -25,6 +25,8 @@ describe AuthProto::PAR::Client do
   describe "#submit" do
     before do
       @request = mock("request")
+      @request.stubs(:is_a?).with(AuthProto::PAR::Request).returns(true)
+
       @proof = "mocked_dpop_proof"
       @response = { status: 201, body: '{"request_uri":"mocked_uri","expires_in":3600}' }
       @server_origin = "https://auth.example.com"
@@ -59,6 +61,12 @@ describe AuthProto::PAR::Client do
     it "should raise an error if the response is invalid" do
       AuthProto.configuration.http_client.stubs(:post).returns({ status: 400, body: '{"error":"invalid_request"}' })
       expect { @client.submit(@request) }.to raise_error(AuthProto::PAR::Error)
+    end
+
+    it "should raise an error if the argument is not a PAR request" do
+      request = Net::HTTP::Get.new('/')
+
+      expect { @client.submit(request) }.to raise_error(AuthProto::PAR::Error, /Expected a PAR::Request/)
     end
   end
 

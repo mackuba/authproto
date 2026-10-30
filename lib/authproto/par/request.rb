@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'cgi'
+require 'uri'
 
 require_relative '../par'
 
@@ -103,8 +103,9 @@ module AuthProto
 
       # Converts request to form-encoded parameters
       # @return [String] Form-encoded request body
+      #
       def to_form
-        encode_params(build_params)
+        URI.encode_www_form(build_params)
       end
 
 
@@ -133,10 +134,10 @@ module AuthProto
       end
 
       def validate_request
-        raise Error, "atproto scope is required" unless scope.split.include?('atproto')
-
         validate_required_params
         validate_client_auth
+
+        raise Error, "atproto scope is required" unless scope.split.include?('atproto')
       end
 
       def validate_required_params
@@ -152,16 +153,13 @@ module AuthProto
         has_type = !client_assertion_type.nil?
 
         return unless has_assertion || has_type
+
         unless client_assertion_type == CLIENT_ASSERTION_TYPE
           raise Error, "client_assertion_type must be #{CLIENT_ASSERTION_TYPE}"
         end
 
         raise Error, "client_assertion required with client_assertion_type" if client_assertion.nil?
         raise Error, "client_assertion_type required with client_assertion" if client_assertion_type.nil?
-      end
-
-      def encode_params(params)
-        params.map { |k, v| "#{CGI.escape(k)}=#{CGI.escape(v.to_s)}" }.join("&")
       end
     end
   end

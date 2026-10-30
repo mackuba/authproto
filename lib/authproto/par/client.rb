@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'cgi'
 require 'json'
 require 'uri'
 
@@ -26,7 +25,7 @@ module AuthProto
     #
     # @example Basic PAR flow
     #   client = AuthProto::PAR::Client.new(
-    #     endpoint: "https://auth.example.com/par",
+    #     par_endpoint: "https://auth.example.com/par",
     #     dpop_client: AuthProto::DPoP::Client.new
     #   )
     #
@@ -64,7 +63,7 @@ module AuthProto
 
       # HTTPS pushed authorization request endpoint.
       # @return [String]
-      attr_reader :endpoint
+      attr_reader :par_endpoint
 
       # DPoP client used to sign requests.
       # @return [DPoP::Client]
@@ -76,15 +75,16 @@ module AuthProto
 
       # Creates a PAR transport using the global HTTP client and supplied DPoP client.
       #
-      # @param endpoint [String] HTTPS PAR endpoint
+      # @param par_endpoint [String] HTTPS PAR endpoint
       # @param dpop_client [DPoP::Client] proof generator and nonce tracker
       # @raise [Error] if the endpoint is malformed or does not use HTTPS
       #
-      def initialize(endpoint:, dpop_client:)
-        @endpoint = endpoint
+      def initialize(par_endpoint:, dpop_client:)
+        @par_endpoint = par_endpoint
         @dpop_client = dpop_client
         @nonce_manager = dpop_client.nonce_manager
-        validate_endpoint
+
+        validate_par_endpoint
       end
 
       # Submits a PAR request, handling DPoP nonce requirements
@@ -94,6 +94,8 @@ module AuthProto
       # @raise [Error] if request fails
       #
       def submit(request)
+        raise Error, "Expected a PAR::Request" unless request.is_a?(PAR::Request)
+
         # Try the initial request
         response = make_request(request)
 
@@ -124,12 +126,7 @@ module AuthProto
       # @raise [Error] if no supported nonce header is present
       #
       def extract_nonce(response)
-        # Try all possible header key formats
-        headers = response[:headers]
-        nonce = headers["DPoP-Nonce"] ||
-                headers["dpop-nonce"] ||
-                headers["Dpop-Nonce"]
-
+        nonce = response[:headers].find { |k, v| k.downcase == 'dpop-nonce' }&.last
         raise Error, "No DPoP nonce provided in response" unless nonce
 
         nonce
@@ -148,7 +145,7 @@ module AuthProto
       def build_authorization_url(authorization_endpoint:, request_uri:, client_id:)
         uri = URI(authorization_endpoint)
 
-        uri.query = encode_params(
+        uri.query = URI.encode_www_form(
           'request_uri' => request_uri,
           'client_id' => client_id
         )
@@ -159,18 +156,19 @@ module AuthProto
 
       private
 
-      def validate_endpoint
-        uri = ValidatedURI.new(@endpoint)
+      def validate_par_endpoint
+        uri = ValidatedURI.new(@par_endpoint)
+
         raise Error, "endpoint must be HTTPS" unless uri.scheme == 'https'
       rescue URI::InvalidURIError => e
-        raise Error, "invalid endpoint URL: #{e.message}"
+        raise Error, "invalid PAR endpoint URL: #{e.message}"
       end
 
       def make_request(request)
         # Generate DPoP proof for this request
         proof = dpop_client.generate_proof(
           method: 'POST',
-          uri: endpoint,
+          uri: par_endpoint,
           nonce: nonce_manager.get(server_origin)
         )
 
@@ -179,7 +177,7 @@ module AuthProto
 
         # Make the request
         AuthProto.configuration.http_client.post(
-          endpoint,
+          par_endpoint,
           body: request.to_form,
           headers: headers
         )
@@ -204,7 +202,7 @@ module AuthProto
       end
 
       def server_origin
-        uri = URI(@endpoint)
+        uri = URI(@par_endpoint)
         "#{uri.scheme}://#{uri.host}#{":#{uri.port}" if uri.port != uri.default_port}"
       end
 
@@ -224,6 +222,7 @@ module AuthProto
 
         begin
           data = JSON.parse(response[:body])
+
           Response.new(
             request_uri: data['request_uri'],
             expires_in: data['expires_in']
@@ -233,10 +232,6 @@ module AuthProto
         rescue StandardError => e
           raise Error, "failed to process response: #{e.message}"
         end
-      end
-
-      def encode_params(params)
-        params.map { |k, v| "#{CGI.escape(k)}=#{CGI.escape(v.to_s)}" }.join("&")
       end
     end
   end

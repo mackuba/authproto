@@ -59,13 +59,13 @@ describe AuthProto::PAR::ClientAssertion do
     it "should wrap JWT signing errors when only a public key is supplied" do
       expect {
         AuthProto::PAR::ClientAssertion.new(client_id: client_id, signing_key: signing_key.to_public)
-      }.to raise_error(AuthProto::PAR::ClientAssertion::Error, /private EC P-256/)
+      }.to raise_error(AuthProto::PAR::ClientAssertion::Error, /signing_key must be a private key/)
     end
 
     it "should reject a signing key whose curve does not match ES256" do
       expect {
         AuthProto::PAR::ClientAssertion.new(client_id: client_id, signing_key: JOSE::JWK.generate_key([:ec, "P-384"]))
-      }.to raise_error(AuthProto::PAR::ClientAssertion::Error, /private EC P-256/)
+      }.to raise_error(AuthProto::PAR::ClientAssertion::Error, /EC P-256/)
     end
 
     it "should reject a JWK algorithm that conflicts with ES256" do
