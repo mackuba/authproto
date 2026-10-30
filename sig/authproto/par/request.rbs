@@ -1,11 +1,9 @@
 module AuthProto
   module PAR
     class Request
-      @response_type: String
       @client_id: String
       @redirect_uri: String
       @code_challenge: String
-      @code_challenge_method: String
       @state: String
       @scope: String
       @login_hint: String?
@@ -18,7 +16,6 @@ module AuthProto
         attr_accessor client_id: String?
         attr_accessor redirect_uri: String?
         attr_accessor code_challenge: String?
-        attr_accessor code_challenge_method: String?
         attr_accessor state: String?
         attr_accessor scope: String?
         attr_accessor login_hint: String?
@@ -28,10 +25,8 @@ module AuthProto
         attr_accessor client_assertion: String?
       end
 
-      attr_reader response_type: String
       attr_reader client_id: String
       attr_reader code_challenge: String
-      attr_reader code_challenge_method: String
       attr_reader state: String
       attr_reader redirect_uri: String
       attr_reader scope: String
@@ -58,10 +53,6 @@ module AuthProto
       def validate_request: () -> void
 
       def validate_required_params: () -> void
-
-      def validate_response_type: () -> void
-
-      def validate_code_challenge_method: () -> void
 
       def validate_scope: () -> void
 

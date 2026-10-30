@@ -31,10 +31,6 @@ module AuthProto
         # @return [String, nil]
         attr_accessor :code_challenge
 
-        # PKCE method; must be `S256`.
-        # @return [String, nil]
-        attr_accessor :code_challenge_method
-
         # Random state token to validate the callback.
         # @return [String, nil]
         attr_accessor :state
@@ -64,10 +60,6 @@ module AuthProto
         attr_accessor :client_assertion
       end
 
-      # OAuth response type; always `code`.
-      # @return [String]
-      attr_reader :response_type
-
       # OAuth client identifier.
       # @return [String]
       attr_reader :client_id
@@ -79,10 +71,6 @@ module AuthProto
       # S256 PKCE challenge.
       # @return [String]
       attr_reader :code_challenge
-
-      # PKCE method; must be `S256`.
-      # @return [String]
-      attr_reader :code_challenge_method
 
       # Random state token to validate the callback.
       # @return [String]
@@ -133,11 +121,9 @@ module AuthProto
       #
       def initialize(config)
         # Required parameters
-        @response_type = 'code' # Always "code" for AT Protocol OAuth
         @client_id = config.client_id
         @redirect_uri = config.redirect_uri
         @code_challenge = config.code_challenge
-        @code_challenge_method = config.code_challenge_method
         @state = config.state
         @scope = config.scope
 
@@ -163,11 +149,11 @@ module AuthProto
 
       def build_params
         params = {
-          "response_type" => response_type,
+          "response_type" => 'code',
           "client_id" => client_id,
           "redirect_uri" => redirect_uri,
           "code_challenge" => code_challenge,
-          "code_challenge_method" => code_challenge_method,
+          "code_challenge_method" => PKCE::CHALLENGE_METHOD_S256,
           "state" => state,
           "scope" => scope
         }
@@ -191,29 +177,15 @@ module AuthProto
 
       def validate_request
         validate_required_params
-        validate_response_type
-        validate_code_challenge_method
         validate_scope
         validate_client_auth
       end
 
       def validate_required_params
-        %i[client_id redirect_uri code_challenge code_challenge_method state scope].each do |param|
+        %i[client_id redirect_uri code_challenge state scope].each do |param|
           value = send(param)
           raise Error, "#{param} is required" if value.nil? || value.empty?
         end
-      end
-
-      def validate_response_type
-        return if response_type == 'code'
-
-        raise Error, "response_type must be 'code'"
-      end
-
-      def validate_code_challenge_method
-        return if code_challenge_method == PKCE::CHALLENGE_METHOD_S256
-
-        raise Error, "code_challenge_method must be 'S256'"
       end
 
       def validate_scope

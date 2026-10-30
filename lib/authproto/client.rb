@@ -427,7 +427,6 @@ module AuthProto
         req.login_hint = login_hint if login_hint
 
         req.code_challenge = session.pkce_challenge
-        req.code_challenge_method = PKCE::CHALLENGE_METHOD_S256
 
         # Public clients use PKCE and DPoP without client authentication.
         if client_metadata.confidential?

@@ -35,7 +35,6 @@ module AuthProto
     #     config.client_id = "https://app.example.com/oauth-client-metadata.json"
     #     config.redirect_uri = "https://app.example.com/callback"
     #     config.code_challenge = "abc123..."
-    #     config.code_challenge_method = AuthProto::PKCE::CHALLENGE_METHOD_S256
     #     config.state = "xyz789..."
     #     config.scope = 'atproto'
     #   end

@@ -6,7 +6,6 @@ describe AuthProto::PAR::Request do
       c.client_id = "client123"
       c.redirect_uri = "https://example.com/callback"
       c.code_challenge = "abc123"
-      c.code_challenge_method = "S256"
       c.state = "xyz456"
       c.scope = "atproto read"
     end
@@ -18,7 +17,6 @@ describe AuthProto::PAR::Request do
         c.client_id = "client123"
         c.redirect_uri = "https://example.com/callback"
         c.code_challenge = "abc123"
-        c.code_challenge_method = "S256"
         c.state = "xyz456"
         c.scope = "atproto read"
       end
@@ -35,7 +33,6 @@ describe AuthProto::PAR::Request do
       request.client_id.should == "client123"
       request.redirect_uri.should == "https://example.com/callback"
       request.code_challenge.should == "abc123"
-      request.code_challenge_method.should == "S256"
       request.state.should == "xyz456"
       request.scope.should == "atproto read"
     end
@@ -47,19 +44,15 @@ describe AuthProto::PAR::Request do
       }.to raise_error(AuthProto::PAR::Error)
     end
 
-    it "should raise an error if response_type is invalid" do
-      request = AuthProto::PAR::Request.new(config)
-      request.instance_variable_set(:@response_type, "invalid")
-      expect {
-        request.send(:validate_response_type)
-      }.to raise_error(AuthProto::PAR::Error)
-    end
-
-    it "should raise an error if code_challenge_method is invalid" do
-      config.code_challenge_method = "invalid"
-      expect {
-        AuthProto::PAR::Request.new(config)
-      }.to raise_error(AuthProto::PAR::Error)
+    it "should set response_type and code_challenge_method internally" do
+      request = described_class.new(config)
+      form = URI.decode_www_form(request.to_form).to_h
+      form['response_type'].should == 'code'
+      form['code_challenge_method'].should == 'S256'
+      config.should_not respond_to(:response_type=)
+      config.should_not respond_to(:code_challenge_method=)
+      request.should_not respond_to(:response_type=)
+      request.should_not respond_to(:code_challenge_method=)
     end
 
     it "should raise an error if atproto scope is missing" do
@@ -74,6 +67,7 @@ describe AuthProto::PAR::Request do
     it "should return form-encoded parameters" do
       request = AuthProto::PAR::Request.new(config)
       form = request.to_form
+      form.should include("response_type=code")
       form.should include("client_id=client123")
       form.should include("redirect_uri=https%3A%2F%2Fexample.com%2Fcallback")
       form.should include("code_challenge=abc123")
