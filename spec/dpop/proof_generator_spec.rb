@@ -76,7 +76,14 @@ describe AuthProto::DPoP::ProofGenerator do
       uri = "https://example.com:443/path?query#fragment"
       proof = generator.generate(method: method, uri: uri)
       payload = extract_payload(proof)
-      payload["htu"].should == "https://example.com/path?query"
+      payload["htu"].should == "https://example.com/path"
+    end
+
+    it "should strip query strings while preserving the path and a nondefault port" do
+      uri = 'https://example.com:8443/path%2Fsegment?limit=1&cursor=next%2Fpage'
+      proof = generator.generate(method: method, uri: uri)
+
+      extract_payload(proof)['htu'].should == 'https://example.com:8443/path%2Fsegment'
     end
 
     it "should validate http method" do

@@ -43,10 +43,10 @@ module AuthProto
       # Builds and signs a fresh DPoP JWT with `jti`, `htm`, `htu` and `iat` claims.
       #
       # A nonce and access-token hash are added when requested. The URI normalizer removes
-      # fragments and default ports; callers must remove query strings before calling.
+      # query strings, fragments and default ports.
       #
       # @param method [String] nonempty HTTP method, converted to uppercase
-      # @param uri [String] absolute HTTP(S) request URL without a query string
+      # @param uri [String] absolute HTTP(S) request URL
       # @param nonce [String, nil] server-provided nonce to include
       # @param access_token [String, nil] access token to bind to the proof
       # @param ath [Boolean, nil] include an access-token hash; `nil` enables it when a token is supplied
@@ -109,9 +109,13 @@ module AuthProto
 
       def normalize_uri(uri)
         uri = URI(uri)
+
         # Remove default ports
         uri.port = nil if (uri.scheme == 'https' && uri.port == 443) || (uri.scheme == 'http' && uri.port == 80)
+
+        uri.query = nil
         uri.fragment = nil
+
         uri.to_s
       end
 

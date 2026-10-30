@@ -280,7 +280,7 @@ describe Minisky::OAuthClient do
     client.session_id.should == "authorized"
   end
 
-  it "should sign GETs, preserve params and custom headers, and save successful response nonces" do
+  it "should omit query params from GET proofs, preserve request params and headers, and save response nonces" do
     attach_session
     stub_request(:get, endpoint).with(query: { actor: "alice.example.com" }, headers: {
                                         "Authorization" => "DPoP access", "X-Test" => "yes"
