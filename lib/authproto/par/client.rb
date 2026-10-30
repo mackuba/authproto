@@ -222,8 +222,15 @@ module AuthProto
       def process_response(response)
         raise Error, "unexpected response status: #{response[:status]}" unless response[:status] == 201
 
+        content_type = (response[:headers] || {}).find { |key, _| key.downcase == 'content-type' }&.last
+
+        unless content_type.to_s.split(';', 2).first.to_s.strip.casecmp?('application/json')
+          raise Error, "PAR response must use application/json"
+        end
+
         begin
           data = JSON.parse(response[:body])
+          raise Error, "PAR response must be a JSON object" unless data.is_a?(Hash)
 
           Response.new(
             request_uri: data['request_uri'],

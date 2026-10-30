@@ -28,7 +28,8 @@ describe AuthProto::PAR::Client do
       @request.stubs(:is_a?).with(AuthProto::PAR::Request).returns(true)
 
       @proof = "mocked_dpop_proof"
-      @response = { status: 201, body: '{"request_uri":"mocked_uri","expires_in":3600}' }
+      @response = { status: 201, headers: { 'content-type' => 'application/json' },
+                    body: '{"request_uri":"mocked_uri","expires_in":3600}' }
       @server_origin = "https://auth.example.com"
 
       @request.stubs(:to_form).returns("client_id=mock_client_id&scope=mock_scope")
@@ -47,6 +48,44 @@ describe AuthProto::PAR::Client do
       response.should be_an_instance_of(AuthProto::PAR::Response)
       response.request_uri.should == "mocked_uri"
       response.expires_in.should == 3600
+    end
+
+    it "should accept case-insensitive JSON content types and header names with parameters" do
+      @response[:headers] = { 'CoNtEnT-TyPe' => 'Application/JSON; charset=utf-8' }
+
+      @client.submit(@request).expires_in.should == 3600
+    end
+
+    [nil, '', 'text/plain', 'application/jsonp', 'application/problem+json'].each do |content_type|
+      it "should reject a non-JSON or missing content type: #{content_type.inspect}" do
+        @response[:headers] = content_type ? { 'content-type' => content_type } : nil
+
+        expect { @client.submit(@request) }.to raise_error(AuthProto::PAR::Error, /must use application\/json/)
+      end
+    end
+
+    ['[]', 'null', 'true', '90', '"string"'].each do |body|
+      it "should reject a JSON body that is not an object: #{body}" do
+        @response[:body] = body
+
+        expect { @client.submit(@request) }.to raise_error(AuthProto::PAR::Error, /must be a JSON object/)
+      end
+    end
+
+    it "should reject malformed JSON" do
+      @response[:body] = '{'
+
+      expect { @client.submit(@request) }.to raise_error(AuthProto::PAR::Error, /invalid JSON response/)
+    end
+
+    [{}, { request_uri: [], expires_in: 90 }, { request_uri: '', expires_in: 90 },
+     { request_uri: 'uri', expires_in: '90' }, { request_uri: 'uri', expires_in: 1.5 },
+     { request_uri: 'uri', expires_in: 0 }, { request_uri: 'uri' }].each do |data|
+      it "should reject invalid response fields: #{data.inspect}" do
+        @response[:body] = data.to_json
+
+        expect { @client.submit(@request) }.to raise_error(AuthProto::PAR::Error, /must be/)
+      end
     end
 
     it "should retry the request with a nonce if the response indicates 'use_dpop_nonce'" do

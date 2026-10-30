@@ -22,15 +22,20 @@ module AuthProto
       # Creates and validates a PAR response.
       #
       # @param request_uri [String] nonempty request URI issued by the authorization server
-      # @param expires_in [Integer, String] positive lifetime in seconds; converted with `to_i`
-      # @raise [Error] if the URI is empty or expiry is not positive
+      # @param expires_in [Integer] positive lifetime in seconds
+      # @raise [Error] if the URI is not a nonempty string or expiry is not a positive integer
       #
       def initialize(request_uri:, expires_in:)
         @request_uri = request_uri
-        @expires_in = expires_in.to_i
+        @expires_in = expires_in
 
-        raise Error, "request_uri is required" if request_uri.nil? || request_uri.empty?
-        raise Error, "expires_in must be positive" unless expires_in.positive?
+        unless @request_uri.is_a?(String) && !@request_uri.empty?
+          raise Error, "request_uri must be a nonempty string"
+        end
+
+        unless @expires_in.is_a?(Integer) && @expires_in.positive?
+          raise Error, "expires_in must be a positive integer"
+        end
       end
     end
   end

@@ -107,7 +107,10 @@ describe Minisky::OAuthClient do
       form = URI.decode_www_form(request.body).to_h
       form["client_id"] == "http://localhost/" && form["code_challenge_method"] == "S256" &&
         !form.key?("client_assertion") && !form.key?("client_assertion_type") && request.headers.key?("Dpop")
-    end.to_return(status: 201, body: { request_uri: "urn:example:par", expires_in: 90 }.to_json)
+    end.to_return(
+      status: 201, headers: { "Content-Type" => "application/json" },
+      body: { request_uri: "urn:example:par", expires_in: 90 }.to_json
+    )
 
     result = client.authorize(pds: host)
     URI(result[:url]).host.should == "auth.example.com"
@@ -121,7 +124,10 @@ describe Minisky::OAuthClient do
     stub_authorization_metadata
     stub_request(:post, "#{auth_server.issuer}/par").with do |request|
       URI.decode_www_form(request.body).to_h["redirect_uri"] == callback
-    end.to_return(status: 201, body: { request_uri: "urn:example:par", expires_in: 90 }.to_json)
+    end.to_return(
+      status: 201, headers: { "Content-Type" => "application/json" },
+      body: { request_uri: "urn:example:par", expires_in: 90 }.to_json
+    )
 
     URI(client.authorize(pds: host)[:url]).host.should == "auth.example.com"
   end
@@ -148,7 +154,10 @@ describe Minisky::OAuthClient do
           form["client_assertion_type"] == AuthProto::PAR::CLIENT_ASSERTION_TYPE
       end
       stub_request(:post, "#{auth_server.issuer}/par").with(&validate_assertion)
-        .to_return(status: 201, body: { request_uri: "urn:example:par", expires_in: 90 }.to_json)
+        .to_return(
+          status: 201, headers: { "Content-Type" => "application/json" },
+          body: { request_uri: "urn:example:par", expires_in: 90 }.to_json
+        )
       stub_request(:post, auth_server.token_endpoint).with(&validate_assertion).to_return(status: 200, body: {
         access_token: "new-access", refresh_token: "new-refresh", token_type: "DPoP",
         expires_in: 3600, scope: "atproto", sub: "did:plc:alice"
@@ -180,7 +189,10 @@ describe Minisky::OAuthClient do
 
     stub_request(:post, "#{auth_server.issuer}/par")
       .with { |request| URI.decode_www_form(request.body).to_h["login_hint"] == "@Alice.Example.Com" }
-      .to_return(status: 201, body: { request_uri: "urn:example:par", expires_in: 90 }.to_json)
+      .to_return(
+        status: 201, headers: { "Content-Type" => "application/json" },
+        body: { request_uri: "urn:example:par", expires_in: 90 }.to_json
+      )
 
     result = client.authorize(handle: "@Alice.Example.Com")
     session = client.oauth_client.session_manager.get_session(result[:session_id])
@@ -213,7 +225,10 @@ describe Minisky::OAuthClient do
       Resolv::DNS.any_instance.expects(:getresources).never
 
       stub_request(:post, "#{auth_server.issuer}/par")
-        .to_return(status: 201, body: { request_uri: "urn:example:par", expires_in: 90 }.to_json)
+        .to_return(
+          status: 201, headers: { "Content-Type" => "application/json" },
+          body: { request_uri: "urn:example:par", expires_in: 90 }.to_json
+        )
 
       result = client.authorize(handle: did)
       client.oauth_client.session_manager.get_session(result[:session_id]).did.should == did

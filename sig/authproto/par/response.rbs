@@ -7,11 +7,7 @@ module AuthProto
       attr_reader request_uri: String
       attr_reader expires_in: Integer
 
-      def initialize: (request_uri: String, expires_in: Integer | String) -> void
-
-      private
-
-      def validate_response: () -> void
+      def initialize: (request_uri: String, expires_in: Integer) -> void
     end
   end
 end
