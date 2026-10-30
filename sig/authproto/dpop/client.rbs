@@ -11,13 +11,6 @@ module AuthProto
       def initialize: (?key_manager: KeyManager?, ?nonce_ttl: Integer?) -> void
       def generate_proof: (method: String, uri: String, ?access_token: String?, ?nonce: String?) -> JOSE::SignedBinary
       def process_response: (Hash[String, String]? response_headers, String server_url) -> void
-      def request_headers: (String proof) -> { "DPoP" => String }
-      def public_key: () -> json_object
-      def export_key: (?include_private: bool) -> JOSE::Map
-
-      private
-      def extract_nonce: (Hash[String | Symbol, String] headers) -> String?
-      def origin_for_uri: (URI::HTTP uri) -> String
     end
   end
 end

@@ -108,58 +108,6 @@ module AuthProto
       rescue StandardError => e
         raise Error, "Failed to process response: #{e.message}"
       end
-
-      # Wraps a proof in an HTTP header hash.
-      #
-      # @param proof [String] signed DPoP JWT
-      # @return [Hash{String => String}] a single `DPoP` header
-      #
-      def request_headers(proof)
-        {
-          "DPoP" => proof
-        }
-      end
-
-      # Exports the current public signing key.
-      #
-      # @return [Hash{String => Object}] public JWK
-      # @raise [KeyManager::KeyError] if public-key export fails
-      #
-      def public_key
-        @key_manager.public_jwk
-      end
-
-      # Exports the current DPoP key for persistence or inspection.
-      #
-      # @param include_private [Boolean] include the private key needed to restore the same identity
-      # @return [JOSE::Map] JWK fields; call `to_h` for a Ruby hash
-      # @raise [KeyManager::KeyError] if key export fails
-      #
-      def export_key(include_private: false)
-        @key_manager.to_jwk(include_private: include_private)
-      end
-
-
-      private
-
-      def extract_nonce(headers)
-        # Headers can be hash with string or symbol keys, or http headers object
-        headers = headers.to_h if headers.respond_to?(:to_h)
-
-        # Try different common header key formats
-        nonce = headers["DPoP-Nonce"] || headers["dpop-nonce"] || headers[:dpop_nonce]
-
-        nonce&.strip
-      end
-
-      def origin_for_uri(uri)
-        port = uri.port
-        port = nil if (uri.scheme == "https" && port == 443) || (uri.scheme == "http" && port == 80)
-
-        origin = "#{uri.scheme}://#{uri.host}"
-        origin = "#{origin}:#{port}" if port
-        origin
-      end
     end
   end
 end

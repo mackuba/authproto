@@ -86,29 +86,6 @@ describe AuthProto::DPoP::NonceManager do
     end
   end
 
-  describe "#valid_nonce?" do
-    it "should return true if the server has a valid nonce" do
-      nonce_manager.update(nonce: nonce, server_url: server_url)
-      nonce_manager.valid_nonce?(server_url).should be true
-    end
-
-    it "should return false if no nonce exists for the server" do
-      nonce_manager.valid_nonce?(server_url).should be false
-    end
-
-    it "should return false if the nonce has expired" do
-      nonce_manager.update(nonce: expired_nonce, server_url: server_url)
-      sleep(ttl + 0.1) # Wait for expiration
-      nonce_manager.valid_nonce?(server_url).should be false
-    end
-
-    it "should raise an error if server_url is invalid" do
-      expect {
-        nonce_manager.valid_nonce?("")
-      }.to raise_error(AuthProto::DPoP::NonceManager::NonceError)
-    end
-  end
-
   describe "thread safety" do
     it "should handle concurrent nonce updates" do
       threads = 10.times.map do |i|

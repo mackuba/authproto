@@ -19,10 +19,6 @@ module AuthProto
       def tokens=: (TokenSet tokens) -> String
       def authorized?: () -> bool
       def renewable?: () -> bool
-      def validate_state: (String? state) -> bool
-
-      private
-      def secure_compare: (String str1, String str2) -> bool
     end
   end
 end

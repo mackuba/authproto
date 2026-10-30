@@ -76,33 +76,4 @@ describe AuthProto::DPoP::Client do
       }.to raise_error(AuthProto::DPoP::Client::Error)
     end
   end
-
-  describe "#request_headers" do
-    it "should construct the DPoP headers with the proof" do
-      headers = client.request_headers(proof)
-      headers.should == { "DPoP" => proof }
-    end
-  end
-
-  describe "#public_key" do
-    it "should return the public JWK from key_manager" do
-      mock_key_manager.expects(:public_jwk).returns({ "kty" => "EC", "crv" => "P-256" })
-
-      client.public_key.should == { "kty" => "EC", "crv" => "P-256" }
-    end
-  end
-
-  describe "#export_key" do
-    it "should export the keypair with the private key" do
-      mock_key_manager.expects(:to_jwk).with(include_private: true).returns({ "kty" => "EC", "d" => "private" })
-
-      client.export_key(include_private: true).should == { "kty" => "EC", "d" => "private" }
-    end
-
-    it "should export the keypair without the private key" do
-      mock_key_manager.expects(:to_jwk).with(include_private: false).returns({ "kty" => "EC" })
-
-      client.export_key(include_private: false).should == { "kty" => "EC" }
-    end
-  end
 end

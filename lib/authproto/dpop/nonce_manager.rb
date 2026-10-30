@@ -95,20 +95,6 @@ module AuthProto
         AuthProto.storage.delete(key)
       end
 
-      # Checks for an unexpired nonce record in storage for a URL's origin.
-      #
-      # @param server_url [String] HTTPS URL, or HTTP URL with host `localhost`
-      # @return [Boolean] whether the backend reports a nonce record present
-      # @raise [NonceError] if the URL is invalid
-      # @raise [Storage::StorageError] if the existence check fails
-      #
-      def valid_nonce?(server_url)
-        validate_server_url(server_url)
-        origin = normalize_server_url(server_url)
-        key = Storage::KeyBuilder.nonce_key(origin)
-        AuthProto.storage.exists?(key)
-      end
-
       private
 
       def normalize_server_url(url)

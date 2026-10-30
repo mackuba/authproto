@@ -151,18 +151,4 @@ describe AuthProto::State::Session do
       session.renewable?.should be false
     end
   end
-
-  describe "#validate_state" do
-    it "should return true for a matching state token" do
-      session.validate_state(session.state_token).should be true
-    end
-
-    it "should return false for a non-matching state token" do
-      session.validate_state("invalid_state").should be false
-    end
-
-    it "should return false for a nil state token" do
-      session.validate_state(nil).should be false
-    end
-  end
 end

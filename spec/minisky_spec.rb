@@ -327,7 +327,7 @@ describe Minisky::OAuthClient do
     restored = described_class.new(host, client_id: client_metadata["client_id"],
                                   redirect_uri: client_metadata["redirect_uris"].first, metadata: client_metadata,
                                   session_id: session.session_id, dpop_key: restored_key.to_jwk(include_private: true).to_h)
-    original_public_key = client.oauth_client.dpop_client.public_key
+    original_public_key = client.oauth_client.dpop_client.key_manager.public_jwk
     stub_refresh
     stub_request(:post, "https://auth.example.com/token").with do |request|
       JWT.decode(request.headers["Dpop"], nil, false).last["jwk"] == original_public_key

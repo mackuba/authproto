@@ -139,30 +139,6 @@ module AuthProto
           !@tokens.nil? && @tokens.renewable?
         end
       end
-
-      # Compares a supplied state token with the session token in constant time.
-      #
-      # @param state [String, nil] callback state token
-      # @return [Boolean] whether it matches; `false` for `nil` or a different length
-      #
-      def validate_state(state)
-        return false unless state
-
-        # Use secure comparison to prevent timing attacks
-        secure_compare(@state_token, state)
-      end
-
-      private
-
-      def secure_compare(str1, str2)
-        return false unless str1.bytesize == str2.bytesize
-
-        left = str1.unpack("C*")
-        right = str2.unpack("C*")
-        result = 0
-        left.zip(right) { |x, y| result |= x ^ y }
-        result.zero?
-      end
     end
   end
 end

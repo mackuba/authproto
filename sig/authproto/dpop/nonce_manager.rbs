@@ -12,7 +12,6 @@ module AuthProto
       def update: (nonce: String, server_url: String) -> void
       def get: (String server_url) -> String?
       def clear: (String server_url) -> bool
-      def valid_nonce?: (String server_url) -> bool
 
       private
       def normalize_server_url: (String url) -> String
