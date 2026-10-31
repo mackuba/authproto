@@ -17,10 +17,6 @@ module AuthProto
       # @return [String, nil]
       attr_reader :refresh_token
 
-      # Token scheme; always `DPoP`.
-      # @return [String]
-      attr_reader :token_type
-
       # Space-separated granted scopes.
       # @return [String]
       attr_reader :scope
@@ -59,10 +55,17 @@ module AuthProto
 
         @access_token = access_token
         @refresh_token = refresh_token
-        @token_type = token_type
         @scope = scope
         @sub = sub
         @expires_at = Time.now + expires_in
+      end
+
+      # Returns the token scheme, which is always `DPoP`.
+      #
+      # @return [String] `DPoP`
+      #
+      def token_type
+        'DPoP'
       end
 
       # Whether this token set includes a refresh token

@@ -17,6 +17,7 @@ describe AuthProto::Serialization::TokenSet do
 
   it "should roundtrip a token set object" do
     serialized = serializer.serialize(token_set)
+    JSON.parse(serialized).fetch('data').should_not have_key('token_type')
     deserialized = serializer.deserialize(serialized)
 
     deserialized.access_token.should == token_set.access_token

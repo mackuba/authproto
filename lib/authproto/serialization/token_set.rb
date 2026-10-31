@@ -32,7 +32,6 @@ module AuthProto
         {
           access_token: obj.access_token,
           refresh_token: obj.refresh_token,
-          token_type: obj.token_type,
           expires_at: obj.expires_at.utc.iso8601,
           scope: obj.scope,
           sub: obj.sub
@@ -43,7 +42,7 @@ module AuthProto
         AuthProto::State::TokenSet.new(
           access_token: data['access_token'],
           refresh_token: data['refresh_token'],
-          token_type: data['token_type'],
+          token_type: 'DPoP',
           expires_in: (Time.parse(data['expires_at']) - Time.now).to_i,
           scope: data['scope'],
           sub: data['sub']
