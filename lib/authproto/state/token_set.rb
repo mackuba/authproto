@@ -33,24 +33,19 @@ module AuthProto
       #
       # @param access_token [String] nonempty DPoP-bound access token
       # @param token_type [String] must be `DPoP`
-      # @param expires_in [Integer] lifetime in seconds; negative values represent expired tokens
+      # @param expires_in [Integer] lifetime of the access token in seconds; negative value means it's already expired
       # @param scope [String] nonempty space-separated granted scopes
       # @param sub [String] nonempty account DID
       # @param refresh_token [String, nil] refresh token, if issued
       # @raise [ArgumentError] if required strings are missing, the token type is wrong, or expiry is not an integer
       #
-      def initialize(
-        access_token:,
-        token_type:,
-        expires_in:,
-        scope:,
-        sub:,
-        refresh_token: nil
-      )
+      def initialize(access_token:, token_type:, expires_in:, scope:, sub:, refresh_token: nil)
         validate_token_type(token_type)
+
         validate_required('access_token', access_token)
         validate_required('scope', scope)
         validate_required('sub', sub)
+
         validate_expires_in(expires_in)
 
         @access_token = access_token
