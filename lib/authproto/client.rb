@@ -322,9 +322,6 @@ module AuthProto
     # @raise [Storage::StorageError] if deletion or locking fails
     #
     def delete_session(session_id)
-      key = Storage::KeyBuilder.session_key(session_id)
-
-      AuthProto.storage.delete(key)
       session_manager.delete_session(session_id)
     end
 
