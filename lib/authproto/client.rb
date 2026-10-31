@@ -288,7 +288,7 @@ module AuthProto
       session = session_manager.get_session(session_id)
 
       raise TokenError, "Invalid session" unless session
-      raise TokenError, "Session not authorized" unless session.tokens
+      raise TokenError, "Session not authorized" if session.pending?
       raise TokenError, "Session has expired" unless session.tokens_valid?
 
       dpop_proof = dpop_client.generate_proof(

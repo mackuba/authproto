@@ -9,12 +9,29 @@ describe AuthProto::Configuration do
     it "should set default values" do
       configuration.default_token_lifetime.should == 300
       configuration.dpop_nonce_lifetime.should == 300
+      configuration.pending_session_ttl.should == 900
       configuration.logger.should be_an_instance_of(Logger)
       configuration.storage.should be_an_instance_of(AuthProto::Storage::Memory)
     end
   end
 
   describe "#validate" do
+    it "should accept a custom positive pending session TTL" do
+      configuration.pending_session_ttl = 1800
+      configuration.validate.should be true
+      configuration.pending_session_ttl.should == 1800
+    end
+
+    [nil, 0, -1, 1.5, '900'].each do |ttl|
+      it "should reject an invalid pending session TTL #{ttl.inspect}" do
+        configuration.pending_session_ttl = ttl
+
+        expect {
+          configuration.validate
+        }.to raise_error(AuthProto::ConfigurationError, "Pending session TTL must be a positive integer")
+      end
+    end
+
     it "should validate valid configuration" do
       configuration.validate.should be true
     end

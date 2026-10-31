@@ -209,14 +209,17 @@ class Minisky::OAuthClient
   #
   def check_access
     session = oauth_client.session_manager.get_session(session_id) if session_id
-    raise Minisky::AuthError, "Complete OAuth login before making authenticated requests" unless session&.tokens
 
-    return :ok unless session.tokens.expired?
-
-    raise Minisky::AuthError, "OAuth session cannot be refreshed; log in again" unless session.renewable?
-
-    perform_token_refresh
-    :refreshed
+    if !session || session.pending?
+      raise Minisky::AuthError, "Complete OAuth login before making authenticated requests"
+    elsif session.tokens_valid?
+      :ok
+    elsif session.renewable?
+      perform_token_refresh
+      :refreshed
+    else
+      raise Minisky::AuthError, "OAuth session cannot be refreshed; log in again"
+    end
   end
 
 

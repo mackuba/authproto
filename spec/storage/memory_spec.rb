@@ -8,6 +8,16 @@ describe AuthProto::Storage::Memory do
   include_examples "a storage implementation"
 
   describe "memory-specific behavior" do
+    it "should clear an existing expiry when overwriting without a TTL" do
+      now = Time.utc(2026, 1, 1)
+      Time.stubs(:now).returns(now)
+      storage.set('atproto:test', 'pending', ttl: 900)
+      storage.set('atproto:test', 'authenticated', ttl: nil)
+
+      Time.stubs(:now).returns(now + 901)
+      storage.get('atproto:test').should == 'authenticated'
+    end
+
     it "should clean up expired keys automatically" do
       storage.set("atproto:test:short", "value", ttl: 1)
       storage.set("atproto:test:long", "value", ttl: 3600)

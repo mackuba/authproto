@@ -24,6 +24,10 @@ module AuthProto
       # @return [String, nil]
       attr_reader :state_token
 
+      # Deadline for completing pending authorization, cleared after authorization completes.
+      # @return [Time, nil]
+      attr_reader :authorization_expires_at
+
       # OAuth client identifier.
       # @return [String]
       attr_reader :client_id
@@ -58,15 +62,17 @@ module AuthProto
       # @param scope [String] requested space-separated scopes
       # @param auth_server [Metadata::AuthorizationServer, nil] pre-resolved authorization server
       # @param did [String, nil] pre-resolved account DID
+      # @param authorization_expires_at [Time, nil] deadline for completing pending authorization
       # @raise [PKCE::Error] if PKCE generation fails
       #
-      def initialize(client_id:, scope:, auth_server: nil, did: nil)
+      def initialize(client_id:, scope:, auth_server: nil, did: nil, authorization_expires_at: nil)
         super() # Initialize MonitorMixin
 
         @client_id = client_id
         @scope = scope
         @auth_server = auth_server
         @did = did
+        @authorization_expires_at = authorization_expires_at
 
         @session_id = SecureRandom.uuid
         @state_token = SecureRandom.urlsafe_base64(32)
@@ -78,12 +84,15 @@ module AuthProto
         @tokens = nil
       end
 
-      # Clears the OAuth state token after successful authorization.
+      # Clears the OAuth state token and pending authorization deadline after successful authorization.
       #
       # @return [nil]
       #
       def clear_state_token
-        synchronize { @state_token = nil }
+        synchronize do
+          @state_token = nil
+          @authorization_expires_at = nil
+        end
       end
 
       # Binds this session to an authorization server.
@@ -150,6 +159,14 @@ module AuthProto
             session_id: @session_id,
             did: @did
           }
+        end
+      end
+
+      # Returns true if this session has not completed authorization yet and doesn't contain tokens.
+      # @return [Boolean]
+      def pending?
+        synchronize do
+          @tokens.nil?
         end
       end
 

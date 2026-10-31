@@ -1,3 +1,10 @@
+## Unreleased
+
+- session's state token is deleted on successfully completed authentication (i.e. `handle_callback`)
+- pending sessions (that haven't completed authentication) are stored with a TTL of 15 minutes by default, and expire after that; this can be changed through `pending_session_ttl` in the global configuration
+- completed but non-renewable session (without a refresh token) are set with a TTL such that they expire when their access token expires
+- added `Session#pending?` and `Session#tokens_valid?`
+
 ## [0.3.0.beta2] – 2026-10-31 👻
 
 - private keys for signing are now passed separately as `signing_key:` instead of being taken from the same `jwks` in the metadata that holds public keys

@@ -32,6 +32,15 @@ describe AuthProto::Serialization::Session do
     serialized.dig("data", "tokens", "access_token").should be_encrypted if session.tokens
   end
 
+  it "should preserve the pending authorization deadline" do
+    deadline = Time.at(1_800_000_000.25)
+    pending = AuthProto::State::Session.new(
+      client_id: client_id, scope: scope, authorization_expires_at: deadline
+    )
+
+    serializer.deserialize(serializer.serialize(pending)).authorization_expires_at.should == deadline
+  end
+
   it "should validate object type" do
     expect {
       serializer.serialize(Object.new)

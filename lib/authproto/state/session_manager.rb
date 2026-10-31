@@ -39,17 +39,19 @@ module AuthProto
           client_id: client_id,
           scope: scope,
           auth_server: auth_server,
-          did: did
+          did: did,
+          authorization_expires_at: Time.now + AuthProto.configuration.pending_session_ttl
         )
 
-        # Store both session and state mapping atomically
+        # Store the session and state mapping with the same pending authorization lifetime.
         session_key = Storage::KeyBuilder.session_key(session.session_id)
         state_key = Storage::KeyBuilder.state_key(session.state_token)
 
         AuthProto.storage.with_lock(session_key, ttl: 30) do
+          ttl = session_ttl(session)
           serialized = @serializer.serialize(session)
-          AuthProto.storage.set(session_key, serialized)
-          AuthProto.storage.set(state_key, session.session_id)
+          AuthProto.storage.set(session_key, serialized, ttl: ttl)
+          AuthProto.storage.set(state_key, session.session_id, ttl: ttl)
         end
 
         session
@@ -57,18 +59,23 @@ module AuthProto
 
       # Persists a session under a storage lock.
       #
+      # Pending sessions retain their original deadline. Non-renewable authenticated sessions
+      # expire with their access token; renewable sessions have no storage expiry.
+      #
       # @param session [Session] session to persist
       # @return [Session] the supplied session
       # @raise [Storage::StorageError] if writing or locking fails
       # @raise [Serialization::ValidationError] if the session cannot be serialized
       # @raise [Encryption::EncryptionError] if sensitive fields cannot be encrypted
+      # @raise [SessionError] if the pending deadline is missing or the session has expired
       #
       def update_session(session)
         session_key = Storage::KeyBuilder.session_key(session.session_id)
 
         AuthProto.storage.with_lock(session_key, ttl: 30) do
+          ttl = session_ttl(session)
           serialized = @serializer.serialize(session)
-          AuthProto.storage.set(session_key, serialized)
+          AuthProto.storage.set(session_key, serialized, ttl: ttl)
         end
 
         session
@@ -113,7 +120,13 @@ module AuthProto
 
         begin
           session = @serializer.deserialize(serialized)
-          return nil if !session.renewable? && session.tokens&.expired?
+
+          if session.pending?
+            deadline = session.authorization_expires_at
+            return nil if !deadline || deadline <= Time.now
+          else
+            return nil if !session.tokens_valid? && !session.renewable?
+          end
 
           session
         rescue StandardError => e
@@ -171,6 +184,25 @@ module AuthProto
       #
       def cleanup_expired
         # No-op - expiry handled by storage TTL and retrieval validation
+      end
+
+
+      private
+
+      def session_ttl(session)
+        return nil if session.renewable?
+
+        if session.pending?
+          expires_at = session.authorization_expires_at
+          raise SessionError, "Pending session has no authorization deadline" unless expires_at
+        else
+          expires_at = session.tokens.expires_at
+        end
+
+        remaining = expires_at - Time.now
+        raise SessionError, "Session has expired" unless remaining.positive?
+
+        remaining.ceil
       end
     end
   end

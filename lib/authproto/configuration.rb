@@ -34,7 +34,7 @@ module AuthProto
     # @yieldparam config [Configuration] mutable global settings
     # @yieldreturn [Object] ignored
     # @return [Configuration] validated global settings
-    # @raise [ConfigurationError] if the storage or HTTP client is invalid
+    # @raise [ConfigurationError] if storage, HTTP transport or pending session lifetime is invalid
     # @example Configure the default transport
     #   AuthProto.configure do |config|
     #     config.http_client = AuthProto::HTTPClient.new
@@ -62,7 +62,7 @@ module AuthProto
     end
   end
 
-  # Raised when global storage or HTTP transport settings are invalid.
+  # Raised when global configuration settings are invalid.
   class ConfigurationError < Error; end
 
   #
@@ -91,6 +91,10 @@ module AuthProto
     # @return [Logger]
     attr_accessor :logger
 
+    # Lifetime of pending authorization attempts in seconds; defaults to 900 (15 minutes).
+    # @return [Integer] positive lifetime in seconds
+    attr_accessor :pending_session_ttl
+
     # Storage backend; defaults to a new {Storage::Memory}.
     # @return [Storage::Interface]
     attr_accessor :storage
@@ -103,24 +107,32 @@ module AuthProto
       @encryption = nil
       @http_client = nil
       @logger = Logger.new($stdout)
+      @pending_session_ttl = 900
       @storage = AuthProto::Storage::Memory.new
     end
 
-    # Checks that storage implements the interface and the transport supports GET/POST.
+    # Checks storage and transport interfaces and the positive pending session lifetime.
     #
     # A `nil` HTTP client is accepted, but cannot perform OAuth or discovery requests.
     #
     # @return [true] if validation succeeds
-    # @raise [ConfigurationError] if storage is absent/invalid or transport methods are missing
+    # @raise [ConfigurationError] if storage, HTTP transport or pending session lifetime is invalid
     #
     def validate
       validate_storage
       validate_http_client
+      validate_pending_session_ttl
       true
     end
 
 
     private
+
+    def validate_pending_session_ttl
+      return if @pending_session_ttl.is_a?(Integer) && @pending_session_ttl.positive?
+
+      raise ConfigurationError, "Pending session TTL must be a positive integer"
+    end
 
     def validate_storage
       raise ConfigurationError, "Storage must be configured" if @storage.nil?

@@ -32,7 +32,7 @@ module AuthProto
       #
       # @param key [String] nonempty key beginning with `atproto:`
       # @param value [Object] value retained by reference
-      # @param ttl [Integer, nil] positive expiry in seconds, or `nil` for no new expiry
+      # @param ttl [Integer, nil] positive expiry in seconds, or `nil` to clear any expiry
       # @return [true] if the write succeeds
       # @raise [StorageError] if key or TTL validation fails
       #
@@ -42,7 +42,13 @@ module AuthProto
 
         @monitor.synchronize do
           @data[key] = value
-          set_expiration(key, ttl) if ttl
+
+          if ttl
+            set_expiration(key, ttl)
+          else
+            @expirations.delete(key)
+          end
+
           true
         end
       end

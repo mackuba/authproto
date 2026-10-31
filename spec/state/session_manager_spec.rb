@@ -95,9 +95,9 @@ describe AuthProto::State::SessionManager do
     it "should leave the existing state mapping untouched when saving session changes" do
       state_key = AuthProto::Storage::KeyBuilder.state_key(session.state_token)
       updates = []
-      storage.define_singleton_method(:set) do |key, value|
+      storage.define_singleton_method(:set) do |key, value, **options|
         updates << key
-        super(key, value)
+        super(key, value, **options)
       end
 
       session.did = did
@@ -114,6 +114,112 @@ describe AuthProto::State::SessionManager do
       session_manager.update_session(session)
 
       storage.exists?(state_key).should be_falsey
+    end
+  end
+
+  describe "session expiry" do
+    let(:now) { Time.utc(2026, 1, 1) }
+    let(:session) { session_manager.create_session(client_id: client_id, scope: scope) }
+    let(:session_key) { AuthProto::Storage::KeyBuilder.session_key(session.session_id) }
+    let(:state_key) { AuthProto::Storage::KeyBuilder.state_key(session.state_token) }
+
+    before do
+      Time.stubs(:now).returns(now)
+      AuthProto.configuration.stubs(:pending_session_ttl).returns(900)
+    end
+
+    def assign_tokens(refresh_token: nil)
+      session.tokens = AuthProto::State::TokenSet.new(
+        access_token: 'access', refresh_token: refresh_token, token_type: 'DPoP',
+        expires_in: 3600, scope: scope, sub: did
+      )
+    end
+
+    it "should expire both pending records after the default fifteen minutes" do
+      session.authorization_expires_at.should == now + 900
+      session_id = session.session_id
+      original_state_key = state_key
+
+      Time.stubs(:now).returns(now + 899)
+      session_manager.get_session(session_id).should_not be_nil
+      storage.get(original_state_key).should == session_id
+
+      Time.stubs(:now).returns(now + 900)
+      storage.get(session_key).should be_nil
+      storage.get(original_state_key).should be_nil
+    end
+
+    it "should use the configured lifetime for both pending records" do
+      AuthProto.configuration.stubs(:pending_session_ttl).returns(1800)
+      session.authorization_expires_at.should == now + 1800
+      original_state_key = state_key
+
+      Time.stubs(:now).returns(now + 1800)
+      storage.get(session_key).should be_nil
+      storage.get(original_state_key).should be_nil
+    end
+
+    it "should preserve the pending deadline through loading and updates despite configuration changes" do
+      session_id = session.session_id
+      original_state_key = state_key
+      Time.stubs(:now).returns(now + 600)
+      AuthProto.configuration.stubs(:pending_session_ttl).returns(1800)
+
+      restored = session_manager.get_session(session_id)
+      restored.authorization_expires_at.should == now + 900
+      session_manager.update_session(restored)
+
+      Time.stubs(:now).returns(now + 899)
+      session_manager.get_session(session_id).should_not be_nil
+      Time.stubs(:now).returns(now + 900)
+      storage.get(session_key).should be_nil
+      storage.get(original_state_key).should be_nil
+    end
+
+    it "should reject expired pending updates without resurrecting the stored session" do
+      session_id = session.session_id
+      Time.stubs(:now).returns(now + 900)
+
+      expect {
+        session_manager.update_session(session)
+      }.to raise_error(AuthProto::State::SessionError, "Session has expired")
+
+      session_manager.get_session(session_id).should be_nil
+    end
+
+    it "should expire non-refreshable sessions with their access token without extending expiry on updates" do
+      assign_tokens
+      session_manager.complete_authorization(session)
+      Time.stubs(:now).returns(now + 1800)
+      restored = session_manager.get_session(session.session_id)
+      session_manager.update_session(restored)
+
+      Time.stubs(:now).returns(now + 3500)
+      session_manager.get_session(session.session_id).should_not be_nil
+      Time.stubs(:now).returns(now + 3600)
+      storage.get(session_key).should be_nil
+    end
+
+    it "should reject updates of expired non-refreshable sessions" do
+      assign_tokens
+      Time.stubs(:now).returns(now + 3600)
+
+      expect {
+        session_manager.update_session(session)
+      }.to raise_error(AuthProto::State::SessionError, "Session has expired")
+    end
+
+    it "should clear the pending deadline and storage expiry for renewable sessions" do
+      assign_tokens(refresh_token: 'refresh')
+      session_manager.complete_authorization(session)
+      session.authorization_expires_at.should be_nil
+
+      Time.stubs(:now).returns(now + 7200)
+      restored = session_manager.get_session(session.session_id)
+      restored.should be_renewable
+      restored.authorization_expires_at.should be_nil
+      session_manager.update_session(restored)
+      storage.get(session_key).should_not be_nil
     end
   end
 

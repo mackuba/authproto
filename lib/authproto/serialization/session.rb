@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'time'
+
 require_relative '../metadata/authorization_server'
 require_relative '../state/session'
 require_relative 'base'
@@ -41,6 +43,7 @@ module AuthProto
         }
 
         data[:state_token] = obj.state_token if obj.state_token
+        data[:authorization_expires_at] = obj.authorization_expires_at.utc.iso8601(9) if obj.authorization_expires_at
         data
       end
 
@@ -49,6 +52,7 @@ module AuthProto
           client_id: data['client_id'],
           scope: data['scope'],
           did: data['did'],
+          authorization_expires_at: data['authorization_expires_at'] && Time.iso8601(data['authorization_expires_at']),
           auth_server: deserialize_auth_server(data['auth_server'])
         )
 

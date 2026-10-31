@@ -114,6 +114,19 @@ validated; the original client ID is preserved exactly.
 
 The library supports multiple storage backends for managing OAuth state:
 
+Pending authorization sessions and their state-token lookups expire after 15 minutes by default.
+Configure the lifetime in seconds with a positive integer:
+
+```ruby
+AuthProto.configure do |config|
+  config.pending_session_ttl = 900
+end
+```
+
+Updating a pending session preserves its original deadline. Successful authorization removes
+the pending deadline and state-token lookup. Authenticated sessions without refresh tokens
+expire with their access token; sessions with refresh tokens have no automatic storage expiry.
+
 #### In-Memory Storage (Default)
 
 ```ruby

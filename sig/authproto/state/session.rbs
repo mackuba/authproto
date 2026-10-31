@@ -18,6 +18,7 @@ module AuthProto
       def did=: (String did) -> String
       def tokens=: (TokenSet tokens) -> String
       def session_data: () -> AuthProto::session_data?
+      def pending?: () -> bool
       def authorized?: () -> bool
       def renewable?: () -> bool
     end
