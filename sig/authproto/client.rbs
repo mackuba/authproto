@@ -31,7 +31,7 @@ module AuthProto
     def initialize_signing_key: ((json_object | JOSE::JWK)? key) -> JOSE::JWK?
     def initialize_dpop: ((json_object | JOSE::Map)? key) -> DPoP::Client
     def validate_auth_params: (String? handle, String? pds, String scope) -> void
-    def resolve_auth_server: (String pds) -> Metadata::AuthorizationServer
+    def resolve_auth_server_info: (String pds) -> Metadata::AuthorizationServer
     def submit_authorization_par: (Metadata::AuthorizationServer authorization_server, State::Session session, ?login_hint: String?) -> String
     def exchange_code: (code: String, session: State::Session) -> json_object
     def make_token_request: (String code, State::Session session) -> http_response

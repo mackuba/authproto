@@ -138,12 +138,14 @@ module AuthProto
         raise Error, "No HTTPS PDS location found for #{did}" unless pds && URI(pds).is_a?(URI::HTTPS)
       end
 
-      authorization_server = resolve_auth_server(pds)
+      authorization_server = resolve_auth_server_info(pds)
 
-      session = session_manager.create_session(client_id: @client_id, scope: scope)
-      session.authorization_server = authorization_server
-      session.did = did&.to_s
-      session_manager.update_session(session)
+      session = session_manager.create_session(
+        client_id: @client_id,
+        scope: scope,
+        auth_server: authorization_server,
+        did: did&.to_s
+      )
 
       auth_url = submit_authorization_par(authorization_server, session, login_hint: handle)
 
@@ -175,7 +177,7 @@ module AuthProto
     # @raise [Encryption::EncryptionError] if tokens cannot be encrypted for storage
     #
     def handle_callback(code:, state:, iss:)
-      session = session_manager.get_session_by_state(state)
+      session = session_manager.get_session_by_state_token(state)
 
       raise CallbackError, "Invalid state parameter" unless session
       raise CallbackError, "Issuer mismatch" unless session.auth_server && session.auth_server.issuer == iss
@@ -213,7 +215,7 @@ module AuthProto
     #
     def get_tokens(session_id)
       session = session_manager.get_session(session_id)
-      return nil unless session&.authorized?
+      return nil unless session && session.tokens_valid?
 
       session.session_data
     end
@@ -265,7 +267,7 @@ module AuthProto
     #
     def authorized?(session_id)
       session = session_manager.get_session(session_id)
-      session&.authorized? || false
+      session ? session.tokens_valid? : false
     end
 
     # Builds authorization headers and a fresh DPoP proof for one HTTP request.
@@ -286,7 +288,8 @@ module AuthProto
       session = session_manager.get_session(session_id)
 
       raise TokenError, "Invalid session" unless session
-      raise TokenError, "Session not authorized" unless session.authorized?
+      raise TokenError, "Session not authorized" unless session.tokens
+      raise TokenError, "Session has expired" unless session.tokens_valid?
 
       dpop_proof = dpop_client.generate_proof(
         method: method,
@@ -397,7 +400,7 @@ module AuthProto
       raise Error, "cannot provide both handle and pds" if handle && pds
     end
 
-    def resolve_auth_server(pds)
+    def resolve_auth_server_info(pds)
       resource_server = Metadata::ResourceServer.from_url(pds)
       auth_server_url = resource_server.authorization_server
 

@@ -114,10 +114,10 @@ module AuthProto
       # @param state [String, nil] callback state token
       # @return [Session, nil] restored session, or `nil` if unavailable
       #
-      def get_session_by_state(state)
-        return nil unless state
+      def get_session_by_state_token(state_token)
+        return nil unless state_token
 
-        state_key = Storage::KeyBuilder.state_key(state)
+        state_key = Storage::KeyBuilder.state_key(state_token)
 
         begin
           session_id = AuthProto.storage.get(state_key)

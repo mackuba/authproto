@@ -63,12 +63,13 @@ module AuthProto
       def initialize(client_id:, scope:, auth_server: nil, did: nil)
         super() # Initialize MonitorMixin
 
-        @session_id = SecureRandom.uuid
-        @state_token = SecureRandom.urlsafe_base64(32)
         @client_id = client_id
         @scope = scope
         @auth_server = auth_server
         @did = did
+
+        @session_id = SecureRandom.uuid
+        @state_token = SecureRandom.urlsafe_base64(32)
 
         pkce = PKCE.new
         @pkce_verifier = pkce.verifier
@@ -146,11 +147,13 @@ module AuthProto
 
       # Whether this session has valid access tokens
       # @return [Boolean]
-      def authorized?
+      def tokens_valid?
         synchronize do
           !@tokens.nil? && !@tokens.expired?
         end
       end
+
+      alias authorized? tokens_valid?
 
       # Whether this session can refresh its tokens
       # @return [Boolean]

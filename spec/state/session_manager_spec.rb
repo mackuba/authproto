@@ -66,7 +66,7 @@ describe AuthProto::State::SessionManager do
 
     it "should maintain state token mapping after update" do
       updated = session_manager.update_session(session)
-      retrieved = session_manager.get_session_by_state(updated.state_token)
+      retrieved = session_manager.get_session_by_state_token(updated.state_token)
 
       retrieved.should_not be_nil
       retrieved.session_id.should == session.session_id
@@ -165,20 +165,20 @@ describe AuthProto::State::SessionManager do
     end
   end
 
-  describe "#get_session_by_state" do
+  describe "#get_session_by_state_token" do
     it "should retrieve a session by a valid state token" do
       original = session_manager.create_session(client_id: client_id, scope: scope, auth_server: auth_server, did: did)
-      retrieved = session_manager.get_session_by_state(original.state_token)
+      retrieved = session_manager.get_session_by_state_token(original.state_token)
       retrieved.session_id.should == original.session_id
     end
 
     it "should return nil for an invalid state token" do
       session_manager.create_session(client_id: client_id, scope: scope)
-      session_manager.get_session_by_state("invalid_state_token").should be_nil
+      session_manager.get_session_by_state_token("invalid_state_token").should be_nil
     end
 
     it "should return nil for nil state" do
-      session_manager.get_session_by_state(nil).should be_nil
+      session_manager.get_session_by_state_token(nil).should be_nil
     end
   end
 
@@ -232,7 +232,7 @@ describe AuthProto::State::SessionManager do
       }.to raise_error(AuthProto::Storage::StorageError)
 
       session_manager.get_session("any_id").should be_nil
-      session_manager.get_session_by_state("any_state").should be_nil
+      session_manager.get_session_by_state_token("any_state").should be_nil
     end
   end
 end

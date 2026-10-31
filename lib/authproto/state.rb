@@ -45,7 +45,7 @@ module AuthProto
   #
   #   # Lookup session later
   #   session = manager.get_session(session.session_id)
-  #   if session.authorized?
+  #   if session.tokens_valid?
   #     puts "Access token: #{session.tokens.access_token}"
   #   end
   #
