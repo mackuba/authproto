@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'json'
+
 describe AuthProto::State::SessionManager do
   let(:client_id) { "test_client_id" }
   let(:scope) { "read write" }
@@ -90,23 +92,89 @@ describe AuthProto::State::SessionManager do
       }.to raise_error(AuthProto::Storage::StorageError)
     end
 
-    it "should update both session and state mapping atomically" do
-      original_state = session.state_token
-
-      # Verify both session and state mapping are updated
+    it "should leave the existing state mapping untouched when saving session changes" do
+      state_key = AuthProto::Storage::KeyBuilder.state_key(session.state_token)
       updates = []
       storage.define_singleton_method(:set) do |key, value|
         updates << key
         super(key, value)
       end
 
+      session.did = did
       session_manager.update_session(session)
 
-      session_key = AuthProto::Storage::KeyBuilder.session_key(session.session_id)
-      state_key = AuthProto::Storage::KeyBuilder.state_key(original_state)
+      updates.should == [AuthProto::Storage::KeyBuilder.session_key(session.session_id)]
+      storage.get(state_key).should == session.session_id
+      session_manager.get_session(session.session_id).did.should == did
+    end
 
-      updates.should include(session_key)
-      updates.should include(state_key)
+    it "should not recreate a missing state mapping when saving a pending session" do
+      state_key = AuthProto::Storage::KeyBuilder.state_key(session.state_token)
+      storage.delete(state_key)
+      session_manager.update_session(session)
+
+      storage.exists?(state_key).should be_falsey
+    end
+  end
+
+  describe '#complete_authorization' do
+    let(:session) { session_manager.create_session(client_id: client_id, scope: scope) }
+
+    before do
+      session.tokens = AuthProto::State::TokenSet.new(
+        access_token: 'access', refresh_token: 'refresh', token_type: 'DPoP',
+        expires_in: 3600, scope: scope, sub: did
+      )
+    end
+
+    it "should remove the state token and lookup while retaining the authenticated session" do
+      state_token = session.state_token
+      session_key = AuthProto::Storage::KeyBuilder.session_key(session.session_id)
+      state_key = AuthProto::Storage::KeyBuilder.state_key(state_token)
+
+      session_manager.complete_authorization(session).should equal(session)
+
+      session.state_token.should be_nil
+      storage.exists?(state_key).should be_falsey
+      JSON.parse(storage.get(session_key)).fetch('data').should_not have_key('state_token')
+      session_manager.get_session_by_state_token(state_token).should be_nil
+      restored = session_manager.get_session(session.session_id)
+      restored.state_token.should be_nil
+      restored.tokens.access_token.should == 'access'
+      restored.should be_authorized
+    end
+
+    it "should not recreate a state lookup on later session updates" do
+      state_key = AuthProto::Storage::KeyBuilder.state_key(session.state_token)
+      session_manager.complete_authorization(session)
+      restored = session_manager.get_session(session.session_id)
+
+      session_manager.update_session(restored)
+
+      storage.exists?(state_key).should be_falsey
+      storage.exists?(AuthProto::Storage::KeyBuilder.state_key(nil)).should be_falsey
+      session_manager.get_session(session.session_id).state_token.should be_nil
+    end
+
+    it "should reject a stale lookup if deleting it fails after the session is saved" do
+      state_token = session.state_token
+      state_key = AuthProto::Storage::KeyBuilder.state_key(state_token)
+      storage.expects(:delete).with(state_key).raises(AuthProto::Storage::StorageError, "Deletion failed")
+
+      expect {
+        session_manager.complete_authorization(session)
+      }.to raise_error(AuthProto::Storage::StorageError)
+
+      storage.get(state_key).should == session.session_id
+      session_manager.get_session_by_state_token(state_token).should be_nil
+    end
+
+    it "should delete an authenticated session whose state token has already been cleared" do
+      session_manager.complete_authorization(session)
+
+      session_manager.delete_session(session.session_id)
+
+      session_manager.get_session(session.session_id).should be_nil
     end
   end
 

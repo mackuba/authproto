@@ -29,9 +29,8 @@ module AuthProto
       end
 
       def serialize_data(obj)
-        {
+        data = {
           session_id: obj.session_id,
-          state_token: obj.state_token,
           client_id: obj.client_id,
           scope: obj.scope,
           pkce_verifier: obj.pkce_verifier,
@@ -40,24 +39,29 @@ module AuthProto
           tokens: serialize_token_set(obj.tokens),
           auth_server: serialize_auth_server(obj.auth_server)
         }
+
+        data[:state_token] = obj.state_token if obj.state_token
+        data
       end
 
       def deserialize_data(data)
-        AuthProto::State::Session.new(
+        session = AuthProto::State::Session.new(
           client_id: data['client_id'],
           scope: data['scope'],
           did: data['did'],
           auth_server: deserialize_auth_server(data['auth_server'])
-        ).tap do |session|
-          # Set readonly attributes
-          session.instance_variable_set(:@session_id, data['session_id'])
-          session.instance_variable_set(:@state_token, data['state_token'])
-          session.instance_variable_set(:@pkce_verifier, data['pkce_verifier'])
-          session.instance_variable_set(:@pkce_challenge, data['pkce_challenge'])
+        )
 
-          # Set tokens if present
-          session.tokens = deserialize_token_set(data['tokens']) if data['tokens']
-        end
+        # Set readonly attributes
+        session.instance_variable_set(:@session_id, data['session_id'])
+        session.instance_variable_set(:@state_token, data['state_token'])
+        session.instance_variable_set(:@pkce_verifier, data['pkce_verifier'])
+        session.instance_variable_set(:@pkce_challenge, data['pkce_challenge'])
+
+        # Set tokens if present
+        session.tokens = deserialize_token_set(data['tokens']) if data['tokens']
+
+        session
       end
 
       def serialize_token_set(tokens)

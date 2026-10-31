@@ -172,8 +172,17 @@ describe Minisky::OAuthClient do
 
       auth = client.authorize(pds: host)
       session = client.oauth_client.session_manager.get_session(auth[:session_id])
-      client.handle_callback(code: "code", state: session.state_token, iss: auth_server.issuer)
+      state_token = session.state_token
+      client.handle_callback(code: "code", state: state_token, iss: auth_server.issuer)
+      client.oauth_client.session_manager.get_session(session.session_id).state_token.should be_nil
+      AuthProto.storage.exists?(AuthProto::Storage::KeyBuilder.state_key(state_token)).should be_falsey
+
+      expect {
+        client.handle_callback(code: 'code', state: state_token, iss: auth_server.issuer)
+      }.to raise_error(AuthProto::Client::CallbackError, "Invalid state parameter")
+
       client.perform_token_refresh[:refresh_token].should == "new-refresh"
+      AuthProto.storage.exists?(AuthProto::Storage::KeyBuilder.state_key(state_token)).should be_falsey
       assertions.length.should == 4
       assertions.uniq.length.should == 4
       par_proofs.length.should == 2
@@ -181,6 +190,22 @@ describe Minisky::OAuthClient do
       par_proofs.last['nonce'].should == 'par-nonce'
       assert_not_requested :get, "https://client.example.com/keys.json"
     end
+  end
+
+  it "should retain the state token and lookup when the token exchange fails" do
+    session = client.oauth_client.session_manager.create_session(
+      client_id: client_metadata['client_id'], scope: 'atproto', auth_server: auth_server
+    )
+    client.oauth_client.stubs(:exchange_code).raises(AuthProto::Client::TokenError, "Token exchange failed")
+
+    expect {
+      client.handle_callback(code: 'code', state: session.state_token, iss: auth_server.issuer)
+    }.to raise_error(AuthProto::Client::TokenError, "Token exchange failed")
+
+    restored = client.oauth_client.session_manager.get_session_by_state_token(session.state_token)
+    restored.session_id.should == session.session_id
+    restored.state_token.should == session.state_token
+    restored.tokens.should be_nil
   end
 
   it "should authorize a resolved handle and persist its DID and discovered issuer" do

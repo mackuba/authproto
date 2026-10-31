@@ -196,7 +196,7 @@ module AuthProto
         )
 
         session.tokens = token_set
-        session_manager.update_session(session)
+        session_manager.complete_authorization(session)
 
         session.session_data
       end

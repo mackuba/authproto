@@ -55,7 +55,7 @@ module AuthProto
         session
       end
 
-      # Persists a session and updates its state-token lookup under a storage lock.
+      # Persists a session under a storage lock.
       #
       # @param session [Session] session to persist
       # @return [Session] the supplied session
@@ -69,10 +69,25 @@ module AuthProto
         AuthProto.storage.with_lock(session_key, ttl: 30) do
           serialized = @serializer.serialize(session)
           AuthProto.storage.set(session_key, serialized)
-
-          state_key = Storage::KeyBuilder.state_key(session.state_token)
-          AuthProto.storage.set(state_key, session.session_id)
         end
+
+        session
+      end
+
+      # Persists successful authorization without its state token and removes the callback lookup.
+      #
+      # @param session [Session] session with successfully validated and assigned tokens
+      # @return [Session] the supplied session, with its state token cleared
+      # @raise [Storage::StorageError] if writing, deletion or locking fails
+      # @raise [Serialization::ValidationError] if the session cannot be serialized
+      # @raise [Encryption::EncryptionError] if sensitive fields cannot be encrypted
+      #
+      def complete_authorization(session)
+        state_token = session.state_token
+        session.clear_state_token
+        update_session(session)
+
+        AuthProto.storage.delete(Storage::KeyBuilder.state_key(state_token)) if state_token
 
         session
       end
@@ -127,7 +142,9 @@ module AuthProto
           return nil
         end
 
-        get_session(session_id)
+        session = get_session(session_id)
+
+        session if !session.nil? && session.state_token == state_token
       end
 
       # Deletes a session and its state mapping if it can be retrieved.
@@ -141,11 +158,9 @@ module AuthProto
         return unless session
 
         session_key = Storage::KeyBuilder.session_key(session_id)
-        state_key = Storage::KeyBuilder.state_key(session.state_token)
-
         AuthProto.storage.with_lock(session_key, ttl: 30) do
           AuthProto.storage.delete(session_key)
-          AuthProto.storage.delete(state_key)
+          AuthProto.storage.delete(Storage::KeyBuilder.state_key(session.state_token)) if session.state_token
         end
       end
 

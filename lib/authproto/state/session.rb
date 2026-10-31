@@ -20,8 +20,8 @@ module AuthProto
       # @return [String]
       attr_reader :session_id
 
-      # Random OAuth state token for callback validation.
-      # @return [String]
+      # Random OAuth state token for callback validation, cleared after authorization completes.
+      # @return [String, nil]
       attr_reader :state_token
 
       # OAuth client identifier.
@@ -76,6 +76,14 @@ module AuthProto
         @pkce_challenge = pkce.challenge
 
         @tokens = nil
+      end
+
+      # Clears the OAuth state token after successful authorization.
+      #
+      # @return [nil]
+      #
+      def clear_state_token
+        synchronize { @state_token = nil }
       end
 
       # Binds this session to an authorization server.
