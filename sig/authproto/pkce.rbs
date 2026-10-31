@@ -1,24 +1,14 @@
 module AuthProto
-  module PKCE
+  class PKCE
     class Error < AuthProto::Error
     end
 
-    MIN_VERIFIER_LENGTH: Integer
-    MAX_VERIFIER_LENGTH: Integer
-    ALLOWED_VERIFIER_CHARS: ::Regexp
+    CHALLENGE_METHOD_S256: String
+    VERIFIER_BYTES: Integer
 
-    def self.generate_verifier: (?Integer length) -> String
+    attr_reader verifier: String
+    attr_reader challenge: String
 
-    def self.generate_challenge: (String verifier) -> String
-
-    def self.verify: (String challenge, String verifier) -> bool
-
-    private
-
-    private def self.validate_verifier_length: (Integer length) -> void
-
-    private def self.validate_verifier: (String verifier) -> void
-
-    private def self.secure_compare: (String str1, String str2) -> bool
+    def initialize: () -> void
   end
 end

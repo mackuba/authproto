@@ -70,9 +70,9 @@ module AuthProto
         @auth_server = auth_server
         @did = did
 
-        # Generate PKCE values
-        @pkce_verifier = PKCE.generate_verifier
-        @pkce_challenge = PKCE.generate_challenge(@pkce_verifier)
+        pkce = PKCE.new
+        @pkce_verifier = pkce.verifier
+        @pkce_challenge = pkce.challenge
 
         @tokens = nil
       end

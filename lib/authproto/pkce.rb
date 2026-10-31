@@ -9,113 +9,40 @@ require_relative 'errors'
 module AuthProto
 
   #
-  # Implementation of Proof Key for Code Exchange (PKCE) for OAuth 2.0 / AT Protocol
-  # as specified in RFC 7636.
-  #
-  # This module provides functionality to:
-  # - Generate cryptographically secure code verifiers
-  # - Create SHA-256 code challenges from verifiers
-  # - Verify challenge/verifier pairs
-  #
-  # Only the S256 challenge method is supported, as required by AT Protocol OAuth.
+  # Generates a matching PKCE verifier and S256 challenge for an OAuth authorization flow.
   #
 
-  module PKCE
+  class PKCE
 
-    # Error raised for PKCE-related failures
+    # Error raised when generating a verifier/challenge pair fails.
     class Error < AuthProto::Error; end
 
-    # Minimum PKCE verifier length in characters.
-    MIN_VERIFIER_LENGTH = 43
+    # Challenge method required by AT Protocol OAuth.
+    CHALLENGE_METHOD_S256 = 'S256'
 
-    # Maximum PKCE verifier length in characters.
-    MAX_VERIFIER_LENGTH = 128
+    # Random bytes providing 256 bits of entropy, encoded as a 43-character verifier without padding.
+    VERIFIER_BYTES = 32
 
-    # Allowed PKCE verifier characters from RFC 7636.
-    # @return [Regexp]
-    ALLOWED_VERIFIER_CHARS = /^[A-Za-z0-9\-\._~]+$/
+    # Cryptographically random, URL-safe code verifier.
+    # @return [String]
+    attr_reader :verifier
 
-    CHALLENGE_METHOD_S256 = "S256"
+    # Base64URL-encoded SHA-256 digest of the verifier, without padding.
+    # @return [String]
+    attr_reader :challenge
 
-    class << self
-
-      # Generates a cryptographically secure random code verifier
-      #
-      # @param length [Integer] Length of verifier to generate
-      # @return [String] The generated code verifier
-      # @raise [Error] if length is invalid
-      #
-      def generate_verifier(length = MAX_VERIFIER_LENGTH)
-        validate_verifier_length(length)
-
-        random_bytes = SecureRandom.random_bytes(length * 3 / 4)
-        Base64.urlsafe_encode64(random_bytes, padding: false)[0...length]
-      rescue StandardError => e
-        raise Error, "Failed to generate verifier: #{e.message}"
-      end
-
-      # Creates a code challenge from a verifier using SHA-256
-      #
-      # @param verifier [String] The code verifier to create challenge from
-      # @return [String] Base64URL-encoded SHA-256 hash of the verifier
-      # @raise [Error] if verifier is invalid or hashing fails
-      #
-      def generate_challenge(verifier)
-        validate_verifier(verifier)
-
-        digest = OpenSSL::Digest::SHA256.digest(verifier)
-        Base64.urlsafe_encode64(digest, padding: false)
-      rescue StandardError => e
-        raise Error, "Failed to generate challenge: #{e.message}"
-      end
-
-      # Verifies that a challenge matches a verifier
-      #
-      # @param challenge [String] The code challenge to verify
-      # @param verifier [String] The code verifier to check against
-      # @return [Boolean] true if challenge matches verifier
-      # @raise [Error] if inputs are invalid
-      #
-      def verify(challenge, verifier)
-        calculated = generate_challenge(verifier)
-        secure_compare(calculated, challenge)
-      rescue Error
-        raise
-      rescue StandardError => e
-        raise Error, "Challenge verification failed: #{e.message}"
-      end
-
-
-      private
-
-      def validate_verifier_length(length)
-        return if length.is_a?(Integer) && length.between?(MIN_VERIFIER_LENGTH, MAX_VERIFIER_LENGTH)
-
-        raise Error, "Verifier length must be between #{MIN_VERIFIER_LENGTH} and #{MAX_VERIFIER_LENGTH}"
-      end
-
-      def validate_verifier(verifier)
-        raise Error, "Verifier cannot be nil" if verifier.nil?
-        raise Error, "Verifier cannot be empty" if verifier.empty?
-
-        length = verifier.length
-        validate_verifier_length(length)
-
-        raise Error, "Verifier contains invalid characters" unless verifier.match?(ALLOWED_VERIFIER_CHARS)
-      end
-
-      # Constant-time string comparison to prevent timing attacks
-      def secure_compare(str1, str2)
-        return false unless str1.bytesize == str2.bytesize
-
-        left = str1.unpack("C*")
-        right = str2.unpack("C*")
-
-        result = 0
-        left.zip(right) { |x, y| result |= x ^ y }
-
-        result.zero?
-      end
+    # Generates a verifier and its matching S256 challenge.
+    #
+    # Both strings are frozen so the pair cannot be changed after generation.
+    #
+    # @raise [Error] if random generation or hashing fails
+    #
+    def initialize
+      @verifier = SecureRandom.urlsafe_base64(VERIFIER_BYTES, false).freeze
+      digest = OpenSSL::Digest::SHA256.digest(@verifier)
+      @challenge = Base64.urlsafe_encode64(digest, padding: false).freeze
+    rescue StandardError => e
+      raise Error, "Failed to generate PKCE: #{e.message}"
     end
   end
 end
