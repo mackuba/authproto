@@ -3,6 +3,7 @@
 require 'uri'
 
 require_relative '../par'
+require_relative 'client_assertion'
 
 module AuthProto
   module PAR
@@ -52,12 +53,8 @@ module AuthProto
         # @return [String, nil]
         attr_reader :dpop_proof
 
-        # JWT bearer assertion type for confidential clients.
-        # @return [String, nil]
-        attr_reader :client_assertion_type
-
-        # Signed client authentication JWT for confidential clients.
-        # @return [String, nil]
+        # Client authentication signer; a fresh JWT is generated for each form encoding.
+        # @return [ClientAssertion, nil]
         attr_reader :client_assertion
       end
 
@@ -101,17 +98,18 @@ module AuthProto
         validate_request
       end
 
-      # Converts request to form-encoded parameters
+      # Converts request to form-encoded parameters, generating a fresh client assertion when configured.
+      # @param audience [String, nil] authorization server issuer; required for confidential clients
       # @return [String] Form-encoded request body
       #
-      def to_form
-        URI.encode_www_form(build_params)
+      def to_form(audience: nil)
+        URI.encode_www_form(build_params(audience: audience))
       end
 
 
       private
 
-      def build_params
+      def build_params(audience:)
         params = {
           "response_type" => 'code',
           "client_id" => client_id,
@@ -126,8 +124,12 @@ module AuthProto
         params['nonce'] = nonce if nonce
 
         if client_assertion
+          unless audience.is_a?(String) && !audience.empty?
+            raise Error, "audience is required with client_assertion"
+          end
+
           params['client_assertion_type'] = CLIENT_ASSERTION_TYPE
-          params['client_assertion'] = client_assertion
+          params['client_assertion'] = client_assertion.generate_jwt(audience: audience)
         end
 
         params
@@ -148,18 +150,11 @@ module AuthProto
       end
 
       def validate_client_auth
-        # If either auth parameter is present, both must be present and valid
-        has_assertion = !client_assertion.nil?
-        has_type = !client_assertion_type.nil?
+        return if client_assertion.nil?
 
-        return unless has_assertion || has_type
-
-        unless client_assertion_type == CLIENT_ASSERTION_TYPE
-          raise Error, "client_assertion_type must be #{CLIENT_ASSERTION_TYPE}"
+        unless client_assertion.is_a?(ClientAssertion)
+          raise Error, "client_assertion must be a PAR::ClientAssertion"
         end
-
-        raise Error, "client_assertion required with client_assertion_type" if client_assertion.nil?
-        raise Error, "client_assertion_type required with client_assertion" if client_assertion_type.nil?
       end
     end
   end

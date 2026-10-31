@@ -15,7 +15,7 @@ module AuthProto
   #
   # @example Basic PAR request
   #   par = AuthProto::PAR::Client.new(
-  #     par_endpoint: "https://auth.example.com/par",
+  #     authorization_server: authorization_server,
   #     dpop_client: AuthProto::DPoP::Client.new
   #   )
   #
@@ -29,7 +29,6 @@ module AuthProto
   #
   #   response = par.submit(request)
   #   auth_url = par.build_authorization_url(
-  #     authorization_endpoint: "https://auth.example.com/authorize",
   #     request_uri: response.request_uri,
   #     client_id: request.client_id
   #   )

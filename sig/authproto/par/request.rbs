@@ -9,8 +9,7 @@ module AuthProto
       @login_hint: String?
       @nonce: String?
       @dpop_proof: String?
-      @client_assertion_type: String?
-      @client_assertion: String?
+      @client_assertion: ClientAssertion?
 
       class Configuration
         attr_accessor client_id: String?
@@ -21,8 +20,7 @@ module AuthProto
         attr_accessor login_hint: String?
         attr_accessor nonce: String?
         attr_accessor dpop_proof: String?
-        attr_accessor client_assertion_type: String?
-        attr_accessor client_assertion: String?
+        attr_accessor client_assertion: ClientAssertion?
       end
 
       attr_reader client_id: String
@@ -33,18 +31,17 @@ module AuthProto
       attr_reader login_hint: String?
       attr_reader nonce: String?
       attr_reader dpop_proof: String?
-      attr_reader client_assertion_type: String?
-      attr_reader client_assertion: String?
+      attr_reader client_assertion: ClientAssertion?
 
       def self.build: () { (Configuration) -> untyped } -> Request
 
       def initialize: (Configuration config) -> void
 
-      def to_form: () -> String
+      def to_form: (?audience: String?) -> String
 
       private
 
-      def build_params: () -> Hash[String, String]
+      def build_params: (audience: String?) -> Hash[String, String]
 
       def add_optional_params: (Hash[String, String] params) -> void
 

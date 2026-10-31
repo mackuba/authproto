@@ -3,20 +3,19 @@
 describe AuthProto::PAR::Client do
   before do
     @par_endpoint = "https://auth.example.com/par"
+    @authorization_server = mock('authorization_server')
+    @authorization_server.stubs(:pushed_authorization_request_endpoint).returns(@par_endpoint)
+    @authorization_server.stubs(:issuer).returns('https://issuer.example.com')
+    @authorization_server.stubs(:authorization_endpoint).returns('https://auth.example.com/authorize')
     @dpop_client = mock("dpop_client")
     @nonce_manager = mock("nonce_manager")
     @dpop_client.stubs(:nonce_manager).returns(@nonce_manager)
-    @client = AuthProto::PAR::Client.new(par_endpoint: @par_endpoint, dpop_client: @dpop_client)
+    @client = AuthProto::PAR::Client.new(authorization_server: @authorization_server, dpop_client: @dpop_client)
   end
 
   describe "#initialize" do
-    it "should raise an error if endpoint is not HTTPS" do
-      expect {
-        AuthProto::PAR::Client.new(par_endpoint: "http://auth.example.com/par", dpop_client: @dpop_client)
-      }.to raise_error(AuthProto::PAR::Error)
-    end
-
-    it "should initialize correctly with a valid HTTPS endpoint" do
+    it "should initialize from the supplied authorization server" do
+      @client.authorization_server.should == @authorization_server
       @client.par_endpoint.should == @par_endpoint
       @client.dpop_client.should == @dpop_client
     end
@@ -32,7 +31,7 @@ describe AuthProto::PAR::Client do
                     body: '{"request_uri":"mocked_uri","expires_in":3600}' }
       @server_origin = "https://auth.example.com"
 
-      @request.stubs(:to_form).returns("client_id=mock_client_id&scope=mock_scope")
+      @request.stubs(:to_form).with(audience: 'https://issuer.example.com').returns("client_id=mock_client_id&scope=mock_scope")
       @dpop_client.stubs(:generate_proof).returns(@proof)
       @nonce_manager.stubs(:get).returns("mocked_nonce")
       @http_client = mock("http_client")
@@ -44,6 +43,12 @@ describe AuthProto::PAR::Client do
     end
 
     it "should submit the PAR request and return a Response object on success" do
+      @http_client.expects(:post).with(
+        @par_endpoint,
+        body: 'client_id=mock_client_id&scope=mock_scope',
+        headers: { 'Content-Type' => 'application/x-www-form-urlencoded', 'DPoP' => @proof }
+      ).returns(@response)
+
       response = @client.submit(@request)
       response.should be_an_instance_of(AuthProto::PAR::Response)
       response.request_uri.should == "mocked_uri"
@@ -111,12 +116,10 @@ describe AuthProto::PAR::Client do
 
   describe "#build_authorization_url" do
     it "should construct a valid authorization URL" do
-      authorization_endpoint = "https://auth.example.com/authorize"
       request_uri = "mocked_request_uri"
       client_id = "mocked_client_id"
 
-      url = @client.build_authorization_url(authorization_endpoint: authorization_endpoint,
-                                            request_uri: request_uri,
+      url = @client.build_authorization_url(request_uri: request_uri,
                                             client_id: client_id)
       expected_url = "https://auth.example.com/authorize?request_uri=mocked_request_uri&client_id=mocked_client_id"
       url.should == expected_url
@@ -124,9 +127,10 @@ describe AuthProto::PAR::Client do
 
     it "should preserve endpoint query parameters including repeated keys and encoded values" do
       endpoint = 'https://auth.example.com/authorize?tenant=a%2Bb&tag=one&tag=two&empty='
+      @authorization_server.stubs(:authorization_endpoint).returns(endpoint)
 
       url = @client.build_authorization_url(
-        authorization_endpoint: endpoint, request_uri: 'urn:example:par', client_id: 'https://client.example/metadata'
+        request_uri: 'urn:example:par', client_id: 'https://client.example/metadata'
       )
 
       url.should == endpoint + '&request_uri=urn%3Aexample%3Apar&client_id=https%3A%2F%2Fclient.example%2Fmetadata'
@@ -140,7 +144,6 @@ describe AuthProto::PAR::Client do
       request_uri = 'urn:ietf:params:oauth:request_uri:test'
 
       url = @client.build_authorization_url(
-        authorization_endpoint: 'https://auth.example.com/authorize',
         request_uri: request_uri,
         client_id: client_id
       )

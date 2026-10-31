@@ -5,7 +5,6 @@ require 'uri'
 
 require_relative '../configuration'
 require_relative '../par'
-require_relative '../validated_uri'
 require_relative 'response'
 
 module AuthProto
@@ -25,7 +24,7 @@ module AuthProto
     #
     # @example Basic PAR flow
     #   client = AuthProto::PAR::Client.new(
-    #     par_endpoint: "https://auth.example.com/par",
+    #     authorization_server: authorization_server,
     #     dpop_client: AuthProto::DPoP::Client.new
     #   )
     #
@@ -42,7 +41,6 @@ module AuthProto
     #
     #   # Build authorization URL using response
     #   auth_url = client.build_authorization_url(
-    #     authorization_endpoint: "https://auth.example.com/authorize",
     #     request_uri: response.request_uri,
     #     client_id: request.client_id
     #   )
@@ -50,8 +48,7 @@ module AuthProto
     # @example With client authentication (confidential clients)
     #   request = AuthProto::PAR::Request.build do |config|
     #     # ... basic parameters ...
-    #     config.client_assertion_type = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
-    #     config.client_assertion = jwt_token
+    #     config.client_assertion = AuthProto::PAR::ClientAssertion.new(client_id: client_id, signing_key: signing_key)
     #   end
     #
     # All requests use HTTPS and include a fresh DPoP proof from the supplied
@@ -61,6 +58,10 @@ module AuthProto
 
     class Client
 
+      # Authorization server supplying endpoints and the client assertion audience.
+      # @return [Metadata::AuthorizationServer]
+      attr_reader :authorization_server
+
       # HTTPS pushed authorization request endpoint.
       # @return [String]
       attr_reader :par_endpoint
@@ -69,22 +70,16 @@ module AuthProto
       # @return [DPoP::Client]
       attr_reader :dpop_client
 
-      # Nonce manager belonging to the DPoP client.
-      # @return [DPoP::NonceManager]
-      attr_reader :nonce_manager
-
       # Creates a PAR transport using the global HTTP client and supplied DPoP client.
       #
-      # @param par_endpoint [String] HTTPS PAR endpoint
+      # @param authorization_server [Metadata::AuthorizationServer] discovered authorization server metadata
       # @param dpop_client [DPoP::Client] proof generator and nonce tracker
-      # @raise [Error] if the endpoint is malformed or does not use HTTPS
       #
-      def initialize(par_endpoint:, dpop_client:)
-        @par_endpoint = par_endpoint
+      def initialize(authorization_server:, dpop_client:)
+        @authorization_server = authorization_server
+        @par_endpoint = authorization_server.pushed_authorization_request_endpoint
         @dpop_client = dpop_client
         @nonce_manager = dpop_client.nonce_manager
-
-        validate_par_endpoint
       end
 
       # Submits a PAR request, handling DPoP nonce requirements
@@ -107,7 +102,7 @@ module AuthProto
           store_nonce(nonce)
 
           # Get stored nonce to verify
-          nonce_manager.get(server_origin)
+          @nonce_manager.get(server_origin)
 
           # Generate new proof with nonce and retry
           response = make_request(request)
@@ -136,14 +131,13 @@ module AuthProto
       #
       # Retains existing query parameters.
       #
-      # @param authorization_endpoint [String] authorization endpoint URL
       # @param request_uri [String] request URI from {Response#request_uri}
       # @param client_id [String] OAuth client ID
       # @return [String] browser authorization URL
       # @raise [URI::InvalidURIError] if the authorization endpoint cannot be parsed
       #
-      def build_authorization_url(authorization_endpoint:, request_uri:, client_id:)
-        uri = URI(authorization_endpoint)
+      def build_authorization_url(request_uri:, client_id:)
+        uri = URI(@authorization_server.authorization_endpoint)
 
         params = {
           request_uri: request_uri,
@@ -161,20 +155,12 @@ module AuthProto
 
       private
 
-      def validate_par_endpoint
-        uri = ValidatedURI.new(@par_endpoint)
-
-        raise Error, "endpoint must be HTTPS" unless uri.scheme == 'https'
-      rescue URI::InvalidURIError => e
-        raise Error, "invalid PAR endpoint URL: #{e.message}"
-      end
-
       def make_request(request)
         # Generate DPoP proof for this request
         proof = dpop_client.generate_proof(
           method: 'POST',
-          uri: par_endpoint,
-          nonce: nonce_manager.get(server_origin)
+          uri: @par_endpoint,
+          nonce: @nonce_manager.get(server_origin)
         )
 
         # Build headers including DPoP proof
@@ -182,8 +168,8 @@ module AuthProto
 
         # Make the request
         AuthProto.configuration.http_client.post(
-          par_endpoint,
-          body: request.to_form,
+          @par_endpoint,
+          body: request.to_form(audience: @authorization_server.issuer),
           headers: headers
         )
       end
@@ -203,7 +189,7 @@ module AuthProto
       end
 
       def store_nonce(nonce)
-        nonce_manager.update(nonce: nonce, server_url: server_origin)
+        @nonce_manager.update(nonce: nonce, server_url: server_origin)
       end
 
       def server_origin

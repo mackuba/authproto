@@ -410,7 +410,7 @@ module AuthProto
 
     def submit_authorization_par(authorization_server, session, login_hint: nil)
       par_client = PAR::Client.new(
-        par_endpoint: authorization_server.pushed_authorization_request_endpoint,
+        authorization_server: authorization_server,
         dpop_client: @dpop_client
       )
 
@@ -423,10 +423,7 @@ module AuthProto
         req.code_challenge = session.pkce_challenge
 
         if @client_metadata.confidential?
-          assertion = PAR::ClientAssertion.new(client_id: @client_id, signing_key: @signing_key)
-
-          req.client_assertion = assertion.generate_jwt(audience: authorization_server.issuer)
-          req.client_assertion_type = PAR::CLIENT_ASSERTION_TYPE
+          req.client_assertion = PAR::ClientAssertion.new(client_id: @client_id, signing_key: @signing_key)
         end
 
         req.dpop_proof = @dpop_client.generate_proof(
@@ -438,7 +435,6 @@ module AuthProto
       par_response = par_client.submit(par_request)
 
       par_client.build_authorization_url(
-        authorization_endpoint: authorization_server.authorization_endpoint,
         request_uri: par_response.request_uri,
         client_id: @client_id
       )

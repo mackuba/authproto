@@ -133,7 +133,7 @@ describe Minisky::OAuthClient do
   end
 
   [false, true].each do |use_uri|
-    it "should sign PAR, code exchange and refresh with the separate key when jwks_uri is #{use_uri}" do
+    it "should sign PAR retries, code exchange and refresh with the separate key when jwks_uri is #{use_uri}" do
       key = JOSE::JWK.generate_key([:ec, "P-256"])
       @signing_key = key.to_map.to_h.merge("kid" => "client-key", "key_ops" => ["sign"])
       client_metadata.merge!("token_endpoint_auth_method" => "private_key_jwt", "token_endpoint_auth_signing_alg" => "ES256")
@@ -145,6 +145,7 @@ describe Minisky::OAuthClient do
       stub_authorization_metadata
       public_key = JWT::JWK.import(key.to_public.to_map.to_h).public_key
       assertions = []
+      par_proofs = []
       validate_assertion = lambda do |request|
         form = URI.decode_www_form(request.body).to_h
         payload, header = JWT.decode(form.fetch("client_assertion"), public_key, true, algorithm: "ES256")
@@ -154,10 +155,16 @@ describe Minisky::OAuthClient do
           form["client_assertion_type"] == AuthProto::PAR::CLIENT_ASSERTION_TYPE
       end
       stub_request(:post, "#{auth_server.issuer}/par").with(&validate_assertion)
-        .to_return(
-          status: 201, headers: { "Content-Type" => "application/json" },
-          body: { request_uri: "urn:example:par", expires_in: 90 }.to_json
-        )
+        .to_return do |request|
+          par_proofs << JWT.decode(request.headers.fetch('Dpop'), nil, false).first
+
+          if par_proofs.length == 1
+            { status: 400, headers: { 'DPoP-Nonce' => 'par-nonce' }, body: '{"error":"use_dpop_nonce"}' }
+          else
+            { status: 201, headers: { 'Content-Type' => 'application/json' },
+              body: { request_uri: 'urn:example:par', expires_in: 90 }.to_json }
+          end
+        end
       stub_request(:post, auth_server.token_endpoint).with(&validate_assertion).to_return(status: 200, body: {
         access_token: "new-access", refresh_token: "new-refresh", token_type: "DPoP",
         expires_in: 3600, scope: "atproto", sub: "did:plc:alice"
@@ -167,8 +174,11 @@ describe Minisky::OAuthClient do
       session = client.oauth_client.session_manager.get_session(auth[:session_id])
       client.handle_callback(code: "code", state: session.state_token, iss: auth_server.issuer)
       client.perform_token_refresh[:refresh_token].should == "new-refresh"
-      assertions.length.should == 3
-      assertions.uniq.length.should == 3
+      assertions.length.should == 4
+      assertions.uniq.length.should == 4
+      par_proofs.length.should == 2
+      par_proofs.map { |proof| proof['jti'] }.uniq.length.should == 2
+      par_proofs.last['nonce'].should == 'par-nonce'
       assert_not_requested :get, "https://client.example.com/keys.json"
     end
   end

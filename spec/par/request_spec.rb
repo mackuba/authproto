@@ -1,6 +1,10 @@
 # frozen_string_literal: true
 
 describe AuthProto::PAR::Request do
+  let(:assertion) do
+    key = JOSE::JWK.generate_key([:ec, 'P-256']).to_map.to_h.merge('kid' => 'client-key')
+    AuthProto::PAR::ClientAssertion.new(client_id: config.client_id, signing_key: key)
+  end
   let(:config) do
     AuthProto::PAR::Request::Configuration.new.tap do |c|
       c.client_id = "client123"
@@ -61,6 +65,29 @@ describe AuthProto::PAR::Request do
         AuthProto::PAR::Request.new(config)
       }.to raise_error(AuthProto::PAR::Error)
     end
+
+    [nil, '', 123].each do |issuer|
+      it "should require an issuer with a client assertion: #{issuer.inspect}" do
+        config.client_assertion = assertion
+
+        expect { described_class.new(config).to_form(audience: issuer) }.to raise_error(
+          AuthProto::PAR::Error, /audience is required/
+        )
+      end
+    end
+
+    ['signed.jwt.string', 123].each do |signer|
+      it "should reject an invalid assertion signer: #{signer.inspect}" do
+        config.client_assertion = signer
+
+        expect { described_class.new(config) }.to raise_error(AuthProto::PAR::Error, /must be a PAR::ClientAssertion/)
+      end
+    end
+
+    it "should set the client assertion type internally" do
+      config.should_not respond_to(:client_assertion_type=)
+      described_class.new(config).should_not respond_to(:client_assertion_type=)
+    end
   end
 
   describe "#to_form" do
@@ -74,6 +101,13 @@ describe AuthProto::PAR::Request do
       form.should include("code_challenge_method=S256")
       form.should include("state=xyz456")
       form.should include("scope=atproto+read")
+    end
+
+    it "should omit client authentication parameters for public clients" do
+      form = URI.decode_www_form(described_class.new(config).to_form).to_h
+
+      form.should_not have_key('client_assertion')
+      form.should_not have_key('client_assertion_type')
     end
   end
 end
