@@ -6,27 +6,32 @@ Gem::Specification.new do |spec|
   spec.name = "authproto"
   spec.version = AuthProto::VERSION
   spec.authors = ["Josh Huckabee", "Kuba Suder"]
+  spec.email = ["jakub.suder@gmail.com"]
 
   spec.summary = "Ruby implementation of the AT Protocol OAuth specification"
   spec.description = "A Ruby library for implementing AT Protocol OAuth flows, including DPoP, PAR, and dynamic client registration. Supports both client and server-side implementations with comprehensive security features."
-  spec.homepage = "https://github.com/mackuba/authproto"
+  spec.homepage = "https://tangled.org/mackuba.eu/authproto"
+
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.3"
 
-  spec.metadata["homepage_uri"] = spec.homepage
-  spec.metadata["source_code_uri"] = "https://github.com/mackuba/authproto"
-  spec.metadata["changelog_uri"] = "https://github.com/mackuba/authproto/blob/main/CHANGELOG.md"
-  spec.metadata["rubygems_mfa_required"] = "true"
+  spec.metadata = {
+    "bug_tracker_uri"   => "https://tangled.org/mackuba.eu/authproto/issues",
+    "changelog_uri"     => "https://tangled.org/mackuba.eu/authproto/blob/master/CHANGELOG.md",
+    "source_code_uri"   => "https://tangled.org/mackuba.eu/authproto",
+    "rubygems_mfa_required" => "true"
+  }
 
-  gemspec = File.basename(__FILE__)
-  spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|
-    ls.readlines("\x0", chomp: true).reject do |f|
-      (f == gemspec) ||
-        f.start_with?(*%w[bin/ test/ spec/ features/ .git .github appveyor Gemfile])
-    end
+  git_files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|
+    ls.readlines("\x0", chomp: true)
   end
-  spec.bindir = "exe"
-  spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
+
+  included_files = Dir.chdir(__dir__) do
+    Dir['*.md'] + Dir['*.txt'] + Dir['examples/**/*'] + Dir['lib/**/*'] + Dir['sig/**/*'] - ['AGENTS.md']
+  end
+
+  spec.files = git_files & included_files
+
   spec.require_paths = ["lib"]
 
   spec.add_dependency "jose", "~> 1.2"
