@@ -15,6 +15,21 @@ describe AuthProto::Configuration do
   end
 
   describe "#validate" do
+    it "should accept a custom positive DPoP nonce lifetime" do
+      configuration.dpop_nonce_lifetime = 120
+      configuration.validate.should be true
+    end
+
+    [nil, 0, -1, 1.5, '300'].each do |lifetime|
+      it "should reject an invalid DPoP nonce lifetime #{lifetime.inspect}" do
+        configuration.dpop_nonce_lifetime = lifetime
+
+        expect {
+          configuration.validate
+        }.to raise_error(AuthProto::ConfigurationError, "DPoP nonce lifetime must be a positive integer")
+      end
+    end
+
     it "should accept a custom positive pending session TTL" do
       configuration.pending_session_ttl = 1800
       configuration.validate.should be true

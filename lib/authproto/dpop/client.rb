@@ -49,7 +49,7 @@ module AuthProto
       # Creates DPoP signing, proof and nonce managers.
       #
       # @param key_manager [KeyManager, nil] existing key manager, or `nil` to generate a keypair
-      # @param nonce_ttl [Integer, nil] stored nonce lifetime in seconds, or the nonce manager's default
+      # @param nonce_ttl [Integer, nil] stored nonce lifetime in seconds; `nil` uses {Configuration#dpop_nonce_lifetime}
       # @raise [KeyManager::KeyError] if key generation fails
       # @raise [ProofGenerator::ProofError] if the key manager is invalid
       # @raise [ArgumentError] if the encryption master key is not valid Base64

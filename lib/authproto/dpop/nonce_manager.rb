@@ -23,17 +23,13 @@ module AuthProto
       # Error for nonce-related issues
       class NonceError < AuthProto::Error; end
 
-      # Default stored nonce lifetime in seconds.
-      # @return [Integer]
-      DEFAULT_TTL = 300 # 5 minutes
-
       # Creates a nonce manager using the global storage backend.
       #
-      # @param ttl [Integer, nil] nonce lifetime in seconds; `nil` uses {DEFAULT_TTL}
+      # @param ttl [Integer, nil] nonce lifetime in seconds; `nil` uses {Configuration#dpop_nonce_lifetime}
       # @raise [ArgumentError] if the master encryption key is not valid Base64
       #
       def initialize(ttl: nil)
-        @ttl = ttl || DEFAULT_TTL
+        @ttl = ttl || AuthProto.configuration.dpop_nonce_lifetime
         @serializer = Serialization::StoredNonce.new
       end
 

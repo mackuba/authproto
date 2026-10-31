@@ -15,11 +15,28 @@ describe AuthProto::DPoP::NonceManager do
   describe "#initialize" do
     it "should initialize with a default TTL" do
       manager = AuthProto::DPoP::NonceManager.new
-      manager.instance_variable_get(:@ttl).should == AuthProto::DPoP::NonceManager::DEFAULT_TTL
+      manager.instance_variable_get(:@ttl).should == 300
     end
 
     it "should initialize with a custom TTL" do
       nonce_manager.instance_variable_get(:@ttl).should == ttl
+    end
+
+    [nil, 2].each do |override|
+      it "should expire stored nonces using #{override ? 'an explicit TTL override' : 'the configured lifetime'}" do
+        now = Time.utc(2026, 1, 1)
+        Time.stubs(:now).returns(now)
+        AuthProto.stubs(:storage).returns(AuthProto::Storage::Memory.new)
+        AuthProto.configuration.stubs(:dpop_nonce_lifetime).returns(7)
+        manager = AuthProto::DPoP::NonceManager.new(ttl: override)
+        manager.update(nonce: nonce, server_url: server_url)
+        lifetime = override || 7
+
+        Time.stubs(:now).returns(now + lifetime - 1)
+        manager.get(server_url).should == nonce
+        Time.stubs(:now).returns(now + lifetime)
+        manager.get(server_url).should be_nil
+      end
     end
   end
 

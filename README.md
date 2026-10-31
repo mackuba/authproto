@@ -62,6 +62,7 @@ AuthProto.configure do |config|
     verify_ssl: true
   )
 
+  # Set the default nonce cache lifetime (seconds), used by newly created clients.
   config.dpop_nonce_lifetime = 300  # 5 minutes
 
   # Configure storage backend (default is in-memory)
@@ -72,6 +73,11 @@ end
 gem 'sqlite3', '~> 2.9'
 gem 'redis', '~> 5.4'
 ```
+
+Set `dpop_nonce_lifetime` to a positive integer before creating clients or nonce
+managers. Its default is 300 seconds. An explicit `NonceManager.new(ttl: ...)` or
+`DPoP::Client.new(nonce_ttl: ...)` overrides it. Existing managers retain the
+lifetime chosen at initialization.
 
 ### Local HTTP debugging
 

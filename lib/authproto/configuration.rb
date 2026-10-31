@@ -34,7 +34,7 @@ module AuthProto
     # @yieldparam config [Configuration] mutable global settings
     # @yieldreturn [Object] ignored
     # @return [Configuration] validated global settings
-    # @raise [ConfigurationError] if storage, HTTP transport or pending session lifetime is invalid
+    # @raise [ConfigurationError] if storage, HTTP transport or lifetime settings are invalid
     # @example Configure the default transport
     #   AuthProto.configure do |config|
     #     config.http_client = AuthProto::HTTPClient.new
@@ -71,8 +71,8 @@ module AuthProto
 
   class Configuration
 
-    # Configured default nonce lifetime in seconds (300); nonce managers currently use their own TTL.
-    # @return [Integer]
+    # Default stored nonce lifetime in seconds; used when creating nonce managers without an explicit TTL.
+    # @return [Integer] positive lifetime in seconds; defaults to 300
     attr_accessor :dpop_nonce_lifetime
 
     # Transport used for discovery, PAR and token requests; initially `nil`.
@@ -94,29 +94,36 @@ module AuthProto
     # Creates default settings with in-memory storage and no HTTP transport.
     #
     def initialize
-      @dpop_nonce_lifetime = 300 # 5 minutes in seconds
+      @dpop_nonce_lifetime = 300  # 5 minutes
+      @pending_session_ttl = 900  # 15 minutes
       @http_client = nil
       @logger = Logger.new($stdout)
-      @pending_session_ttl = 900
       @storage = AuthProto::Storage::Memory.new
     end
 
-    # Checks storage and transport interfaces and the positive pending session lifetime.
+    # Checks storage and transport interfaces and positive nonce and pending session lifetimes.
     #
     # A `nil` HTTP client is accepted, but cannot perform OAuth or discovery requests.
     #
     # @return [true] if validation succeeds
-    # @raise [ConfigurationError] if storage, HTTP transport or pending session lifetime is invalid
+    # @raise [ConfigurationError] if storage, HTTP transport or lifetime settings are invalid
     #
     def validate
       validate_storage
       validate_http_client
+      validate_dpop_nonce_lifetime
       validate_pending_session_ttl
       true
     end
 
 
     private
+
+    def validate_dpop_nonce_lifetime
+      return if @dpop_nonce_lifetime.is_a?(Integer) && @dpop_nonce_lifetime.positive?
+
+      raise ConfigurationError, "DPoP nonce lifetime must be a positive integer"
+    end
 
     def validate_pending_session_ttl
       return if @pending_session_ttl.is_a?(Integer) && @pending_session_ttl.positive?

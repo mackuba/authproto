@@ -7,7 +7,6 @@ module AuthProto
       class NonceError < AuthProto::Error
       end
 
-      DEFAULT_TTL: Integer
       def initialize: (?ttl: Integer?) -> void
       def update: (nonce: String, server_url: String) -> void
       def get: (String server_url) -> String?
