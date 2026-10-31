@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'authproto/insecure_http_client'
 require 'authproto/localhost_server'
 require 'authproto/minisky'
@@ -28,7 +30,7 @@ def authorize(client)
   puts
 
   AuthProto::LocalhostServer.start(client.oauth_client.client_metadata) do |json|
-    client.handle_callback(**json)
+    client.handle_callback(**json, expected_session_id: auth.fetch(:session_id))
   end
 
   puts "Authentication complete ✓"

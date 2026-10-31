@@ -168,6 +168,16 @@ export SESSION_SECRET=your-secure-random-string
 
 If not set, a random secret will be generated on startup (not recommended for production).
 
+The app stores the ID returned by `authorize` as `session[:pending_oauth_session_id]`
+before redirecting. On callback, it passes that browser-session value as the required
+`expected_session_id:` argument to `handle_callback`. The library rejects a missing
+or mismatched ID before exchanging the code. After success, the app removes the
+pending association and remembers the authenticated session separately.
+
+The expected ID must come from the initiating browser session, never from the
+callback URL or by looking up the returned `state`. This example supports one pending
+login per browser; starting another replaces the previous pending association.
+
 ## Running the Application
 
 ### Development

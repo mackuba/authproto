@@ -3,6 +3,7 @@
 - session's state token is deleted on successfully completed authentication (i.e. `handle_callback`)
 - pending sessions (that haven't completed authentication) are stored with a TTL of 15 minutes by default, and expire after that; this can be changed through `pending_session_ttl` in the global configuration
 - completed but non-renewable session (without a refresh token) are set with a TTL such that they expire when their access token expires
+- for security, `Client#handle_callback` and `Minisky::OAuthClient#handle_callback` now require an `expected_session_id:` argument, where you need to pass a session ID previously saved from the output of `authorize` in browser storage or a local variable; token callback is rejected if the passed saved session ID doesn't match the ID of the session looked up using the state token from the callback
 - added `Session#pending?` and `Session#tokens_valid?`
 
 ## [0.3.0.beta2] – 2026-10-31 👻

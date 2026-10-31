@@ -87,19 +87,22 @@ class Minisky::OAuthClient
 
   # Completes OAuth authorization and remembers the authenticated session ID.
   #
+  # @param expected_session_id [String] pending session ID retained in the initiating browser session or native context
   # @param options [Hash{Symbol => String}] callback parameters forwarded to {AuthProto::Client#handle_callback}
   # @option options [String] :code authorization code
   # @option options [String] :state callback state token
   # @option options [String] :iss authorization server issuer
   #
   # @return [Hash{Symbol => String, Integer, nil}] token and session details from the OAuth client
-  # @raise [AuthProto::Client::CallbackError] if state or issuer validation fails
+  # @raise [AuthProto::Client::CallbackError] if expected session, state or issuer validation fails
   # @raise [AuthProto::Client::TokenError] if token exchange or validation fails
   # @raise [AuthProto::Error] if proofs, storage or serialization fail
   # @see AuthProto::Client#handle_callback
   #
-  def handle_callback(**options)
-    oauth_client.handle_callback(**options).tap { |result| @session_id = result.fetch(:session_id) }
+  def handle_callback(expected_session_id:, **options)
+    oauth_client.handle_callback(**options, expected_session_id: expected_session_id).tap do |result|
+      @session_id = result.fetch(:session_id)
+    end
   end
 
   # Sends an XRPC GET through Minisky, adding OAuth handling when authenticated.

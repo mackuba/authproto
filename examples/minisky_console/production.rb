@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'authproto/minisky'
 require 'dotenv/load'
 require 'uri'
@@ -25,7 +27,10 @@ def authorize(client)
 end
 
 def handle_callback(client, json)
-  result = client.handle_callback(**json)
+  # Use the ID retained by this local client, not a value copied from the callback page.
+  result = client.handle_callback(
+    **json.slice(:code, :state, :iss), expected_session_id: client.session_id
+  )
 
   puts "Authentication complete ✓"
   puts "Your session id: #{result[:session_id]}"

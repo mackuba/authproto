@@ -137,8 +137,8 @@ class ExampleApp < Sinatra::Base
         scope: "atproto repo:app.bsky.feed.post"
       )
 
-      # Store session ID in user's browser session
-      session[:oauth_session_id] = auth[:session_id]
+      # Bind the pending authorization attempt to this browser, separately from any active login.
+      session[:pending_oauth_session_id] = auth[:session_id]
 
       # Redirect to authorization URL
       redirect auth[:url]
@@ -154,10 +154,13 @@ class ExampleApp < Sinatra::Base
     result = settings.oauth_client.handle_callback(
       code: params[:code],
       state: params[:state],
-      iss: params[:iss]
+      iss: params[:iss],
+      expected_session_id: session[:pending_oauth_session_id]
     )
 
-    # Store tokens
+    session.delete(:pending_oauth_session_id)
+
+    # Remember the authenticated session ID.
     session[:oauth_session_id] = result[:session_id]
 
     redirect "/authorized"

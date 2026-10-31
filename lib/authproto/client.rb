@@ -110,7 +110,8 @@ module AuthProto
     # Starts authorization, stores a pending session, and submits a PAR request.
     #
     # Supply exactly one of `handle` or `pds`. Open the returned `:url` in a browser
-    # and pass the eventual callback parameters to {#handle_callback}.
+    # and pass the eventual callback parameters to {#handle_callback}. Retain `:session_id`
+    # in the initiating browser session or native login context for callback verification.
     #
     # @param handle [String, nil] account handle (optionally prefixed with `@`) or DID
     # @param pds [String, nil] PDS URL when no handle is supplied
@@ -162,12 +163,18 @@ module AuthProto
     # and `:scope` (String).
     # It also contains `:session_id` (String) and `:did` (String).
     #
+    # Supply the session ID retained when starting authorization as `expected_session_id`.
+    # For web apps, read it from the initiating browser's session, never from callback parameters
+    # or the state-token lookup. It is checked before exchanging the authorization code.
+    # Remove the browser's pending-session association after this method succeeds.
+    #
     # @param code [String] authorization code from the callback
     # @param state [String] state token from the callback
     # @param iss [String] issuer URL from the callback
+    # @param expected_session_id [String] pending session ID retained by the caller when authorization started
     #
     # @return [Hash{Symbol => String, Integer, nil}] tokens and authenticated session details
-    # @raise [CallbackError] if state is unknown or the issuer does not match the session
+    # @raise [CallbackError] if the expected session ID is invalid, state is unknown, or session/issuer validation fails
     # @raise [TokenError] if token exchange or response validation fails
     # @raise [DPoP::Client::Error, PAR::ClientAssertion::Error] if proof/assertion generation fails
     # @raise [HTTPClient::HTTPError, HTTPClient::SSRFError] if token transport fails
@@ -176,10 +183,15 @@ module AuthProto
     # @raise [Storage::StorageError] if session storage or locking fails
     # @raise [Encryption::EncryptionError] if tokens cannot be encrypted for storage
     #
-    def handle_callback(code:, state:, iss:)
+    def handle_callback(code:, state:, iss:, expected_session_id:)
+      unless expected_session_id.is_a?(String) && !expected_session_id.empty?
+        raise CallbackError, "Expected session ID is required"
+      end
+
       session = session_manager.get_session_by_state_token(state)
 
       raise CallbackError, "Invalid state parameter" unless session
+      raise CallbackError, "Session ID mismatch" unless session.session_id == expected_session_id
       raise CallbackError, "Issuer mismatch" unless session.auth_server && session.auth_server.issuer == iss
 
       AuthProto.storage.with_lock(Storage::KeyBuilder.lock_key("session", session.session_id), ttl: 30) do

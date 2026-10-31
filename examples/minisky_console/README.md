@@ -64,6 +64,9 @@ Once the browser redirects to the callback URL after your approval, the console 
 Authentication complete ✓
 ```
 
+The callback block supplies `expected_session_id:` from the authorization result
+retained locally before opening the browser. The library checks it before exchanging the code.
+
 Then, you can run `client.get_request(...)` and `client.post_request(...)` to perform authorized actions on the given account. By default, the example asks for permissions `repo:app.bsky.feed.post` and `rpc:app.bsky.feed.getTimeline?aud=*`, which allow calling `getTimeline` and creating/modifying posts.
 
 (Note, the session is currently lost when you close the console.)
@@ -102,6 +105,11 @@ Copy the printed command back to the console:
 ```rb
 handle_callback(client, { ... })
 ```
+
+Use the same local `client` that started this authorization attempt. The helper
+passes its remembered session ID as `expected_session_id:` and forwards only the
+`code`, `state`, and `iss` callback parameters. The expected ID is not supplied by
+the callback page. Each console client supports one current login attempt.
 
 This will print:
 

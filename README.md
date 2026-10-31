@@ -239,14 +239,17 @@ auth = client.authorize(
   scope: "atproto"
 )
 
-# Use auth[:url] to redirect user
+# Retain the expected ID in this browser's session before redirecting to auth[:url].
+session[:pending_oauth_session_id] = auth.fetch(:session_id)
 
 # Handle callback
 tokens = client.handle_callback(
   code: params[:code],
   state: params[:state],
-  iss: params[:iss]
+  iss: params[:iss],
+  expected_session_id: session[:pending_oauth_session_id]
 )
+session.delete(:pending_oauth_session_id)
 
 # Make authenticated requests
 headers = client.auth_headers(
@@ -280,13 +283,36 @@ auth = client.authorize(
   scope: "atproto"
 )
 
+# Retain this in the initiating browser session, or locally for a native app.
+session[:pending_oauth_session_id] = auth.fetch(:session_id)
+
 # After callback, exchange code for tokens
 tokens = client.handle_callback(
   code: params[:code],
   state: params[:state],
-  iss: params[:iss]
+  iss: params[:iss],
+  expected_session_id: session[:pending_oauth_session_id]
 )
+session.delete(:pending_oauth_session_id)
 ```
+
+### Binding Callbacks to the Initiating Login
+
+`handle_callback` requires `expected_session_id:` for both `AuthProto::Client` and
+`Minisky::OAuthClient`. Retain the `:session_id` returned by `authorize` in the
+initiating browser's session, then supply that retained ID on callback. Missing,
+`nil`, empty, or mismatched IDs are rejected before any token exchange.
+
+Never take the expected ID from callback parameters or derive it from the returned
+`state`: that would not establish which browser started the login. A shared web
+client's `session_id` is not a substitute for per-browser session storage. Remove
+the pending association after successful completion. For concurrent login attempts,
+retain each expected ID separately and verify membership in that browser's pending attempts.
+
+Native and console apps can retain the ID in the local context for that login
+attempt, as the localhost example does. The console example's manual callback helper
+uses the ID remembered by its local Minisky client. When upgrading existing callers,
+add this required keyword using the retained authorization result.
 
 ## Features In Detail
 

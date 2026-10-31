@@ -173,12 +173,14 @@ describe Minisky::OAuthClient do
       auth = client.authorize(pds: host)
       session = client.oauth_client.session_manager.get_session(auth[:session_id])
       state_token = session.state_token
-      client.handle_callback(code: "code", state: state_token, iss: auth_server.issuer)
+      client.handle_callback(code: 'code', state: state_token, iss: auth_server.issuer,
+                             expected_session_id: auth[:session_id])
       client.oauth_client.session_manager.get_session(session.session_id).state_token.should be_nil
       AuthProto.storage.exists?(AuthProto::Storage::KeyBuilder.state_key(state_token)).should be_falsey
 
       expect {
-        client.handle_callback(code: 'code', state: state_token, iss: auth_server.issuer)
+        client.handle_callback(code: 'code', state: state_token, iss: auth_server.issuer,
+                               expected_session_id: auth[:session_id])
       }.to raise_error(AuthProto::Client::CallbackError, "Invalid state parameter")
 
       client.perform_token_refresh[:refresh_token].should == "new-refresh"
@@ -199,7 +201,8 @@ describe Minisky::OAuthClient do
     client.oauth_client.stubs(:exchange_code).raises(AuthProto::Client::TokenError, "Token exchange failed")
 
     expect {
-      client.handle_callback(code: 'code', state: session.state_token, iss: auth_server.issuer)
+      client.handle_callback(code: 'code', state: session.state_token, iss: auth_server.issuer,
+                             expected_session_id: session.session_id)
     }.to raise_error(AuthProto::Client::TokenError, "Token exchange failed")
 
     restored = client.oauth_client.session_manager.get_session_by_state_token(session.state_token)
@@ -319,14 +322,24 @@ describe Minisky::OAuthClient do
     client.oauth_client.session_manager.get_session(session.session_id).should_not be_nil
   end
 
+  it "should require an explicit expected session ID even when it remembers a pending session" do
+    client.instance_variable_set(:@session_id, 'pending')
+    client.oauth_client.expects(:handle_callback).never
+
+    expect {
+      client.handle_callback(code: 'code', state: 'state', iss: 'issuer')
+    }.to raise_error(ArgumentError, /missing keyword: :expected_session_id/)
+  end
+
   it "should delegate login and remember the callback session" do
     client.oauth_client.expects(:authorize).with(handle: "alice.example.com")
           .returns(url: "https://auth.example.com/authorize", session_id: "pending")
     client.authorize(handle: "alice.example.com")[:session_id].should == "pending"
     client.session_id.should == "pending"
-    client.oauth_client.expects(:handle_callback).with(code: "code", state: "state", iss: "issuer")
+    client.oauth_client.expects(:handle_callback).with(code: 'code', state: 'state', iss: 'issuer',
+                                                     expected_session_id: 'pending')
           .returns(session_id: "authorized")
-    client.handle_callback(code: "code", state: "state", iss: "issuer")
+    client.handle_callback(code: 'code', state: 'state', iss: 'issuer', expected_session_id: 'pending')
     client.session_id.should == "authorized"
   end
 
