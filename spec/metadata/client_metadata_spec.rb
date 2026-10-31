@@ -733,7 +733,7 @@ describe AuthProto::Metadata::ClientMetadata do
 
     [nil, false, [], "metadata", 42].each do |metadata|
       it "should reject a non-object JSON response #{metadata.inspect}" do
-        @http_client.expects(:get).with(@valid_metadata["client_id"], follow_redirects: false)
+        @http_client.expects(:get).with(@valid_metadata["client_id"])
           .returns(status: 200, headers: { "content-type" => "application/json" }, body: metadata.to_json)
         expect { described_class.from_url(@valid_metadata["client_id"]) }
           .to raise_error(AuthProto::InvalidClientMetadata, /must be a hash/)
@@ -741,7 +741,7 @@ describe AuthProto::Metadata::ClientMetadata do
     end
 
     it "should translate a JSON parse error into InvalidClientMetadata" do
-      @http_client.expects(:get).with(@valid_metadata["client_id"], follow_redirects: false)
+      @http_client.expects(:get).with(@valid_metadata["client_id"])
         .returns(status: 200, headers: { "content-type" => "application/json" }, body: "{")
       expect { described_class.from_url(@valid_metadata["client_id"]) }
         .to raise_error(AuthProto::InvalidClientMetadata, /Invalid JSON/)
@@ -749,7 +749,7 @@ describe AuthProto::Metadata::ClientMetadata do
 
     [201, 204, 301, 302, 303, 307, 308, 400, 500].each do |status|
       it "should reject HTTP #{status} even if the body contains valid metadata" do
-        @http_client.expects(:get).with(@valid_metadata["client_id"], follow_redirects: false)
+        @http_client.expects(:get).with(@valid_metadata["client_id"])
           .returns(status: status, headers: { "content-type" => "application/json" }, body: @valid_metadata.to_json)
         expect { described_class.from_url(@valid_metadata["client_id"]) }
           .to raise_error(AuthProto::InvalidClientMetadata, /expected HTTP 200 response for client metadata request/)
@@ -759,7 +759,7 @@ describe AuthProto::Metadata::ClientMetadata do
     [nil, "", "text/plain", "text/html", "application/did+json", "application/json-seq"].each do |content_type|
       it "should reject a missing or incorrect metadata Content-Type #{content_type.inspect}" do
         headers = content_type ? { "content-type" => content_type } : {}
-        @http_client.expects(:get).with(@valid_metadata["client_id"], follow_redirects: false)
+        @http_client.expects(:get).with(@valid_metadata["client_id"])
           .returns(status: 200, headers: headers, body: @valid_metadata.to_json)
         expect { described_class.from_url(@valid_metadata["client_id"]) }
           .to raise_error(AuthProto::InvalidClientMetadata, /Content-Type must be application\/json/)
@@ -768,14 +768,14 @@ describe AuthProto::Metadata::ClientMetadata do
 
     ["application/json", "application/json; charset=utf-8", "Application/JSON ; charset=UTF-8"].each do |content_type|
       it "should accept JSON metadata with Content-Type #{content_type.inspect}" do
-        @http_client.expects(:get).with(@valid_metadata["client_id"], follow_redirects: false)
+        @http_client.expects(:get).with(@valid_metadata["client_id"])
           .returns(status: 200, headers: { "Content-Type" => content_type }, body: @valid_metadata.to_json)
         described_class.from_url(@valid_metadata["client_id"]).client_id.should == @valid_metadata["client_id"]
       end
     end
 
     it "should reject a missing response body" do
-      @http_client.expects(:get).with(@valid_metadata["client_id"], follow_redirects: false)
+      @http_client.expects(:get).with(@valid_metadata["client_id"])
         .returns(status: 200, headers: { "content-type" => "application/json" }, body: nil)
 
       expect { described_class.from_url(@valid_metadata["client_id"]) }.to raise_error(

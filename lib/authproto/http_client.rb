@@ -97,20 +97,20 @@ module AuthProto
     # Sends an HTTP GET request with destination validation and redirect handling.
     #
     # Uses HTTPS and rejects private/loopback destinations by default. Subclasses may
-    # relax these rules. Follows at most {MAX_REDIRECTS} redirects and checks size
+    # relax these rules. When enabled, follows at most {MAX_REDIRECTS} redirects and checks size
     # against {MAX_RESPONSE_SIZE} using `Content-Length`, or body bytes when absent.
     # Non-2xx status codes are returned for the caller to interpret; they do not
     # themselves raise an exception.
     #
     # @param url [String] absolute HTTPS request URL without a fragment
     # @param headers [Hash{String => String}] additional request headers; can override the default `Cache-Control` value
-    # @param follow_redirects [Boolean] follow redirects, or return the initial response when false
+    # @param follow_redirects [Boolean] follow redirects; defaults to false
     # @return [Hash{Symbol => Integer, Hash{String => String}, String, nil}] `:status` (Integer), lowercase `:headers` (Hash), and `:body` (String or nil)
     # @raise [SSRFError] if initial scheme, host, fragment or resolved address is rejected
     # @raise [HTTPError] if transport, TLS, redirect validation or response size checks fail
     # @raise [URI::InvalidURIError] if the initial URL cannot be parsed
     #
-    def get(url, headers = {}, follow_redirects: true)
+    def get(url, headers = {}, follow_redirects: false)
       uri = validate_uri(url)
       validate_ip(uri)
 
@@ -124,11 +124,11 @@ module AuthProto
       }
     end
 
-    # Sends an HTTP POST request with destination validation and redirect handling.
+    # Sends an HTTP POST request with destination validation, without following redirects.
     #
     # Uses HTTPS and rejects private/loopback destinations by default. Subclasses may
-    # relax these rules. Follows at most {MAX_REDIRECTS} redirects and checks size
-    # against {MAX_RESPONSE_SIZE} using `Content-Length`, or body bytes when absent.
+    # relax these rules. Checks size against {MAX_RESPONSE_SIZE} using `Content-Length`,
+    # or body bytes when absent.
     # Non-2xx status codes are returned for the caller to interpret; they do not
     # themselves raise an exception.
     #
@@ -207,7 +207,7 @@ module AuthProto
       FORBIDDEN_IP_RANGES.any? { |range| range.include?(ip) }
     end
 
-    def make_request(uri, headers = {}, redirect_count = 0, follow_redirects: true)
+    def make_request(uri, headers = {}, redirect_count = 0, follow_redirects: false)
       http = Net::HTTP.new(uri.hostname, uri.port)
       configure_http_client(http, ssl: uri.scheme == 'https')
 
@@ -228,7 +228,7 @@ module AuthProto
       raise HTTPError.new("Request failed: #{e.message}", nil)
     end
 
-    def make_post_request(uri, body, headers = {}, redirect_count = 0)
+    def make_post_request(uri, body, headers = {})
       http = Net::HTTP.new(uri.hostname, uri.port)
       configure_http_client(http, ssl: uri.scheme == 'https')
 
@@ -236,15 +236,7 @@ module AuthProto
       add_security_headers(request, headers)
       request.body = body.is_a?(Hash) ? URI.encode_www_form(body) : body if body
 
-      response = http.request(request)
-      handle_redirect(
-        original_uri: uri,
-        body: body,
-        method: :post,
-        response: response,
-        headers: headers,
-        redirect_count: redirect_count
-      )
+      http.request(request)
     rescue Net::OpenTimeout, Net::ReadTimeout => e
       raise HTTPError.new("Request timeout: #{e.message}", nil)
     rescue StandardError => e
@@ -269,11 +261,9 @@ module AuthProto
     # Handle HTTP redirects
     # kwargs can include:
     # - original_uri: URI of the original request
-    # - method: HTTP method of the original request (:get or :post)
     # - response: Net::HTTPResponse object
     # - headers: Hash of headers from the original request
     # - redirect_count: Number of redirects so far
-    # - body: Request body for POST requests
     #
     def handle_redirect(**kwargs)
       response = kwargs[:response]
@@ -292,11 +282,7 @@ module AuthProto
       redirect_count += 1
 
       # Recursive call to handle the next redirect
-      if kwargs[:method] == :post
-        make_post_request(location, kwargs[:body], kwargs[:headers], redirect_count)
-      else
-        make_request(location, kwargs[:headers], redirect_count)
-      end
+      make_request(location, kwargs[:headers], redirect_count, follow_redirects: true)
     end
 
     def validate_response(response)

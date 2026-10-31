@@ -97,7 +97,7 @@ module AuthProto
         def fetch_metadata(url)
           metadata_url = URI.join(url, "/.well-known/oauth-protected-resource")
 
-          AuthProto.configuration.http_client.get(metadata_url.to_s, follow_redirects: false)
+          AuthProto.configuration.http_client.get(metadata_url.to_s)
         rescue HTTPClient::HTTPError => e
           raise InvalidAuthorizationServer, "Failed to fetch resource server metadata: #{e.message}"
         end

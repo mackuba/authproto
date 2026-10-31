@@ -52,8 +52,7 @@ describe AuthProto::Metadata::AuthorizationServer do
   describe ".from_url" do
     before do
       AuthProto.configuration.stubs(:http_client).returns(mock_http_client = mock)
-      mock_http_client.stubs(:get).with(URI.join(issuer_url, '/.well-known/oauth-authorization-server').to_s,
-                                      follow_redirects: false).returns(mock_response)
+      mock_http_client.stubs(:get).with(URI.join(issuer_url, '/.well-known/oauth-authorization-server').to_s).returns(mock_response)
     end
 
     it "should fetch and parse metadata successfully" do

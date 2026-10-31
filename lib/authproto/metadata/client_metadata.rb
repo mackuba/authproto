@@ -159,7 +159,7 @@ module AuthProto
 
         raise InvalidClientMetadata, "HTTP client not configured" unless AuthProto.configuration.http_client
 
-        response = AuthProto.configuration.http_client.get(url, follow_redirects: false)
+        response = AuthProto.configuration.http_client.get(url)
 
         unless response[:status] == 200
           raise InvalidClientMetadata,

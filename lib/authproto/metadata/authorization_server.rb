@@ -318,7 +318,7 @@ module AuthProto
         def fetch_metadata(url)
           metadata_url = URI.join(url, "/.well-known/oauth-authorization-server")
 
-          AuthProto.configuration.http_client.get(metadata_url.to_s, follow_redirects: false)
+          AuthProto.configuration.http_client.get(metadata_url.to_s)
         rescue HTTPClient::HTTPError => e
           raise InvalidAuthorizationServer, "Failed to fetch authorization server metadata: #{e.message}"
         end

@@ -11,6 +11,7 @@
 - keep existing query part in the PAR authorization endpoint when adding params to it
 - verify that all scopes passed during authorization are declared in client metadata
 - don't reuse client assertion JWT on retried requests
+- POST redirects are not allowed, GET redirects are disabled by default
 
 ## [0.3.0.beta1], as AuthProto – 2026-10-28
 

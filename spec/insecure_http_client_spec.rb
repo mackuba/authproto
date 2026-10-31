@@ -24,15 +24,25 @@ describe AuthProto::InsecureHTTPClient do
     end
   end
 
-  it "should follow GET and POST redirects between HTTPS and local HTTP" do
+  it "should follow GET redirects between HTTPS and local HTTP when explicitly enabled" do
     remote = "https://example.com/start"
     local = "http://localhost:9292/next"
     final = "https://example.com/final"
-    %i[get post].each do |method|
-      stub_request(method, remote).to_return(status: 307, headers: { "Location" => local })
-      stub_request(method, local).to_return(status: 307, headers: { "Location" => final })
-      stub_request(method, final).to_return(status: 200, body: "ok")
-      client.public_send(method, remote)[:body].should == "ok"
+    stub_request(:get, remote).to_return(status: 307, headers: { "Location" => local })
+    stub_request(:get, local).to_return(status: 307, headers: { "Location" => final })
+    stub_request(:get, final).to_return(status: 200, body: "ok")
+    client.get(remote, follow_redirects: true)[:body].should == "ok"
+  end
+
+  %i[get post].each do |method|
+    it "should not follow #{method.to_s.upcase} redirects by default, even to a local destination" do
+      remote = 'https://example.com/start'
+      local = 'http://localhost:9292/next'
+      stub_request(method, remote).to_return(status: 307, headers: { 'Location' => local })
+      stub_request(method, local).to_return(status: 200)
+
+      client.public_send(method, remote)[:status].should == 307
+      WebMock.should_not have_requested(method, local)
     end
   end
 

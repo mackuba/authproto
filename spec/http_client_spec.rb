@@ -92,25 +92,27 @@ describe AuthProto::HTTPClient do
       WebMock.should have_requested(:get, sample_url).with(headers: custom_headers)
     end
 
-    it "should follow redirects up to limit" do
+    it "should follow multiple redirects when explicitly enabled" do
       redirect_url = "https://example.com/final"
 
       stub_request(:get, sample_url)
         .to_return(status: 302, headers: { "Location" => redirect_url })
       stub_request(:get, redirect_url)
+        .to_return(status: 302, headers: { "Location" => '/last' })
+      stub_request(:get, 'https://example.com/last')
         .to_return(status: 200, body: "redirected")
 
-      response = client.get(sample_url)
+      response = client.get(sample_url, follow_redirects: true)
       response[:body].should == "redirected"
     end
 
-    it "should return the initial response when redirects are disabled for a request" do
+    it "should return the initial response without following redirects by default" do
       target = "https://example.com/final"
       stub_request(:get, sample_url).with(headers: { "X-Custom" => "value" })
         .to_return(status: 302, headers: { "Location" => target }, body: "redirect")
       stub_request(:get, target).to_return(status: 200, body: "followed")
 
-      response = client.get(sample_url, { "X-Custom" => "value" }, follow_redirects: false)
+      response = client.get(sample_url, { "X-Custom" => "value" })
 
       response[:status].should == 302
       response[:headers]["location"].should == target
@@ -132,7 +134,7 @@ describe AuthProto::HTTPClient do
         .to_return(status: 302, headers: { "Location" => sample_url })
 
       expect {
-        client.get(sample_url)
+        client.get(sample_url, follow_redirects: true)
       }.to raise_error(AuthProto::HTTPClient::HTTPError)
     end
 
@@ -172,33 +174,23 @@ describe AuthProto::HTTPClient do
       WebMock.should have_requested(:post, sample_url).with(body: post_body)
     end
 
-    it "should handle POST redirects" do
-      redirect_url = "https://example.com/final"
+    [301, 302, 303, 307, 308].each do |status|
+      it "should return HTTP #{status} without following POST redirects" do
+        redirect_url = 'https://other.example.com/final'
+        stub_request(:post, sample_url).with(body: post_body)
+          .to_return(status: status, headers: { 'Location' => redirect_url }, body: 'redirect')
+        stub_request(:post, redirect_url).to_return(status: 201)
+        stub_request(:get, redirect_url).to_return(status: 200)
 
-      stub_request(:post, sample_url)
-        .with(body: post_body)
-        .to_return(status: 307, headers: { "Location" => redirect_url })
-      stub_request(:post, redirect_url)
-        .with(body: post_body)
-        .to_return(status: 201, body: "redirected")
+        response = client.post(sample_url, body: post_body)
 
-      response = client.post(sample_url, body: post_body)
-      response[:body].should == "redirected"
-      WebMock.should have_requested(:post, redirect_url).with(body: post_body)
+        response[:status].should == status
+        response[:headers]['location'].should == redirect_url
+        response[:body].should == 'redirect'
+        WebMock.should_not have_requested(:post, redirect_url)
+        WebMock.should_not have_requested(:get, redirect_url)
+      end
     end
-    #
-    # it "should handle POST redirects" do
-    #   redirect_url = "https://example.com/final"
-    #
-    #   stub_request(:post, sample_url).
-    #     to_return(status: 307, headers: {"Location" => redirect_url})
-    #   stub_request(:post, redirect_url).
-    #     to_return(status: 201, body: "redirected")
-    #
-    #   response = client.post(sample_url, body: post_body)
-    #   response[:body].should == "redirected"
-    #   WebMock.should have_requested(:post, redirect_url)
-    # end
 
     it "should include security headers in POST requests" do
       stub_request(:post, sample_url)

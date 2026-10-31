@@ -40,8 +40,7 @@ describe AuthProto::Metadata::ResourceServer do
   describe ".from_url" do
     before do
       AuthProto.configuration.stubs(:http_client).returns(mock_http_client = mock)
-      mock_http_client.stubs(:get).with(URI.join(valid_url, "/.well-known/oauth-protected-resource").to_s,
-                                      follow_redirects: false).returns(mock_response)
+      mock_http_client.stubs(:get).with(URI.join(valid_url, "/.well-known/oauth-protected-resource").to_s).returns(mock_response)
     end
 
     it "should fetch and parse metadata successfully" do
