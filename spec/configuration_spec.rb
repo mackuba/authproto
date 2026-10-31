@@ -7,7 +7,6 @@ describe AuthProto::Configuration do
 
   describe "#initialize" do
     it "should set default values" do
-      configuration.default_token_lifetime.should == 300
       configuration.dpop_nonce_lifetime.should == 300
       configuration.pending_session_ttl.should == 900
       configuration.logger.should be_an_instance_of(Logger)

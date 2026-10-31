@@ -34,7 +34,6 @@ class ExampleApp < Sinatra::Base
     # Configure AuthProto settings
     AuthProto.configure do |config|
       config.http_client = AuthProto::HTTPClient.new(timeout: 10, verify_ssl: true)
-      config.default_token_lifetime = 300
       config.dpop_nonce_lifetime = 300
 
       case ENV.fetch("STORAGE_BACKEND", "memory")

@@ -34,9 +34,7 @@ module AuthProto
   end
 
   class Configuration
-    attr_accessor default_token_lifetime: Integer
     attr_accessor dpop_nonce_lifetime: Integer
-    attr_accessor encryption: untyped
     attr_accessor http_client: _HTTPClient?
     attr_accessor logger: Logger
     attr_accessor storage: Storage::Interface

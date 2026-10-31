@@ -71,17 +71,9 @@ module AuthProto
 
   class Configuration
 
-    # Configured default token lifetime in seconds (300); currently unused by token exchange.
-    # @return [Integer]
-    attr_accessor :default_token_lifetime
-
     # Configured default nonce lifetime in seconds (300); nonce managers currently use their own TTL.
     # @return [Integer]
     attr_accessor :dpop_nonce_lifetime
-
-    # Reserved encryption setting; serializers currently create their own service.
-    # @return [Object, nil]
-    attr_accessor :encryption
 
     # Transport used for discovery, PAR and token requests; initially `nil`.
     # @return [#get, #post, nil]
@@ -102,9 +94,7 @@ module AuthProto
     # Creates default settings with in-memory storage and no HTTP transport.
     #
     def initialize
-      @default_token_lifetime = 300 # 5 minutes in seconds
       @dpop_nonce_lifetime = 300 # 5 minutes in seconds
-      @encryption = nil
       @http_client = nil
       @logger = Logger.new($stdout)
       @pending_session_ttl = 900

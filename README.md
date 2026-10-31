@@ -62,8 +62,6 @@ AuthProto.configure do |config|
     verify_ssl: true
   )
 
-  # Set token lifetimes
-  config.default_token_lifetime = 300 # 5 minutes
   config.dpop_nonce_lifetime = 300  # 5 minutes
 
   # Configure storage backend (default is in-memory)
