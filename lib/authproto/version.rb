@@ -4,5 +4,5 @@ module AuthProto
 
   # Current gem version.
   # @return [String]
-  VERSION = "0.3.0.beta1"
+  VERSION = "0.3.0.beta2"
 end

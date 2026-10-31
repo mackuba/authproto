@@ -1,4 +1,4 @@
-## [Unreleased]
+## [0.3.0.beta2] – 2026-10-31 👻
 
 - private keys for signing are now passed separately as `signing_key:` instead of being taken from the same `jwks` in the metadata that holds public keys
 - generate localhost metadata from `client_id` params
