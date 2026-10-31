@@ -181,20 +181,16 @@ module AuthProto
       raise CallbackError, "Issuer mismatch" unless session.auth_server && session.auth_server.issuer == iss
 
       AuthProto.storage.with_lock(Storage::KeyBuilder.lock_key("session", session.session_id), ttl: 30) do
-        token_response = exchange_code(
-          code: code,
-          session: session
-        )
-
-        validate_token_response(token_response, session)
+        response = exchange_code(code: code, session: session)
+        validate_token_response(response, session)
 
         token_set = State::TokenSet.new(
-          access_token: token_response['access_token'],
-          token_type: token_response['token_type'],
-          expires_in: token_response['expires_in'],
-          refresh_token: token_response['refresh_token'],
-          scope: token_response['scope'],
-          sub: token_response['sub']
+          access_token: response['access_token'],
+          token_type: response['token_type'],
+          expires_in: response['expires_in'],
+          refresh_token: response['refresh_token'],
+          scope: response['scope'],
+          sub: response['sub']
         )
 
         session.tokens = token_set

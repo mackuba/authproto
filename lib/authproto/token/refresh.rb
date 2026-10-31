@@ -156,6 +156,7 @@ module AuthProto
       #
       def initialize(session:, dpop_client:, auth_server:, client_metadata:, signing_key: nil)
         super() # Initialize MonitorMixin
+
         @session = session
         @dpop_client = dpop_client
         @auth_server = auth_server
@@ -205,7 +206,6 @@ module AuthProto
           end
         end
 
-        # Reached max retries
         raise RefreshError.new(
           "Token refresh failed after #{MAX_RETRIES} attempts: #{last_error.message}",
           retry_possible: false
@@ -236,11 +236,7 @@ module AuthProto
       end
 
       def make_token_request(session)
-        # Generate proof
-        proof = dpop_client.generate_proof(
-          method: 'POST',
-          uri: auth_server.token_endpoint
-        )
+        dpop_proof = dpop_client.generate_proof(method: 'POST', uri: auth_server.token_endpoint)
 
         body = {
           grant_type: 'refresh_token',
@@ -249,7 +245,6 @@ module AuthProto
           client_id: client_metadata.client_id
         }
 
-        # Add client authentication if available
         add_client_authentication(body) if client_metadata.confidential?
 
         AuthProto.configuration.http_client.post(
@@ -257,7 +252,7 @@ module AuthProto
           body: body,
           headers: {
             "Content-Type" => "application/x-www-form-urlencoded",
-            "DPoP" => proof
+            "DPoP" => dpop_proof
           }
         )
       end
@@ -290,9 +285,7 @@ module AuthProto
 
         body.merge!(
           client_assertion_type: PAR::CLIENT_ASSERTION_TYPE,
-          client_assertion: client_assertion.generate_jwt(
-            audience: auth_server.issuer
-          )
+          client_assertion: client_assertion.generate_jwt(audience: auth_server.issuer)
         )
       end
 
