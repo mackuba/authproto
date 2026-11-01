@@ -221,8 +221,13 @@ sessions across application restarts.
 `Client` and the Minisky integration no longer accept `dpop_key:`. Restore sessions
 by their session ID; no separate key export or constructor argument is needed.
 `Client#dpop_client` remains shared and accepts `session:` when generating proofs.
-Its `ProofGenerator` accepts `key_set:` per call. Nonces remain stored per server
-origin in this step, and response processing retains its existing interface.
+Its `ProofGenerator` accepts `key_set:` per call. Nonces are stored separately with
+TTLs, indexed by session ID and server origin. URLs on the same origin share a
+nonce within that session; other sessions and origins have independent nonces.
+`DPoP::Client#process_response` requires `session_id:` to update the requesting
+session's nonce. Direct nonce manager calls to `get`, `update`, and `clear` also
+require `server_url:` and `session_id:` keywords. Old per-server cache entries are
+ignored and expire normally; a missing nonce can be obtained through a server challenge.
 
 Serialized sessions from older versions that lack a private DPoP key cannot be
 restored: start authorization again. Loading never generates a replacement key for

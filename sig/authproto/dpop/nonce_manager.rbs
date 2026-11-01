@@ -8,11 +8,12 @@ module AuthProto
       end
 
       def initialize: (?ttl: Integer?) -> void
-      def update: (nonce: String, server_url: String) -> void
-      def get: (String server_url) -> String?
-      def clear: (String server_url) -> bool
+      def update: (nonce: String, server_url: String, session_id: String) -> void
+      def get: (server_url: String, session_id: String) -> String?
+      def clear: (server_url: String, session_id: String) -> bool
 
       private
+      def validate_session_id: (String session_id) -> void
       def normalize_server_url: (String url) -> String
       def validate_inputs: (String nonce, String server_url) -> void
       def validate_server_url: (String server_url) -> void

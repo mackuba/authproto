@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'json'
+
 describe AuthProto::DPoP::Client do
   let(:session) { AuthProto::State::Session.new(client_id: 'client', scope: 'atproto') }
   let(:client) do
@@ -29,7 +31,7 @@ describe AuthProto::DPoP::Client do
       nonces = client.nonce_manager
 
       [session, other, session].each do |current|
-        proof = client.generate_proof(session: current, method: method, uri: uri, nonce: nonce)
+        proof = client.generate_proof(session: current, method: method, uri: uri)
         current.dpop_key.key.verify(proof).first.should be_truthy
         different = current.equal?(session) ? other : session
         different.dpop_key.key.verify(proof).first.should be_falsey
@@ -38,8 +40,23 @@ describe AuthProto::DPoP::Client do
       end
     end
 
+    it "should use each session's nonce through interleaved response processing and proof generation" do
+      other = AuthProto::State::Session.new(client_id: 'client', scope: 'atproto')
+      client.process_response({ 'DPoP-Nonce' => 'first' }, uri, session_id: session.session_id)
+      client.process_response({ 'DPoP-Nonce' => 'second' }, uri, session_id: other.session_id)
+      client.process_response({ 'DPoP-Nonce' => 'updated-first' }, uri, session_id: session.session_id)
+
+      [[session, 'updated-first'], [other, 'second'], [session, 'updated-first']].each do |current, expected_nonce|
+        proof = client.generate_proof(session: current, method: method, uri: uri)
+        verified, payload, = current.dpop_key.key.verify(proof)
+        verified.should be_truthy
+        JSON.parse(payload)['nonce'].should == expected_nonce
+      end
+    end
+
     it "should generate a DPoP proof using proof_generator" do
-      client.nonce_manager.expects(:get).with("https://example.com").returns(nonce)
+      client.nonce_manager.expects(:get)
+            .with(server_url: "https://example.com", session_id: session.session_id).returns(nonce)
       client.proof_generator.expects(:generate).with(
         key_set: session.dpop_key,
         method: method,
@@ -53,7 +70,8 @@ describe AuthProto::DPoP::Client do
     end
 
     it "should raise an error if proof generation fails" do
-      client.nonce_manager.expects(:get).with("https://example.com").returns(nil)
+      client.nonce_manager.expects(:get)
+            .with(server_url: "https://example.com", session_id: session.session_id).returns(nil)
       client.proof_generator.expects(:generate).raises(StandardError, "Generation failed")
 
       expect {
@@ -64,23 +82,23 @@ describe AuthProto::DPoP::Client do
 
   describe "#process_response" do
     it "should update the nonce manager with a valid nonce" do
-      client.nonce_manager.expects(:update).with(nonce: nonce, server_url: server_url)
+      client.nonce_manager.expects(:update).with(nonce: nonce, server_url: server_url, session_id: session.session_id)
 
-      client.process_response(response_headers, server_url)
+      client.process_response(response_headers, server_url, session_id: session.session_id)
     end
 
     it "should do nothing if the response headers do not include a nonce" do
       headers = {}
       client.nonce_manager.expects(:update).never
 
-      client.process_response(headers, server_url)
+      client.process_response(headers, server_url, session_id: session.session_id)
     end
 
     it "should raise an error if nonce update fails" do
       client.nonce_manager.expects(:update).raises(StandardError, "Update failed")
 
       expect {
-        client.process_response(response_headers, server_url)
+        client.process_response(response_headers, server_url, session_id: session.session_id)
       }.to raise_error(AuthProto::DPoP::Client::Error)
     end
   end

@@ -36,7 +36,7 @@ module AuthProto
       # @return [ProofGenerator]
       attr_reader :proof_generator
 
-      # Persistent nonce store, indexed by server origin.
+      # Persistent nonce store, indexed by session and server origin.
       # @return [NonceManager]
       attr_reader :nonce_manager
 
@@ -50,24 +50,22 @@ module AuthProto
         @proof_generator = ProofGenerator.new
       end
 
-      # Generates a fresh DPoP proof using a supplied or stored nonce for the origin.
+      # Generates a fresh DPoP proof using the stored nonce for the session and origin, if available.
       #
       # @param session [State::Session] session whose DPoP key signs the request
       # @param method [String] HTTP method, converted to uppercase
       # @param uri [String] absolute HTTP(S) URL; callers should omit the query and fragment
       # @param access_token [String, nil] token to bind with an `ath` claim
-      # @param nonce [String, nil] explicit nonce; `nil` looks up the origin's stored nonce
       # @return [JOSE::SignedBinary] compact signed DPoP JWT
       # @raise [Error] if URI parsing, nonce lookup or signing fails
       #
-      def generate_proof(session:, method:, uri:, access_token: nil, nonce: nil)
+      def generate_proof(session:, method:, uri:, access_token: nil)
         parsed_uri = URI(uri)
 
         server_url = "#{parsed_uri.scheme}://#{parsed_uri.host}"
         server_url += ":#{parsed_uri.port}" if parsed_uri.port != parsed_uri.default_port
 
-        # Use provided nonce or get one from the manager
-        nonce ||= @nonce_manager.get(server_url)
+        nonce = @nonce_manager.get(server_url: server_url, session_id: session.session_id)
 
         @proof_generator.generate(
           key_set: session.dpop_key,
@@ -83,12 +81,13 @@ module AuthProto
       # Stores a `DPoP-Nonce` response header for future requests to the same origin.
       # Header names are compared case-insensitively. Missing headers/nonces are ignored.
       #
+      # @param session_id [String] session that made the request
       # @param response_headers [Hash{String => String}, nil] response headers, or `nil`
       # @param server_url [String] request URL whose origin owns the nonce
       # @return [void]
       # @raise [Error] if nonce validation or persistence fails
       #
-      def process_response(response_headers, server_url)
+      def process_response(response_headers, server_url, session_id:)
         return unless response_headers
 
         # Look for DPoP-Nonce header (case insensitive)
@@ -96,7 +95,7 @@ module AuthProto
         return unless nonce
 
         # Store new nonce for future requests
-        @nonce_manager.update(nonce: nonce, server_url: server_url)
+        @nonce_manager.update(nonce: nonce, server_url: server_url, session_id: session_id)
       rescue StandardError => e
         raise Error, "Failed to process response: #{e.message}"
       end

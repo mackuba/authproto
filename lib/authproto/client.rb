@@ -446,7 +446,7 @@ module AuthProto
       if requires_dpop_nonce?(response)
         # Extract and store nonce from error response
         extract_dpop_nonce(response)
-        dpop_client.process_response(response[:headers], session.auth_server.issuer)
+        dpop_client.process_response(response[:headers], session.auth_server.token_endpoint, session_id: session.session_id)
 
         # Retry request with nonce
         response = make_token_request(code, session)
@@ -528,7 +528,7 @@ module AuthProto
       raise TokenError, "Subject mismatch in token response" if session.did && session.did != response['sub']
 
       if response[:headers] && response[:headers]["DPoP-Nonce"]
-        dpop_client.process_response(response[:headers], session.auth_server.issuer)
+        dpop_client.process_response(response[:headers], session.auth_server.token_endpoint, session_id: session.session_id)
       end
     end
   end

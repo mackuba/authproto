@@ -244,7 +244,11 @@ class Minisky::OAuthClient
       response = make_request(request)
 
       nonce = response["DPoP-Nonce"]
-      oauth_client.dpop_client.process_response(response.each_header.to_h, url.to_s) if nonce && !nonce.empty?
+
+      if nonce && !nonce.empty?
+        oauth_client.dpop_client.process_response(response.each_header.to_h, url.to_s, session_id: session_id)
+      end
+
       error = authentication_error(response)
 
       if response.code.to_i == 401 && error == AuthProto::DPoP::ERROR_USE_NONCE

@@ -80,7 +80,6 @@ module AuthProto
         @authorization_server = authorization_server
         @par_endpoint = authorization_server.pushed_authorization_request_endpoint
         @dpop_client = dpop_client
-        @nonce_manager = dpop_client.nonce_manager
       end
 
       # Submits a PAR request, handling DPoP nonce requirements
@@ -100,11 +99,8 @@ module AuthProto
 
         # Handle DPoP nonce requirement
         if requires_nonce?(response)
-          nonce = extract_nonce(response)
-          store_nonce(nonce)
-
-          # Get stored nonce to verify
-          @nonce_manager.get(server_origin)
+          extract_nonce(response)
+          dpop_client.process_response(response[:headers], @par_endpoint, session_id: session.session_id)
 
           # Generate new proof with nonce and retry
           response = make_request(request, session: session)
@@ -162,8 +158,7 @@ module AuthProto
         proof = dpop_client.generate_proof(
           session: session,
           method: 'POST',
-          uri: @par_endpoint,
-          nonce: @nonce_manager.get(server_origin)
+          uri: @par_endpoint
         )
 
         # Build headers including DPoP proof
@@ -189,15 +184,6 @@ module AuthProto
         body['error'] == DPoP::ERROR_USE_NONCE
       rescue JSON::ParserError
         false
-      end
-
-      def store_nonce(nonce)
-        @nonce_manager.update(nonce: nonce, server_url: server_origin)
-      end
-
-      def server_origin
-        uri = URI(@par_endpoint)
-        "#{uri.scheme}://#{uri.host}#{":#{uri.port}" if uri.port != uri.default_port}"
       end
 
       def handle_error_response(response)

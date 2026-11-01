@@ -226,7 +226,7 @@ module AuthProto
         if requires_dpop_nonce?(response)
           # Extract and store nonce from error response
           extract_dpop_nonce(response)
-          dpop_client.process_response(response[:headers], auth_server.issuer)
+          dpop_client.process_response(response[:headers], auth_server.token_endpoint, session_id: session.session_id)
 
           # Retry request with nonce
           response = make_token_request(session)
@@ -336,7 +336,7 @@ module AuthProto
         case error_data['error']
         when DPoP::ERROR_USE_NONCE
           extract_dpop_nonce(response)
-          dpop_client.process_response(response[:headers], auth_server.issuer)
+          dpop_client.process_response(response[:headers], auth_server.token_endpoint, session_id: session.session_id)
           raise RefreshError.new("Retry with DPoP nonce", retry_possible: true)
         when "invalid_grant"
           # The refresh token has been invalidated or already used

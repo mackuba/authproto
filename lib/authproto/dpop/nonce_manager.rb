@@ -14,7 +14,7 @@ module AuthProto
 
     #
     # Manages DPoP nonces provided by servers during the OAuth flow.
-    # Tracks separate nonces for each server using persistent storage.
+    # Tracks separate nonces for each session and server using persistent storage.
     # Thread-safe to handle concurrent requests.
     #
 
@@ -33,38 +33,42 @@ module AuthProto
         @serializer = Serialization::StoredNonce.new
       end
 
-      # Stores a nonce for the URL's origin, replacing any previous value.
+      # Stores a nonce for the session and URL's origin, replacing any previous value.
       #
       # @param nonce [String] nonempty server-provided nonce
+      # @param session_id [String] nonempty OAuth session identifier
       # @param server_url [String] HTTPS URL, or HTTP URL with host `localhost`
       # @return [void]
       # @raise [NonceError] if inputs are invalid or storage reports failure
       # @raise [Storage::StorageError] if backend validation or storage fails
       #
-      def update(nonce:, server_url:)
+      def update(nonce:, server_url:, session_id:)
+        validate_session_id(session_id)
         validate_inputs(nonce, server_url)
         origin = normalize_server_url(server_url)
 
         stored_nonce = StoredNonce.new(nonce, origin)
         serialized = @serializer.serialize(stored_nonce)
 
-        key = Storage::KeyBuilder.nonce_key(origin)
+        key = Storage::KeyBuilder.nonce_key(session_id, origin)
         return if AuthProto.storage.set(key, serialized, ttl: @ttl)
 
         raise NonceError, "Failed to store nonce"
       end
 
-      # Retrieves the current nonce for a URL's origin.
+      # Retrieves the current nonce for a session and URL's origin.
       #
+      # @param session_id [String] nonempty OAuth session identifier
       # @param server_url [String] HTTPS URL, or HTTP URL with host `localhost`
       # @return [String, nil] stored nonce, or `nil` when missing/expired according to storage TTL
-      # @raise [NonceError] if the URL is invalid or serialized data cannot be read
+      # @raise [NonceError] if the session ID or URL is invalid, or serialized data cannot be read
       # @raise [Storage::StorageError] if storage retrieval fails
       #
-      def get(server_url)
+      def get(server_url:, session_id:)
+        validate_session_id(session_id)
         validate_server_url(server_url)
         origin = normalize_server_url(server_url)
-        key = Storage::KeyBuilder.nonce_key(origin)
+        key = Storage::KeyBuilder.nonce_key(session_id, origin)
 
         stored = AuthProto.storage.get(key)
         return nil unless stored
@@ -77,21 +81,29 @@ module AuthProto
         end
       end
 
-      # Removes the stored nonce for a URL's origin.
+      # Removes the stored nonce for a session and URL's origin.
       #
+      # @param session_id [String] nonempty OAuth session identifier
       # @param server_url [String] HTTPS URL, or HTTP URL with host `localhost`
       # @return [Boolean] backend deletion status
-      # @raise [NonceError] if the URL is invalid
+      # @raise [NonceError] if the session ID or URL is invalid
       # @raise [Storage::StorageError] if deletion fails
       #
-      def clear(server_url)
+      def clear(server_url:, session_id:)
+        validate_session_id(session_id)
         validate_server_url(server_url)
         origin = normalize_server_url(server_url)
-        key = Storage::KeyBuilder.nonce_key(origin)
+        key = Storage::KeyBuilder.nonce_key(session_id, origin)
         AuthProto.storage.delete(key)
       end
 
       private
+
+      def validate_session_id(session_id)
+        return if session_id.is_a?(String) && !session_id.empty?
+
+        raise NonceError, "session_id must be a nonempty string"
+      end
 
       def normalize_server_url(url)
         uri = URI(url)

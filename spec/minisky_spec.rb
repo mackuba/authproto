@@ -504,7 +504,9 @@ describe Minisky::OAuthClient do
     result = client.get_request("app.bsky.actor.getProfile", { actor: "alice.example.com" },
                                 headers: { "X-Test" => "yes", "authorization" => "Bearer wrong" })
     result["did"].should == "did:plc:alice"
-    client.oauth_client.dpop_client.nonce_manager.get(host).should == "pds-nonce"
+    client.oauth_client.dpop_client.nonce_manager.get(
+      server_url: host, session_id: client.session_id
+    ).should == "pds-nonce"
   end
 
   it "should allow unauthenticated requests without a session or nonce header" do
@@ -528,6 +530,34 @@ describe Minisky::OAuthClient do
     stub_refresh
     client.check_access.should == :refreshed
     client.oauth_client.get_tokens(client.session_id)[:access_token].should == "new-access"
+  end
+
+  it "should apply a PDS nonce challenge only to the session making the request" do
+    session = attach_session
+    other = client.oauth_client.session_manager.create_session(
+      client_id: client_metadata['client_id'], scope: 'atproto'
+    )
+    nonces = client.oauth_client.dpop_client.nonce_manager
+    nonces.update(nonce: 'other-session', server_url: host, session_id: other.session_id)
+    proofs = []
+    stub_request(:get, endpoint).to_return do |request|
+      proofs << JWT.decode(request.headers.fetch('Dpop'), nil, false).first
+
+      if proofs.length == 1
+        { status: 401, headers: {
+          'DPoP-Nonce' => 'request-session', 'WWW-Authenticate' => 'DPoP error="use_dpop_nonce"'
+        } }
+      else
+        { status: 200, headers: response_headers('request-session'), body: '{"ok":true}' }
+      end
+    end
+
+    client.get_request('app.bsky.actor.getProfile').should == { 'ok' => true }
+    proofs.length.should == 2
+    proofs.first.should_not have_key('nonce')
+    proofs.last['nonce'].should == 'request-session'
+    nonces.get(server_url: host, session_id: other.session_id).should == 'other-session'
+    nonces.get(server_url: host, session_id: session.session_id).should == 'request-session'
   end
 
   it "should reuse the persisted DPoP key when refreshing a session from a new client" do
@@ -620,10 +650,14 @@ describe Minisky::OAuthClient do
 
   it "should accept successful authenticated responses without a nonce and retain the cached nonce" do
     attach_session
-    client.oauth_client.dpop_client.nonce_manager.update(nonce: "cached", server_url: host)
+    client.oauth_client.dpop_client.nonce_manager.update(
+      nonce: "cached", server_url: host, session_id: client.session_id
+    )
     stub_request(:get, endpoint).to_return(status: 200, headers: { "Content-Type" => "application/json" }, body: "{}")
     client.get_request("app.bsky.actor.getProfile").should == {}
-    client.oauth_client.dpop_client.nonce_manager.get(host).should == "cached"
+    client.oauth_client.dpop_client.nonce_manager.get(
+      server_url: host, session_id: client.session_id
+    ).should == "cached"
   end
 
   it "should reject nonce challenges without a nonce instead of retrying" do
@@ -707,7 +741,9 @@ describe Minisky::OAuthClient do
       client.post_request(URI(post_endpoint), binary, params: { test: "yes" },
                                                       headers: { "content-type" => "application/octet-stream" })
       proofs.uniq.length.should == 2
-      client.oauth_client.dpop_client.nonce_manager.get(host).should == "next-nonce"
+      client.oauth_client.dpop_client.nonce_manager.get(
+        server_url: host, session_id: client.session_id
+      ).should == "next-nonce"
     end
 
     it "should refresh an expired token before posting" do

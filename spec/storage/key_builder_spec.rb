@@ -15,7 +15,8 @@ describe AuthProto::Storage::KeyBuilder do
 
   describe ".nonce_key" do
     it "should build valid nonce key" do
-      AuthProto::Storage::KeyBuilder.nonce_key("example.com").should == "atproto:nonce:example.com"
+      key = AuthProto::Storage::KeyBuilder.nonce_key('session123', 'example.com')
+      key.should == 'atproto:nonce:session123:example.com'
     end
   end
 

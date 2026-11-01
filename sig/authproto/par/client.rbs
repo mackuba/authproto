@@ -14,8 +14,6 @@ module AuthProto
       def make_request: (Request request, session: State::Session) -> http_response
       def build_headers: (String dpop_proof) -> Hash[String, String]
       def requires_nonce?: (http_response response) -> bool
-      def store_nonce: (String nonce) -> void
-      def server_origin: () -> String
       def handle_error_response: (http_response response) -> bot
       def process_response: (http_response response) -> Response
     end

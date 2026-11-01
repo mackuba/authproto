@@ -9,8 +9,6 @@ describe AuthProto::PAR::Client do
     @authorization_server.stubs(:issuer).returns('https://issuer.example.com')
     @authorization_server.stubs(:authorization_endpoint).returns('https://auth.example.com/authorize')
     @dpop_client = mock("dpop_client")
-    @nonce_manager = mock("nonce_manager")
-    @dpop_client.stubs(:nonce_manager).returns(@nonce_manager)
     @client = AuthProto::PAR::Client.new(authorization_server: @authorization_server, dpop_client: @dpop_client)
   end
 
@@ -30,11 +28,9 @@ describe AuthProto::PAR::Client do
       @proof = "mocked_dpop_proof"
       @response = { status: 201, headers: { 'content-type' => 'application/json' },
                     body: '{"request_uri":"mocked_uri","expires_in":3600}' }
-      @server_origin = "https://auth.example.com"
 
       @request.stubs(:to_form).with(audience: 'https://issuer.example.com').returns("client_id=mock_client_id&scope=mock_scope")
       @dpop_client.stubs(:generate_proof).returns(@proof)
-      @nonce_manager.stubs(:get).returns("mocked_nonce")
       @http_client = mock("http_client")
       @http_client.stubs(:get)
       @http_client.stubs(:post).returns(@response)
@@ -102,7 +98,9 @@ describe AuthProto::PAR::Client do
 
     it "should retry the request with a nonce if the response indicates 'use_dpop_nonce'" do
       error_response = { status: 400, body: '{"error":"use_dpop_nonce"}', headers: { "DPoP-Nonce" => "new_nonce" } }
-      @nonce_manager.expects(:update).with(nonce: "new_nonce", server_url: @server_origin)
+      @dpop_client.expects(:process_response).with(
+        error_response[:headers], @par_endpoint, session_id: @session.session_id
+      )
       AuthProto.configuration.http_client.stubs(:post).returns(error_response).then.returns(@response)
 
       response = @client.submit(@request, session: @session)
