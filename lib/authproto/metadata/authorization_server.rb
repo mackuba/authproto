@@ -7,6 +7,7 @@ require_relative '../configuration'
 require_relative '../dpop'
 require_relative '../errors'
 require_relative '../http_client'
+require_relative '../http_helpers'
 require_relative '../metadata'
 require_relative '../par/client_assertion'
 require_relative '../validated_uri'
@@ -36,6 +37,7 @@ module AuthProto
     #
 
     class AuthorizationServer
+      extend HTTPHelpers
 
       # Metadata keys that must be present before capability validation.
       # @return [Array<String>]
@@ -332,9 +334,9 @@ module AuthProto
             raise InvalidAuthorizationServer, "Authorization server metadata must return HTTP 200"
           end
 
-          content_type = response[:headers]["content-type"].to_s.split(";", 2).first.to_s.strip
+          content_type = response_header(response, 'Content-Type', strip_parameters: true)
 
-          unless content_type.casecmp?('application/json')
+          unless content_type.to_s.casecmp?('application/json')
             raise InvalidAuthorizationServer, "Authorization server metadata must use application/json"
           end
         end

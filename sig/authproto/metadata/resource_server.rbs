@@ -1,6 +1,7 @@
 module AuthProto
   module Metadata
     class ResourceServer
+      extend HTTPHelpers
       @authorization_server: String
 
       attr_reader authorization_server: String

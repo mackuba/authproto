@@ -7,6 +7,7 @@ require 'monitor'
 require_relative '../configuration'
 require_relative '../errors'
 require_relative '../http_client'
+require_relative '../http_helpers'
 require_relative '../par'
 require_relative '../par/client_assertion'
 require_relative '../state/token_set'
@@ -116,6 +117,7 @@ module AuthProto
     #
 
     class Refresh
+      include HTTPHelpers
       include MonitorMixin
 
       # Maximum attempts for one refresh operation.
@@ -324,7 +326,8 @@ module AuthProto
 
       def handle_rate_limit_response(response)
         # Extract retry-after if available
-        retry_after = response[:headers]["Retry-After"]&.to_i || calculate_delay
+        retry_after = response_header(response, 'Retry-After')
+        retry_after = retry_after&.to_i || calculate_delay
         raise RefreshError, "Rate limited - retry after #{retry_after} seconds"
       end
 

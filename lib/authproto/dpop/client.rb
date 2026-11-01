@@ -5,6 +5,7 @@ require 'strscan'
 require 'uri'
 
 require_relative '../errors'
+require_relative '../http_helpers'
 require_relative 'nonce_manager'
 require_relative 'proof_generator'
 
@@ -24,6 +25,7 @@ module AuthProto
     #
 
     class Client
+      include HTTPHelpers
 
       # Error raised for DPoP client operations
       class Error < AuthProto::Error; end
@@ -90,7 +92,7 @@ module AuthProto
         response_headers = response[:headers]
         raise Error, "Missing or invalid response headers" unless response_headers.is_a?(Hash)
 
-        nonce = response_headers.find { |k, v| k.downcase == 'dpop-nonce' }&.last
+        nonce = response_header(response, 'DPoP-Nonce')
 
         if nonce.nil? || nonce.empty?
           raise Error, "Missing DPoP-Nonce header"
@@ -129,7 +131,7 @@ module AuthProto
             false
           end
         when 401
-          challenge = headers.find { |k, v| k.downcase == 'www-authenticate' }&.last
+          challenge = response_header(response, 'WWW-Authenticate')
           nonce_challenge?(challenge)
         else
           false

@@ -85,6 +85,14 @@ describe AuthProto::Metadata::ResourceServer do
       end
     end
 
+    ['content-type', 'Content-Type', 'cOnTeNt-TyPe'].each do |header_name|
+      it "should accept JSON metadata with the #{header_name} response header" do
+        mock_response[:headers] = { header_name => 'Application/JSON; charset=utf-8' }
+
+        described_class.from_url(valid_url).authorization_server.should == valid_metadata['authorization_servers'].first
+      end
+    end
+
     it "accepts a JSON media type with parameters and case differences" do
       mock_response[:headers]["content-type"] = "Application/JSON; charset=utf-8"
       described_class.from_url(valid_url).authorization_server.should == valid_metadata["authorization_servers"].first

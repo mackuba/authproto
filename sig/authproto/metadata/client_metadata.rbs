@@ -2,6 +2,7 @@ module AuthProto
   module Metadata
     # Handles and validates AT Protocol OAuth client metadata.
     class ClientMetadata
+      extend HTTPHelpers
       AUTH_METHOD_PRIVATE_KEY_JWT: String
       AUTH_METHOD_NONE: String
       SCOPE_PATTERN: Regexp

@@ -1,6 +1,7 @@
 module AuthProto
   module DPoP
     class Client
+      include HTTPHelpers
       class Error < AuthProto::Error
       end
 

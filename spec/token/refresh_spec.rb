@@ -201,6 +201,18 @@ describe AuthProto::Token::Refresh do
     assert_requested :post, "https://example.com/token", times: 1
   end
 
+  ['retry-after', 'Retry-After', 'rEtRy-AfTeR'].each do |header_name|
+    it "should read the #{header_name} response header when rate limited" do
+      AuthProto.configuration.http_client.expects(:post).times(3).returns(
+        status: 429, headers: { 'DPoP-Nonce' => 'fixture-nonce', header_name => '37' }
+      )
+
+      expect {
+        @refresher.perform_refresh
+      }.to raise_error(AuthProto::Token::RefreshError, /Rate limited - retry after 37 seconds/)
+    end
+  end
+
   it "should retry a rate limited response" do
     stub_request(:post, "https://example.com/token").to_return(
       { status: 429, headers: { "DPoP-Nonce" => "fixture-nonce", "Retry-After" => "1" } },

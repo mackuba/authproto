@@ -17,6 +17,7 @@ module AuthProto
     end
 
     class Refresh
+      include HTTPHelpers
       include MonitorMixin
       MAX_RETRIES: Integer
       BASE_DELAY: Integer

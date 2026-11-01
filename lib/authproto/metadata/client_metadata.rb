@@ -6,6 +6,7 @@ require 'uri'
 
 require_relative '../configuration'
 require_relative '../errors'
+require_relative '../http_helpers'
 require_relative '../metadata'
 require_relative '../par/client_assertion'
 require_relative '../validated_uri'
@@ -46,6 +47,7 @@ module AuthProto
     #
 
     class ClientMetadata
+      extend HTTPHelpers
 
       # Client authentication method for confidential clients
       AUTH_METHOD_PRIVATE_KEY_JWT = "private_key_jwt"
@@ -167,9 +169,9 @@ module AuthProto
             "expected HTTP 200 response for client metadata request, got #{response[:status]}"
         end
 
-        content_type = (response[:headers] || {}).find { |name, _| name.downcase == 'content-type' }&.last
+        content_type = response_header(response, 'Content-Type', strip_parameters: true)
 
-        unless content_type.to_s.split(';', 2).first.to_s.strip.downcase == 'application/json'
+        unless content_type.to_s.downcase == 'application/json'
           raise InvalidClientMetadata, "client metadata Content-Type must be application/json"
         end
 

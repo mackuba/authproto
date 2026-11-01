@@ -1,6 +1,7 @@
 module AuthProto
   module PAR
     class Client
+      include HTTPHelpers
       attr_reader authorization_server: Metadata::AuthorizationServer
       attr_reader par_endpoint: String
       attr_reader dpop_client: DPoP::Client

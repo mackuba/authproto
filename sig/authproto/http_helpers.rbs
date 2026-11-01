@@ -1,0 +1,6 @@
+module AuthProto
+  module HTTPHelpers
+    private
+    def response_header: (http_response response, String name, ?strip_parameters: bool) -> String?
+  end
+end

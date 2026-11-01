@@ -4,6 +4,7 @@ require 'json'
 require 'uri'
 
 require_relative '../configuration'
+require_relative '../http_helpers'
 require_relative '../par'
 require_relative 'response'
 
@@ -58,6 +59,7 @@ module AuthProto
     #
 
     class Client
+      include HTTPHelpers
 
       # Authorization server supplying endpoints and the client assertion audience.
       # @return [Metadata::AuthorizationServer]
@@ -158,9 +160,9 @@ module AuthProto
       end
 
       def handle_success_response(response)
-        content_type = (response[:headers] || {}).find { |key, _| key.downcase == 'content-type' }&.last
+        content_type = response_header(response, 'Content-Type', strip_parameters: true)
 
-        unless content_type.to_s.split(';', 2).first.to_s.strip.casecmp?('application/json')
+        unless content_type.to_s.casecmp?('application/json')
           raise Error, "PAR response must use application/json"
         end
 

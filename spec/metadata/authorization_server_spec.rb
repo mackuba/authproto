@@ -55,6 +55,14 @@ describe AuthProto::Metadata::AuthorizationServer do
       mock_http_client.stubs(:get).with(URI.join(issuer_url, '/.well-known/oauth-authorization-server').to_s).returns(mock_response)
     end
 
+    ['content-type', 'Content-Type', 'cOnTeNt-TyPe'].each do |header_name|
+      it "should accept JSON metadata with the #{header_name} response header" do
+        mock_response[:headers] = { header_name => 'Application/JSON; charset=utf-8' }
+
+        described_class.from_url(issuer_url).issuer.should == valid_metadata['issuer']
+      end
+    end
+
     it "should fetch and parse metadata successfully" do
       server = AuthProto::Metadata::AuthorizationServer.from_url(issuer_url)
       server.issuer.should == valid_metadata["issuer"]

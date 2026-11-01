@@ -1,6 +1,7 @@
 module AuthProto
   module Metadata
     class AuthorizationServer
+      extend HTTPHelpers
       @issuer: String
       @authorization_endpoint: String
       @token_endpoint: String
