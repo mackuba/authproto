@@ -6,7 +6,6 @@ module AuthProto
       def self.session_key: (String id) -> String
       def self.state_key: (String token) -> String
       def self.nonce_key: (String server_url) -> String
-      def self.dpop_key: (String client_id) -> String
       def self.lock_key: (String namespace, String id) -> String
 
       private

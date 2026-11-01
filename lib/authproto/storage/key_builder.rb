@@ -46,15 +46,6 @@ module AuthProto
           build_key("nonce", server_url)
         end
 
-        # Builds a namespaced storage key for a DPoP key.
-        #
-        # @param client_id [String] OAuth client ID
-        # @return [String] colon-separated key beginning with `atproto:`
-        #
-        def dpop_key(client_id)
-          build_key("dpop", client_id)
-        end
-
         # Builds a namespaced storage key for a lock.
         #
         # @param namespace [String] lock namespace, such as `session`

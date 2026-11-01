@@ -19,12 +19,6 @@ describe AuthProto::Storage::KeyBuilder do
     end
   end
 
-  describe ".dpop_key" do
-    it "should build valid dpop key" do
-      AuthProto::Storage::KeyBuilder.dpop_key("client123").should == "atproto:dpop:client123"
-    end
-  end
-
   describe ".lock_key" do
     it "should build valid lock key" do
       AuthProto::Storage::KeyBuilder.lock_key("session", "123").should == "atproto:lock:session:123"

@@ -11,8 +11,7 @@ describe "Library loading" do
       require 'authproto'
 
       [AuthProto::VERSION, AuthProto::Client, AuthProto::Configuration,
-       AuthProto::HTTPClient, AuthProto::InsecureHTTPClient, AuthProto::LocalhostServer,
-       AuthProto::Serialization::DPoPKey]
+       AuthProto::HTTPClient, AuthProto::InsecureHTTPClient, AuthProto::LocalhostServer]
 
       abort "Redis adapter eagerly loaded" unless AuthProto::Storage.autoload?(:Redis)
       abort "SQLite adapter eagerly loaded" unless AuthProto::Storage.autoload?(:SQLite)
