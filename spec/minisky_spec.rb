@@ -108,7 +108,7 @@ describe Minisky::OAuthClient do
       form["client_id"] == "http://localhost/" && form["code_challenge_method"] == "S256" &&
         !form.key?("client_assertion") && !form.key?("client_assertion_type") && request.headers.key?("Dpop")
     end.to_return(
-      status: 201, headers: { "Content-Type" => "application/json" },
+      status: 201, headers: { "DPoP-Nonce" => "fixture-nonce", "Content-Type" => "application/json" },
       body: { request_uri: "urn:example:par", expires_in: 90 }.to_json
     )
 
@@ -126,7 +126,7 @@ describe Minisky::OAuthClient do
     stub_request(:post, "#{auth_server.issuer}/par").with do |request|
       URI.decode_www_form(request.body).to_h["redirect_uri"] == callback
     end.to_return(
-      status: 201, headers: { "Content-Type" => "application/json" },
+      status: 201, headers: { "DPoP-Nonce" => "fixture-nonce", "Content-Type" => "application/json" },
       body: { request_uri: "urn:example:par", expires_in: 90 }.to_json
     )
 
@@ -168,21 +168,27 @@ describe Minisky::OAuthClient do
           if par_proofs.length == 1
             { status: 400, headers: { 'DPoP-Nonce' => 'par-nonce' }, body: '{"error":"use_dpop_nonce"}' }
           else
-            { status: 201, headers: { 'Content-Type' => 'application/json' },
+            { status: 201, headers: { 'DPoP-Nonce' => 'par-success', 'Content-Type' => 'application/json' },
               body: { request_uri: 'urn:example:par', expires_in: 90 }.to_json }
           end
         end
-      stub_request(:post, auth_server.token_endpoint).with(&validate_assertion).to_return(status: 200, body: {
-        access_token: "new-access", refresh_token: "new-refresh", token_type: "DPoP",
-        expires_in: 3600, scope: "atproto", sub: "did:plc:alice"
-      }.to_json)
+      stub_request(:post, auth_server.token_endpoint).with(&validate_assertion).to_return(
+        { status: 400, headers: { 'DPoP-Nonce' => 'token-challenge' }, body: '{"error":"use_dpop_nonce"}' },
+        { status: 200, headers: { 'DPoP-Nonce' => 'token-success' }, body: {
+          access_token: 'new-access', refresh_token: 'new-refresh', token_type: 'DPoP',
+          expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
+        }.to_json }
+      )
 
       auth = client.authorize(pds: host)
       session = client.oauth_client.session_manager.get_session(auth[:session_id])
       session.signing_key_id.should == 'client-key'
       state_token = session.state_token
+      nonces = client.oauth_client.dpop_client.nonce_manager
+      nonces.get(server_url: auth_server.issuer, session_id: session.session_id).should == 'par-success'
       client.handle_callback(code: 'code', state: state_token, iss: auth_server.issuer,
                              expected_session_id: auth[:session_id])
+      nonces.get(server_url: auth_server.issuer, session_id: session.session_id).should == 'token-success'
       client.oauth_client.session_manager.get_session(session.session_id).state_token.should be_nil
       client.oauth_client.session_manager.get_session(session.session_id).signing_key_id.should == 'client-key'
       AuthProto.storage.exists?(AuthProto::Storage::KeyBuilder.state_key(state_token)).should be_falsey
@@ -195,8 +201,8 @@ describe Minisky::OAuthClient do
       client.perform_token_refresh[:refresh_token].should == "new-refresh"
       client.oauth_client.session_manager.get_session(session.session_id).signing_key_id.should == 'client-key'
       AuthProto.storage.exists?(AuthProto::Storage::KeyBuilder.state_key(state_token)).should be_falsey
-      assertions.length.should == 4
-      assertions.uniq.length.should == 4
+      assertions.length.should == 5
+      assertions.uniq.length.should == 5
       par_proofs.length.should == 2
       par_proofs.map { |proof| proof['jti'] }.uniq.length.should == 2
       par_proofs.last['nonce'].should == 'par-nonce'
@@ -212,7 +218,7 @@ describe Minisky::OAuthClient do
       pending = client.oauth_client.session_manager.get_session_by_state_token(state)
       original_keys[pending.session_id] = pending.dpop_key
       pending.dpop_key.key.verify(request.headers.fetch('Dpop')).first.should be_truthy
-      { status: 201, headers: { 'Content-Type' => 'application/json' },
+      { status: 201, headers: { "DPoP-Nonce" => "fixture-nonce", 'Content-Type' => 'application/json' },
         body: { request_uri: 'urn:example:par', expires_in: 90 }.to_json }
     end
     authorizations = Array.new(2) { client.authorize(pds: host) }
@@ -224,7 +230,7 @@ describe Minisky::OAuthClient do
     stub_request(:post, auth_server.token_endpoint).to_return do |request|
       session_id = URI.decode_www_form(request.body).to_h.fetch('code')
       original_keys.fetch(session_id).key.verify(request.headers.fetch('Dpop')).first.should be_truthy
-      { status: 200, body: {
+      { headers: { "DPoP-Nonce" => "fixture-nonce" }, status: 200, body: {
         access_token: "access-#{session_id}", refresh_token: 'refresh', token_type: 'DPoP',
         expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
       }.to_json }
@@ -258,7 +264,7 @@ describe Minisky::OAuthClient do
     let(:pending_session) do
       stub_authorization_metadata
       stub_request(:post, "#{auth_server.issuer}/par").to_return(
-        status: 201, headers: { 'Content-Type' => 'application/json' },
+        status: 201, headers: { "DPoP-Nonce" => "fixture-nonce", 'Content-Type' => 'application/json' },
         body: { request_uri: 'urn:example:par', expires_in: 90 }.to_json
       )
       auth = client.authorize(pds: host)
@@ -327,7 +333,8 @@ describe Minisky::OAuthClient do
       serialized.fetch('data').delete('signing_key_id')
       AuthProto.storage.set(session_key, JSON.generate(serialized))
       restored = restore_client(@signing_key)
-      stub_request(:post, auth_server.token_endpoint).to_return(status: 200, body: {
+      stub_request(:post, auth_server.token_endpoint).to_return(headers: { "DPoP-Nonce" => "fixture-nonce" },
+        status: 200, body: {
         access_token: 'access', refresh_token: 'refresh', token_type: 'DPoP',
         expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
       }.to_json)
@@ -377,7 +384,7 @@ describe Minisky::OAuthClient do
     stub_request(:post, "#{auth_server.issuer}/par")
       .with { |request| URI.decode_www_form(request.body).to_h["login_hint"] == "@Alice.Example.Com" }
       .to_return(
-        status: 201, headers: { "Content-Type" => "application/json" },
+        status: 201, headers: { "DPoP-Nonce" => "fixture-nonce", "Content-Type" => "application/json" },
         body: { request_uri: "urn:example:par", expires_in: 90 }.to_json
       )
 
@@ -413,7 +420,7 @@ describe Minisky::OAuthClient do
 
       stub_request(:post, "#{auth_server.issuer}/par")
         .to_return(
-          status: 201, headers: { "Content-Type" => "application/json" },
+          status: 201, headers: { "DPoP-Nonce" => "fixture-nonce", "Content-Type" => "application/json" },
           body: { request_uri: "urn:example:par", expires_in: 90 }.to_json
         )
 
@@ -511,7 +518,8 @@ describe Minisky::OAuthClient do
 
   it "should allow unauthenticated requests without a session or nonce header" do
     stub_request(:get, endpoint).with { |request| !request.headers.key?("Authorization") }
-                                .to_return(status: 200, headers: { "Content-Type" => "application/json" }, body: "{}")
+                                .to_return(status: 200, headers: { "DPoP-Nonce" => "fixture-nonce",
+                                  "Content-Type" => "application/json" }, body: "{}")
     client.get_request("app.bsky.actor.getProfile", auth: false).should == {}
   end
 
@@ -569,7 +577,7 @@ describe Minisky::OAuthClient do
     stub_refresh
     stub_request(:post, "https://auth.example.com/token").with do |request|
       JWT.decode(request.headers["Dpop"], nil, false).last["jwk"] == original_public_key
-    end.to_return(status: 200, body: {
+    end.to_return(headers: { "DPoP-Nonce" => "fixture-nonce" }, status: 200, body: {
       access_token: "restored-access", refresh_token: "restored-refresh", token_type: "DPoP",
       expires_in: 3600, scope: "atproto", sub: "did:plc:alice"
     }.to_json)
@@ -648,13 +656,15 @@ describe Minisky::OAuthClient do
     WebMock.should have_requested(:get, endpoint).times(1)
   end
 
-  it "should accept successful authenticated responses without a nonce and retain the cached nonce" do
+  it "should reject successful responses without a nonce even when one is cached" do
     attach_session
     client.oauth_client.dpop_client.nonce_manager.update(
       nonce: "cached", server_url: host, session_id: client.session_id
     )
     stub_request(:get, endpoint).to_return(status: 200, headers: { "Content-Type" => "application/json" }, body: "{}")
-    client.get_request("app.bsky.actor.getProfile").should == {}
+    expect {
+      client.get_request("app.bsky.actor.getProfile")
+    }.to raise_error(AuthProto::DPoP::Client::Error, /Missing DPoP-Nonce/)
     client.oauth_client.dpop_client.nonce_manager.get(
       server_url: host, session_id: client.session_id
     ).should == "cached"
@@ -669,13 +679,12 @@ describe Minisky::OAuthClient do
     WebMock.should have_requested(:get, endpoint).times(1)
   end
 
-  it "should preserve API errors without a nonce" do
+  it "should reject API errors without a nonce" do
     attach_session
     stub_request(:get, endpoint).to_return(status: 403, headers: { "Content-Type" => "application/json" },
                                            body: '{"error":"Forbidden"}')
-    expect { client.get_request("app.bsky.actor.getProfile") }.to raise_error(Minisky::ClientErrorResponse) { |error|
-      error.error_type.should == "Forbidden"
-    }
+    expect { client.get_request("app.bsky.actor.getProfile") }.to raise_error(AuthProto::DPoP::Client::Error,
+      /Missing DPoP-Nonce/)
   end
 
   it "should support fetch_all with separate proofs for each page" do
@@ -711,7 +720,8 @@ describe Minisky::OAuthClient do
       stub_request(:post, post_endpoint).with(body: record.to_json, headers: expected_headers) do |request|
         payload = JWT.decode(request.headers["Dpop"], nil, false).first
         payload["htm"] == "POST" && payload["htu"] == post_endpoint && payload.key?("ath")
-      end.to_return(status: 200, headers: { "Content-Type" => "application/json" }, body: '{"uri":"at://record"}')
+      end.to_return(status: 200, headers: { "DPoP-Nonce" => "fixture-nonce",
+        "Content-Type" => "application/json" }, body: '{"uri":"at://record"}')
 
       headers = { "X-Test" => "yes", "authorization" => "Bearer wrong" }
       client.post_request(rpc_method, record, headers: headers)["uri"].should == "at://record"
@@ -758,7 +768,7 @@ describe Minisky::OAuthClient do
       attach_session
       stub_refresh
       stub_request(:post, post_endpoint).with(headers: { "Authorization" => "DPoP access" }, body: record.to_json)
-                                        .to_return(status: 401, headers: {
+                                        .to_return(status: 401, headers: { "DPoP-Nonce" => "fixture-nonce",
                                                      "WWW-Authenticate" => 'DPoP error="invalid_token"'
                                                    }, body: "{}")
       stub_request(:post, post_endpoint).with(headers: { "Authorization" => "DPoP new-access" }, body: record.to_json)
@@ -771,7 +781,8 @@ describe Minisky::OAuthClient do
     it "should allow unauthenticated JSON posts without a session" do
       stub_request(:post, post_endpoint).with(body: record.to_json) do |request|
         !request.headers.key?("Authorization") && !request.headers.key?("Dpop")
-      end.to_return(status: 200, headers: { "Content-Type" => "application/json" }, body: "{}")
+      end.to_return(status: 200, headers: { "DPoP-Nonce" => "fixture-nonce",
+        "Content-Type" => "application/json" }, body: "{}")
       client.post_request(rpc_method, record, auth: false).should == {}
     end
 
@@ -789,9 +800,10 @@ describe Minisky::OAuthClient do
       WebMock.should have_requested(:post, post_endpoint).times(1)
     end
 
-    it "should preserve server errors without retrying or requiring a nonce" do
+    it "should preserve server errors with a nonce without retrying" do
       attach_session
-      stub_request(:post, post_endpoint).to_return(status: 500, headers: { "Content-Type" => "application/json" },
+      stub_request(:post, post_endpoint).to_return(status: 500, headers: { "DPoP-Nonce" => "fixture-nonce",
+        "Content-Type" => "application/json" },
                                                    body: '{"error":"InternalServerError"}')
       expect { client.post_request(rpc_method, record) }.to raise_error(Minisky::ServerErrorResponse) { |error|
         error.error_type.should == "InternalServerError"

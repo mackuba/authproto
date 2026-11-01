@@ -31,6 +31,8 @@ describe AuthProto::PAR::Client do
 
       @request.stubs(:to_form).with(audience: 'https://issuer.example.com').returns("client_id=mock_client_id&scope=mock_scope")
       @dpop_client.stubs(:generate_proof).returns(@proof)
+      @dpop_client.stubs(:process_response)
+      @dpop_client.stubs(:has_nonce_error?).returns(false)
       @http_client = mock("http_client")
       @http_client.stubs(:get)
       @http_client.stubs(:post).returns(@response)
@@ -99,8 +101,12 @@ describe AuthProto::PAR::Client do
     it "should retry the request with a nonce if the response indicates 'use_dpop_nonce'" do
       error_response = { status: 400, body: '{"error":"use_dpop_nonce"}', headers: { "DPoP-Nonce" => "new_nonce" } }
       @dpop_client.expects(:process_response).with(
-        error_response[:headers], @par_endpoint, session_id: @session.session_id
-      )
+        error_response, server_url: @par_endpoint, session_id: @session.session_id
+      ).once
+      @dpop_client.expects(:process_response).with(
+        @response, server_url: @par_endpoint, session_id: @session.session_id
+      ).once
+      @dpop_client.expects(:has_nonce_error?).with(error_response).returns(true)
       AuthProto.configuration.http_client.stubs(:post).returns(error_response).then.returns(@response)
 
       response = @client.submit(@request, session: @session)

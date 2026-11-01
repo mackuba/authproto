@@ -243,6 +243,7 @@ module AuthProto
     # @return [Hash{Symbol => String, Integer, nil}] replacement tokens and session identifiers
     # @raise [TokenError] if the session is missing or has no refresh token
     # @raise [Token::RefreshError] if token refresh fails or exhausts retries
+    # @raise [DPoP::Client::Error] if a refresh response lacks a valid nonce
     # @raise [State::SessionError] if replacement tokens have a different subject
     # @raise [Storage::StorageError] if session storage or locking fails
     # @raise [Encryption::EncryptionError] if replacement tokens cannot be stored
@@ -284,7 +285,7 @@ module AuthProto
     # Builds authorization headers and a fresh DPoP proof for one HTTP request.
     #
     # The caller sends the request. This method does not refresh tokens, send HTTP,
-    # or retry nonce challenges. Feed response headers to {DPoP::Client#process_response}
+    # or retry nonce challenges. Feed each full HTTP response to {DPoP::Client#process_response}
     # and call {#refresh_token} explicitly when needed. Generate new headers for each retry.
     #
     # @param session_id [String] authorized session ID
@@ -442,14 +443,17 @@ module AuthProto
       # Initial token request without nonce
       response = make_token_request(code, session)
 
-      # Handle DPoP nonce requirement
-      if requires_dpop_nonce?(response)
-        # Extract and store nonce from error response
-        extract_dpop_nonce(response)
-        dpop_client.process_response(response[:headers], session.auth_server.token_endpoint, session_id: session.session_id)
+      dpop_client.process_response(
+        response, server_url: session.auth_server.token_endpoint, session_id: session.session_id
+      )
 
+      if dpop_client.has_nonce_error?(response)
         # Retry request with nonce
         response = make_token_request(code, session)
+
+        dpop_client.process_response(
+          response, server_url: session.auth_server.token_endpoint, session_id: session.session_id
+        )
       end
 
       raise TokenError, "Token request failed: #{response[:status]}" unless response[:status] == 200
@@ -498,24 +502,6 @@ module AuthProto
       )
     end
 
-    def requires_dpop_nonce?(response)
-      return false unless response[:status] == 400
-
-      error_data = JSON.parse(response[:body])
-      error_data['error'] == DPoP::ERROR_USE_NONCE
-    rescue JSON::ParserError
-      false
-    end
-
-    def extract_dpop_nonce(response)
-      headers = response[:headers]
-      nonce = headers.find { |k, v| k.downcase == 'dpop-nonce' }&.last
-
-      raise TokenError, "No DPoP nonce provided in error response" unless nonce
-
-      nonce
-    end
-
     def validate_token_response(response, session)
       ['access_token', 'token_type', 'expires_in', 'scope', 'sub'].each do |field|
         raise TokenError, "Missing #{field} in token response" unless response[field]
@@ -526,10 +512,6 @@ module AuthProto
 
       # If we have a pre-resolved DID, verify that it matches
       raise TokenError, "Subject mismatch in token response" if session.did && session.did != response['sub']
-
-      if response[:headers] && response[:headers]["DPoP-Nonce"]
-        dpop_client.process_response(response[:headers], session.auth_server.token_endpoint, session_id: session.session_id)
-      end
     end
   end
 end

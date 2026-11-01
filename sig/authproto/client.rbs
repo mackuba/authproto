@@ -34,8 +34,6 @@ module AuthProto
     def submit_authorization_par: (Metadata::AuthorizationServer authorization_server, State::Session session, ?login_hint: String?) -> String
     def exchange_code: (code: String, session: State::Session) -> json_object
     def make_token_request: (String code, State::Session session) -> http_response
-    def requires_dpop_nonce?: (http_response response) -> bool
-    def extract_dpop_nonce: (http_response response) -> String
     def validate_token_response: (json_object response, State::Session session) -> void
   end
 end

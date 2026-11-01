@@ -7,15 +7,13 @@ module AuthProto
 
       def initialize: (authorization_server: Metadata::AuthorizationServer, dpop_client: DPoP::Client) -> void
       def submit: (Request request, session: State::Session) -> Response
-      def extract_nonce: (http_response response) -> String
       def build_authorization_url: (request_uri: String, client_id: String) -> String
 
       private
       def make_request: (Request request, session: State::Session) -> http_response
       def build_headers: (String dpop_proof) -> Hash[String, String]
-      def requires_nonce?: (http_response response) -> bool
       def handle_error_response: (http_response response) -> bot
-      def process_response: (http_response response) -> Response
+      def handle_success_response: (http_response response) -> Response
     end
   end
 end

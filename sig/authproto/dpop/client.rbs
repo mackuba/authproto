@@ -9,7 +9,12 @@ module AuthProto
 
       def initialize: (?nonce_ttl: Integer?) -> void
       def generate_proof: (session: State::Session, method: String, uri: String, ?access_token: String?) -> JOSE::SignedBinary
-      def process_response: (Hash[String, String]? response_headers, String server_url, session_id: String) -> void
+      def has_nonce_error?: (http_response response) -> bool
+      def process_response: (http_response response, server_url: String, session_id: String) -> void
+
+      private
+
+      def nonce_challenge?: (String? challenge) -> bool
     end
   end
 end

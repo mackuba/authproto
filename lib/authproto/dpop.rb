@@ -11,5 +11,7 @@ module AuthProto
     # JWS signing algorithm used for DPoP proofs.
     # @return [String]
     ALGORITHM = "ES256"
+
+    ERROR_USE_NONCE = "use_dpop_nonce"
   end
 end

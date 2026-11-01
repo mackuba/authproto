@@ -34,8 +34,6 @@ module AuthProto
       def calculate_delay: () -> Float
       def request_token_refresh: () -> State::TokenSet
       def make_token_request: (State::Session session) -> http_response
-      def requires_dpop_nonce?: (http_response response) -> bool
-      def extract_dpop_nonce: (http_response response) -> String
       def add_client_authentication: (Hash[Symbol, untyped] body) -> void
       def handle_refresh_response: (http_response response) -> State::TokenSet
       def process_successful_response: (http_response response) -> State::TokenSet

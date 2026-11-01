@@ -118,7 +118,7 @@ class Minisky::OAuthClient
   # @raise [ArgumentError] if the method is invalid or `auth` is a truthy non-Boolean value
   # @raise [Minisky::AuthError] if no completed OAuth login or refresh capability is available
   # @raise [Minisky::BadResponse] if the final response has an error or redirect status
-  # @raise [AuthProto::DPoP::Client::Error] if proof handling fails or a nonce challenge lacks its nonce
+  # @raise [AuthProto::DPoP::Client::Error] if proof handling fails or any DPoP response lacks a valid nonce
   # @raise [AuthProto::Error] if OAuth refresh or token persistence fails
   # @raise [JSON::ParserError] if a JSON response cannot be parsed
   # @raise [Net::OpenTimeout, Net::ReadTimeout, IOError, SystemCallError] if HTTP transport fails
@@ -153,7 +153,7 @@ class Minisky::OAuthClient
   # @raise [ArgumentError] if the method is invalid or `auth` is a truthy non-Boolean value
   # @raise [Minisky::AuthError] if no completed OAuth login or refresh capability is available
   # @raise [Minisky::BadResponse] if the final response has an error or redirect status
-  # @raise [AuthProto::DPoP::Client::Error] if proof handling fails or a nonce challenge lacks its nonce
+  # @raise [AuthProto::DPoP::Client::Error] if proof handling fails or any DPoP response lacks a valid nonce
   # @raise [AuthProto::Error] if OAuth refresh or token persistence fails
   # @raise [JSON::ParserError] if a JSON response cannot be parsed
   # @raise [Net::OpenTimeout, Net::ReadTimeout, IOError, SystemCallError] if HTTP transport fails
@@ -241,28 +241,24 @@ class Minisky::OAuthClient
 
       request = request_class.new(url, request_headers)
       request.body = body unless body.nil?
+
       response = make_request(request)
+      response_hash = { status: response.code.to_i, headers: response.each_header.to_h, body: response.body }
 
-      nonce = response["DPoP-Nonce"]
+      oauth_client.dpop_client.process_response(response_hash, server_url: url.to_s, session_id: session_id)
 
-      if nonce && !nonce.empty?
-        oauth_client.dpop_client.process_response(response.each_header.to_h, url.to_s, session_id: session_id)
-      end
-
-      error = authentication_error(response)
-
-      if response.code.to_i == 401 && error == AuthProto::DPoP::ERROR_USE_NONCE
-        unless nonce && !nonce.empty?
-          raise AuthProto::DPoP::Client::Error, "DPoP nonce challenge (HTTP 401) is missing DPoP-Nonce"
-        end
+      if oauth_client.dpop_client.has_nonce_error?(response_hash)
         return response if nonce_retries >= MAX_NONCE_RETRIES
-
         nonce_retries += 1
-      elsif response.code.to_i == 401 && error == "invalid_token" && !refreshed
-        perform_token_refresh
-        refreshed = true
       else
-        return response
+        error = authentication_error(response)
+
+        if response.code.to_i == 401 && error == "invalid_token" && !refreshed
+          perform_token_refresh
+          refreshed = true
+        else
+          return response
+        end
       end
     end
   end

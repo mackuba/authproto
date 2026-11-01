@@ -94,35 +94,21 @@ module AuthProto
 
         # Try the initial request
         response = make_request(request, session: session)
+        dpop_client.process_response(response, server_url: @par_endpoint, session_id: session.session_id)
 
-        return process_response(response) if response[:status] == 201
-
-        # Handle DPoP nonce requirement
-        if requires_nonce?(response)
-          extract_nonce(response)
-          dpop_client.process_response(response[:headers], @par_endpoint, session_id: session.session_id)
-
+        if dpop_client.has_nonce_error?(response)
           # Generate new proof with nonce and retry
           response = make_request(request, session: session)
-          return process_response(response) if response[:status] == 201
+          dpop_client.process_response(response, server_url: @par_endpoint, session_id: session.session_id)
         end
 
-        handle_error_response(response)
+        if response[:status] == 201
+          handle_success_response(response)
+        else
+          handle_error_response(response)
+        end
       rescue StandardError => e
         raise Error, "PAR request failed: #{e.message}"
-      end
-
-      # Reads a nonce from a transport response hash.
-      #
-      # @param response [Hash{Symbol => Object}] response containing a `:headers` hash with a `DPoP-Nonce` header
-      # @return [String] server-provided nonce
-      # @raise [Error] if no supported nonce header is present
-      #
-      def extract_nonce(response)
-        nonce = response[:headers].find { |k, v| k.downcase == 'dpop-nonce' }&.last
-        raise Error, "No DPoP nonce provided in response" unless nonce
-
-        nonce
       end
 
       # Builds the browser URL using the client ID and returned PAR request URI.
@@ -179,13 +165,6 @@ module AuthProto
         }
       end
 
-      def requires_nonce?(response)
-        body = JSON.parse(response[:body])
-        body['error'] == DPoP::ERROR_USE_NONCE
-      rescue JSON::ParserError
-        false
-      end
-
       def handle_error_response(response)
         begin
           error_data = JSON.parse(response[:body])
@@ -197,9 +176,7 @@ module AuthProto
         raise Error, "PAR request failed: #{error_message} (status: #{response[:status]})"
       end
 
-      def process_response(response)
-        raise Error, "unexpected response status: #{response[:status]}" unless response[:status] == 201
-
+      def handle_success_response(response)
         content_type = (response[:headers] || {}).find { |key, _| key.downcase == 'content-type' }&.last
 
         unless content_type.to_s.split(';', 2).first.to_s.strip.casecmp?('application/json')

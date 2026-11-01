@@ -173,6 +173,7 @@ module AuthProto
       #
       # @return [State::TokenSet] validated replacement tokens
       # @raise [RefreshError] if the session is not renewable, refresh fails, or retries are exhausted
+      # @raise [DPoP::Client::Error] if any response lacks a valid nonce or nonce persistence fails
       #
       def perform_refresh
         synchronize do
@@ -221,15 +222,12 @@ module AuthProto
       def request_token_refresh
         # Initial token request without nonce
         response = make_token_request(session)
+        dpop_client.process_response(response, server_url: auth_server.token_endpoint, session_id: session.session_id)
 
-        # Handle DPoP nonce requirement
-        if requires_dpop_nonce?(response)
-          # Extract and store nonce from error response
-          extract_dpop_nonce(response)
-          dpop_client.process_response(response[:headers], auth_server.token_endpoint, session_id: session.session_id)
-
+        if dpop_client.has_nonce_error?(response)
           # Retry request with nonce
           response = make_token_request(session)
+          dpop_client.process_response(response, server_url: auth_server.token_endpoint, session_id: session.session_id)
         end
 
         handle_refresh_response(response)
@@ -255,26 +253,6 @@ module AuthProto
             "DPoP" => dpop_proof
           }
         )
-      end
-
-      def requires_dpop_nonce?(response)
-        return false unless response[:status] == 400
-        return false if response[:body].nil?
-
-        error_data = JSON.parse(response[:body])
-        error_data.is_a?(Hash) && error_data['error'] == DPoP::ERROR_USE_NONCE
-      rescue JSON::ParserError
-        false
-      end
-
-      def extract_dpop_nonce(response)
-        nonce = (response[:headers] || {}).detect { |k, v| k.downcase == 'dpop-nonce' }&.last
-
-        unless nonce.is_a?(String) && !nonce.empty?
-          raise RefreshError.new("No DPoP nonce provided in error response", retry_possible: false)
-        end
-
-        nonce
       end
 
       def add_client_authentication(body)
@@ -334,10 +312,6 @@ module AuthProto
         error_description = error_data['error_description'] || error_data['error']
 
         case error_data['error']
-        when DPoP::ERROR_USE_NONCE
-          extract_dpop_nonce(response)
-          dpop_client.process_response(response[:headers], auth_server.token_endpoint, session_id: session.session_id)
-          raise RefreshError.new("Retry with DPoP nonce", retry_possible: true)
         when "invalid_grant"
           # The refresh token has been invalidated or already used
           raise RefreshError.new(

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'json'
+require 'strscan'
 require 'uri'
 
 require_relative '../errors'
@@ -14,17 +16,11 @@ module AuthProto
 
   module DPoP
 
-    ERROR_USE_NONCE = "use_dpop_nonce"
-
-    # High-level client for managing DPoP operations. Uses session-owned signing keys,
-    # shared proof generation, and nonce tracking to provide a complete DPoP client
-    # implementation according to RFC 9449.
     #
-    # This client handles:
-    # - Proof generation for HTTP requests
-    # - Nonce tracking across servers
-    # - Header construction for requests
-    # - Response processing for nonce updates
+    # Shared DPoP client using session-owned signing keys and nonces scoped to
+    # each session and server origin. Generates RFC 9449 proofs, processes nonce
+    # updates, and detects nonce challenges. Response processing requires a nonce
+    # on every DPoP response, as required by the AT Protocol OAuth profile.
     #
 
     class Client
@@ -79,25 +75,98 @@ module AuthProto
       end
 
       # Stores a `DPoP-Nonce` response header for future requests to the same origin.
-      # Header names are compared case-insensitively. Missing headers/nonces are ignored.
+      # Call after every DPoP HTTP attempt, before accepting a result or deciding to retry.
+      # Header names are case-insensitive; missing or empty nonces are rejected.
       #
       # @param session_id [String] session that made the request
-      # @param response_headers [Hash{String => String}, nil] response headers, or `nil`
+      # @param response [Hash{Symbol => Object}] HTTP response with `:status`, `:headers`, and `:body`
       # @param server_url [String] request URL whose origin owns the nonce
       # @return [void]
       # @raise [Error] if nonce validation or persistence fails
       #
-      def process_response(response_headers, server_url, session_id:)
-        return unless response_headers
+      def process_response(response, server_url:, session_id:)
+        raise Error, "Expected a response hash" unless response.is_a?(Hash)
 
-        # Look for DPoP-Nonce header (case insensitive)
+        response_headers = response[:headers]
+        raise Error, "Missing or invalid response headers" unless response_headers.is_a?(Hash)
+
         nonce = response_headers.find { |k, v| k.downcase == 'dpop-nonce' }&.last
-        return unless nonce
+
+        if nonce.nil? || nonce.empty?
+          raise Error, "Missing DPoP-Nonce header"
+        end
 
         # Store new nonce for future requests
         @nonce_manager.update(nonce: nonce, server_url: server_url, session_id: session_id)
       rescue StandardError => e
         raise Error, "Failed to process response: #{e.message}"
+      end
+
+      # Detects a nonce challenge without treating other errors as nonce challenges.
+      #
+      # Recognizes HTTP 400 JSON errors and a single HTTP 401 DPoP authentication
+      # challenge. Header/parameter names and the scheme are case-insensitive;
+      # error values are case-sensitive. Ambiguous multiple challenges are ignored.
+      #
+      # @param response [Hash{Symbol => Object}] HTTP response with status, headers and body
+      # @return [Boolean] whether the response requests a retry with a server nonce
+      # @raise [Error] if the response or HTTP 401 headers have an invalid type
+      #
+      def has_nonce_error?(response)
+        raise Error, "Expected a response hash" unless response.is_a?(Hash)
+
+        headers = response[:headers]
+        raise Error, "Missing or invalid response headers" unless headers.is_a?(Hash)
+
+        case response[:status]
+        when 400
+          return false unless response[:body].is_a?(String)
+
+          begin
+            data = JSON.parse(response[:body])
+            data.is_a?(Hash) && data['error'] == DPoP::ERROR_USE_NONCE
+          rescue JSON::ParserError
+            false
+          end
+        when 401
+          challenge = headers.find { |k, v| k.downcase == 'www-authenticate' }&.last
+          nonce_challenge?(challenge)
+        else
+          false
+        end
+      end
+
+
+      private
+
+      def nonce_challenge?(challenge)
+        return false unless challenge.is_a?(String)
+
+        scanner = StringScanner.new(challenge)
+        return false unless scanner.scan(/DPoP[ \t]+/i)
+
+        params = {}
+
+        loop do
+          name = scanner.scan(/[!#$%&'*+\-.^_`|~0-9A-Za-z]+/)&.downcase
+          return false unless name && !params.key?(name)
+
+          scanner.skip(/[ \t]*/)
+          return false unless scanner.scan(/=/)
+
+          scanner.skip(/[ \t]*/)
+          value = scanner.scan(/"(?:\\.|[^"\\])*"/) || scanner.scan(/[!#$%&'*+\-.^_`|~0-9A-Za-z]+/)
+          return false unless value
+
+          params[name] = value.start_with?('"') ? value[1...-1].gsub(/\\(.)/, '\\1') : value
+          scanner.skip(/[ \t]*/)
+          break if scanner.eos?
+          return false unless scanner.scan(/,/)
+
+          scanner.skip(/[ \t]*/)
+        end
+
+        params['error'] == DPoP::ERROR_USE_NONCE
       end
     end
   end

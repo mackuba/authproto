@@ -16,6 +16,7 @@ describe AuthProto::DPoP::Client do
   let(:server_url) { "https://example.com" }
   let(:proof) { "dpop_proof_jwt" }
   let(:response_headers) { { "DPoP-Nonce" => nonce } }
+  let(:response) { { status: 200, headers: response_headers, body: '{}' } }
 
   describe "#initialize" do
     it "should initialize with a custom nonce_ttl" do
@@ -42,9 +43,15 @@ describe AuthProto::DPoP::Client do
 
     it "should use each session's nonce through interleaved response processing and proof generation" do
       other = AuthProto::State::Session.new(client_id: 'client', scope: 'atproto')
-      client.process_response({ 'DPoP-Nonce' => 'first' }, uri, session_id: session.session_id)
-      client.process_response({ 'DPoP-Nonce' => 'second' }, uri, session_id: other.session_id)
-      client.process_response({ 'DPoP-Nonce' => 'updated-first' }, uri, session_id: session.session_id)
+      client.process_response(
+        response.merge(headers: { 'DPoP-Nonce' => 'first' }), server_url: uri, session_id: session.session_id
+      )
+      client.process_response(
+        response.merge(headers: { 'DPoP-Nonce' => 'second' }), server_url: uri, session_id: other.session_id
+      )
+      client.process_response(
+        response.merge(headers: { 'DPoP-Nonce' => 'updated-first' }), server_url: uri, session_id: session.session_id
+      )
 
       [[session, 'updated-first'], [other, 'second'], [session, 'updated-first']].each do |current, expected_nonce|
         proof = client.generate_proof(session: current, method: method, uri: uri)
@@ -80,25 +87,89 @@ describe AuthProto::DPoP::Client do
     end
   end
 
+  describe "#has_nonce_error?" do
+    it "should recognize a 400 JSON nonce error" do
+      client.has_nonce_error?(response.merge(status: 400, body: '{"error":"use_dpop_nonce"}')).should be true
+    end
+
+    [nil, '', 'broken', 'null', '[]', 'true', '42', '"text"', '{}', '{"error":"invalid_grant"}'].each do |body|
+      it "should ignore a 400 body that is not a nonce error: #{body.inspect}" do
+        client.has_nonce_error?(response.merge(status: 400, body: body)).should be false
+      end
+    end
+
+    [
+      'DPoP error="use_dpop_nonce"',
+      'dPoP ERROR = "use_dpop_nonce", algs="ES256"',
+      'DPoP error_description="Expired nonce, please retry", error="use_dpop_nonce"',
+      'DPoP error="use_dpop_nonce", error_description="Say \\"hello\\""'
+    ].each do |challenge|
+      it "should recognize a case-insensitive 401 nonce challenge with parameters: #{challenge}" do
+        headers = { 'wWw-AuThEnTiCaTe' => challenge }
+        client.has_nonce_error?(response.merge(status: 401, headers: headers)).should be true
+      end
+    end
+
+    [
+      nil, '', 'Bearer error="use_dpop_nonce"', 'DPoP error="invalid_token"',
+      'DPoP error_description="use_dpop_nonce"', 'DPoP error="USE_DPOP_NONCE"',
+      'DPoP error="use_dpop_nonce", Bearer realm="example"',
+      'DPoP error="use_dpop_nonce", error="invalid_token"', 'DPoP error="use_dpop_nonce',
+      'DPoP error="invalid_token", error_description="error=use_dpop_nonce"'
+    ].each do |challenge|
+      it "should ignore other, malformed or ambiguous 401 challenges: #{challenge.inspect}" do
+        headers = { 'www-authenticate' => challenge }
+        client.has_nonce_error?(response.merge(status: 401, headers: headers)).should be false
+      end
+    end
+
+    it "should ignore a missing authentication header and other status codes" do
+      client.has_nonce_error?(response.merge(status: 401, headers: {})).should be false
+      [200, 201, 403, 429, 500].each do |status|
+        client.has_nonce_error?(response.merge(status: status, body: '{"error":"use_dpop_nonce"}')).should be false
+      end
+    end
+  end
+
   describe "#process_response" do
     it "should update the nonce manager with a valid nonce" do
       client.nonce_manager.expects(:update).with(nonce: nonce, server_url: server_url, session_id: session.session_id)
 
-      client.process_response(response_headers, server_url, session_id: session.session_id)
+      client.process_response(response, server_url: server_url, session_id: session.session_id)
     end
 
-    it "should do nothing if the response headers do not include a nonce" do
+    it "should reject a response without a nonce" do
       headers = {}
       client.nonce_manager.expects(:update).never
 
-      client.process_response(headers, server_url, session_id: session.session_id)
+      expect {
+        client.process_response(response.merge(headers: headers), server_url: server_url, session_id: session.session_id)
+      }.to raise_error(described_class::Error, /Missing DPoP-Nonce/)
+    end
+
+    [200, 201, 400, 401, 500].each do |status|
+      [nil, ''].each do |value|
+        it "should reject a missing or empty nonce on HTTP #{status}: #{value.inspect}" do
+          headers = value.nil? ? {} : { 'dpop-nonce' => value }
+          expect {
+            client.process_response(response.merge(status: status, headers: headers),
+                                    server_url: server_url, session_id: session.session_id)
+          }.to raise_error(described_class::Error, /Missing DPoP-Nonce/)
+        end
+      end
+    end
+
+    it "should update from a successful response with a differently cased nonce header" do
+      client.process_response(response.merge(headers: { 'dPoP-nOnCe' => 'rotated' }),
+                              server_url: server_url, session_id: session.session_id)
+      client.nonce_manager.get(server_url: server_url, session_id: session.session_id).should == 'rotated'
     end
 
     it "should raise an error if nonce update fails" do
       client.nonce_manager.expects(:update).raises(StandardError, "Update failed")
 
       expect {
-        client.process_response(response_headers, server_url, session_id: session.session_id)
+        client.process_response(response, server_url: server_url, session_id: session.session_id)
       }.to raise_error(AuthProto::DPoP::Client::Error)
     end
   end
