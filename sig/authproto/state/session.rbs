@@ -6,6 +6,7 @@ module AuthProto
       attr_reader session_id: String
       attr_reader state_token: String
       attr_reader client_id: String
+      attr_reader dpop_key: DPoP::KeyManager
       attr_reader signing_key_id: String?
       attr_reader scope: String
       attr_reader pkce_verifier: String
@@ -14,7 +15,7 @@ module AuthProto
       attr_reader did: String?
       attr_reader tokens: TokenSet?
 
-      def initialize: (client_id: String, scope: String, ?auth_server: Metadata::AuthorizationServer?, ?did: String?, ?signing_key_id: String?, ?authorization_expires_at: Time?) -> void
+      def initialize: (client_id: String, scope: String, ?auth_server: Metadata::AuthorizationServer?, ?did: String?, ?signing_key_id: String?, ?dpop_key: DPoP::KeyManager, ?authorization_expires_at: Time?) -> void
       def authorization_server=: (Metadata::AuthorizationServer server) -> Metadata::AuthorizationServer
       def did=: (String did) -> String
       def tokens=: (TokenSet tokens) -> String

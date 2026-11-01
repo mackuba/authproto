@@ -40,6 +40,7 @@ module AuthProto
       # @param signing_key_id [String, nil] client-authentication key ID selected before PAR
       #
       # @return [Session] newly created session
+      # @raise [DPoP::KeyManager::KeyError] if session key generation fails
       # @raise [PKCE::Error] if session PKCE generation fails
       # @raise [Storage::StorageError] if writing or locking fails
       # @raise [Serialization::ValidationError] if the session cannot be serialized

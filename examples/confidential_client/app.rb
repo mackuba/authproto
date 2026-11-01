@@ -72,8 +72,7 @@ class ExampleApp < Sinatra::Base
       client_id: client_id,
       redirect_uri: metadata['redirect_uris'][0],
       metadata: metadata,
-      signing_key: signing_key,
-      dpop_key: signing_key
+      signing_key: signing_key
     )
   end
 

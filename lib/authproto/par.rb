@@ -27,7 +27,8 @@ module AuthProto
   #     config.scope = 'atproto'
   #   end
   #
-  #   response = par.submit(request)
+  #   session = AuthProto::State::Session.new(client_id: client_id, scope: 'atproto')
+  #   response = par.submit(request, session: session)
   #   auth_url = par.build_authorization_url(
   #     request_uri: response.request_uri,
   #     client_id: request.client_id

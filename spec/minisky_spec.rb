@@ -204,6 +204,48 @@ describe Minisky::OAuthClient do
     end
   end
 
+  it "should persist distinct session keys from PAR through callbacks and data proofs on a new client" do
+    stub_authorization_metadata
+    original_keys = {}
+    stub_request(:post, "#{auth_server.issuer}/par").to_return do |request|
+      state = URI.decode_www_form(request.body).to_h.fetch('state')
+      pending = client.oauth_client.session_manager.get_session_by_state_token(state)
+      original_keys[pending.session_id] = pending.dpop_key
+      pending.dpop_key.keypair.verify(request.headers.fetch('Dpop')).first.should be_truthy
+      { status: 201, headers: { 'Content-Type' => 'application/json' },
+        body: { request_uri: 'urn:example:par', expires_in: 90 }.to_json }
+    end
+    authorizations = Array.new(2) { client.authorize(pds: host) }
+    original_keys.values.map(&:public_jwk).uniq.length.should == 2
+    restored = described_class.new(
+      host, client_id: client_metadata['client_id'], redirect_uri: client_metadata['redirect_uris'].first,
+      metadata: client_metadata
+    )
+    stub_request(:post, auth_server.token_endpoint).to_return do |request|
+      session_id = URI.decode_www_form(request.body).to_h.fetch('code')
+      original_keys.fetch(session_id).keypair.verify(request.headers.fetch('Dpop')).first.should be_truthy
+      { status: 200, body: {
+        access_token: "access-#{session_id}", refresh_token: 'refresh', token_type: 'DPoP',
+        expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
+      }.to_json }
+    end
+
+    authorizations.reverse_each do |auth|
+      pending = restored.oauth_client.session_manager.get_session(auth[:session_id])
+      restored.handle_callback(
+        code: pending.session_id, state: pending.state_token, iss: auth_server.issuer,
+        expected_session_id: pending.session_id
+      )
+    end
+
+    (authorizations + authorizations.reverse).each do |auth|
+      session_id = auth[:session_id]
+      headers = restored.oauth_client.auth_headers(session_id: session_id, method: 'GET', url: endpoint)
+      original_keys.fetch(session_id).keypair.verify(headers.fetch('DPoP')).first.should be_truthy
+      headers.fetch('Authorization').should == "DPoP access-#{session_id}"
+    end
+  end
+
   describe "restored signing key binding" do
     before do
       @signing_key = JOSE::JWK.generate_key([:ec, 'P-256']).to_map.to_h.merge('kid' => 'original-key')
@@ -230,8 +272,7 @@ describe Minisky::OAuthClient do
       original = pending_session
       described_class.new(
         host, client_id: client_metadata['client_id'], redirect_uri: client_metadata['redirect_uris'].first,
-        metadata: client_metadata, signing_key: signing_key, session_id: original.session_id,
-        dpop_key: client.oauth_client.dpop_client.key_manager.to_jwk(include_private: true).to_h
+        metadata: client_metadata, signing_key: signing_key, session_id: original.session_id
       )
     end
 
@@ -491,14 +532,10 @@ describe Minisky::OAuthClient do
 
   it "should reuse the persisted DPoP key when refreshing a session from a new client" do
     session = attach_session(expires_in: -10)
-    serializer = AuthProto::Serialization::DPoPKey.new
-    key_id = AuthProto::Storage::KeyBuilder.dpop_key(client_metadata["client_id"])
-    AuthProto.storage.set(key_id, serializer.serialize(client.oauth_client.dpop_client.key_manager))
-    restored_key = serializer.deserialize(AuthProto.storage.get(key_id))
     restored = described_class.new(host, client_id: client_metadata["client_id"],
                                   redirect_uri: client_metadata["redirect_uris"].first, metadata: client_metadata,
-                                  session_id: session.session_id, dpop_key: restored_key.to_jwk(include_private: true).to_h)
-    original_public_key = client.oauth_client.dpop_client.key_manager.public_jwk
+                                  session_id: session.session_id)
+    original_public_key = session.dpop_key.public_jwk
     stub_refresh
     stub_request(:post, "https://auth.example.com/token").with do |request|
       JWT.decode(request.headers["Dpop"], nil, false).last["jwk"] == original_public_key

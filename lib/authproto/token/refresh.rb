@@ -236,7 +236,7 @@ module AuthProto
       end
 
       def make_token_request(session)
-        dpop_proof = dpop_client.generate_proof(method: 'POST', uri: auth_server.token_endpoint)
+        dpop_proof = dpop_client.generate_proof(session: session, method: 'POST', uri: auth_server.token_endpoint)
 
         body = {
           grant_type: 'refresh_token',

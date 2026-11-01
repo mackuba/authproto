@@ -8,7 +8,6 @@ module AuthProto
       @scope: String
       @login_hint: String?
       @nonce: String?
-      @dpop_proof: String?
       @client_assertion: ClientAssertion?
 
       class Configuration
@@ -19,7 +18,6 @@ module AuthProto
         attr_accessor scope: String?
         attr_accessor login_hint: String?
         attr_accessor nonce: String?
-        attr_accessor dpop_proof: String?
         attr_accessor client_assertion: ClientAssertion?
       end
 
@@ -30,7 +28,6 @@ module AuthProto
       attr_reader scope: String
       attr_reader login_hint: String?
       attr_reader nonce: String?
-      attr_reader dpop_proof: String?
       attr_reader client_assertion: ClientAssertion?
 
       def self.build: () { (Configuration) -> untyped } -> Request

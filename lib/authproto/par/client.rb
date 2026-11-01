@@ -37,7 +37,8 @@ module AuthProto
     #     config.scope = 'atproto'
     #   end
     #
-    #   response = client.submit(request)
+    #   session = AuthProto::State::Session.new(client_id: client_id, scope: 'atproto')
+    #   response = client.submit(request, session: session)
     #
     #   # Build authorization URL using response
     #   auth_url = client.build_authorization_url(
@@ -85,14 +86,15 @@ module AuthProto
       # Submits a PAR request, handling DPoP nonce requirements
       #
       # @param request [Request] The request to submit
+      # @param session [State::Session] session whose key signs PAR and any retries
       # @return [Response] The PAR response
       # @raise [Error] if request fails
       #
-      def submit(request)
+      def submit(request, session:)
         raise Error, "Expected a PAR::Request" unless request.is_a?(PAR::Request)
 
         # Try the initial request
-        response = make_request(request)
+        response = make_request(request, session: session)
 
         return process_response(response) if response[:status] == 201
 
@@ -105,7 +107,7 @@ module AuthProto
           @nonce_manager.get(server_origin)
 
           # Generate new proof with nonce and retry
-          response = make_request(request)
+          response = make_request(request, session: session)
           return process_response(response) if response[:status] == 201
         end
 
@@ -155,16 +157,17 @@ module AuthProto
 
       private
 
-      def make_request(request)
+      def make_request(request, session:)
         # Generate DPoP proof for this request
         proof = dpop_client.generate_proof(
+          session: session,
           method: 'POST',
           uri: @par_endpoint,
           nonce: @nonce_manager.get(server_origin)
         )
 
         # Build headers including DPoP proof
-        headers = build_headers(request, proof)
+        headers = build_headers(proof)
 
         # Make the request
         AuthProto.configuration.http_client.post(
@@ -174,7 +177,7 @@ module AuthProto
         )
       end
 
-      def build_headers(request, dpop_proof)
+      def build_headers(dpop_proof)
         {
           "Content-Type" => "application/x-www-form-urlencoded",
           "DPoP" => dpop_proof

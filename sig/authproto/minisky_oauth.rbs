@@ -7,7 +7,7 @@ class OAuthClient
   attr_reader oauth_client: AuthProto::Client
   attr_reader session_id: String?
 
-  def initialize: (String host, client_id: String, redirect_uri: String, ?metadata: AuthProto::json_object?, ?dpop_key: (AuthProto::json_object | JOSE::Map)?, ?signing_key: (AuthProto::json_object | JOSE::JWK)?, ?session_id: String?) -> void
+  def initialize: (String host, client_id: String, redirect_uri: String, ?metadata: AuthProto::json_object?, ?signing_key: (AuthProto::json_object | JOSE::JWK)?, ?session_id: String?) -> void
   def config: () -> nil
   def authorize: (?handle: String?, ?pds: String?, ?scope: String) -> AuthProto::authorization_result
   def handle_callback: (

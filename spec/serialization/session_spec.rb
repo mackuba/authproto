@@ -23,16 +23,37 @@ describe AuthProto::Serialization::Session do
     deserialized.scope.should == session.scope
     deserialized.pkce_verifier.should == session.pkce_verifier
     deserialized.pkce_challenge.should == session.pkce_challenge
+    deserialized.dpop_key.to_jwk(include_private: true).should == session.dpop_key.to_jwk(include_private: true)
   end
 
   it "should encrypt sensitive session data" do
     serialized = JSON.parse(serializer.serialize(session))
 
     serialized.dig("data", "pkce_verifier").should be_encrypted
+    serialized.dig('data', 'dpop_key', 'd').should be_encrypted
     serialized.dig("data", "tokens", "access_token").should be_encrypted if session.tokens
   end
 
-  it "should preserve the signing key ID without encrypting it or including private key material" do
+  it "should reject sessions without a saved DPoP key instead of generating a replacement" do
+    serialized = JSON.parse(serializer.serialize(session))
+    serialized.fetch('data').delete('dpop_key')
+    AuthProto::DPoP::KeyManager.expects(:new).never
+
+    expect {
+      serializer.deserialize(JSON.generate(serialized))
+    }.to raise_error(AuthProto::Serialization::ValidationError, /missing its private DPoP key/)
+  end
+
+  it "should reject a saved public-only DPoP key" do
+    serialized = JSON.parse(serializer.serialize(session))
+    serialized.fetch('data').fetch('dpop_key').delete('d')
+
+    expect {
+      serializer.deserialize(JSON.generate(serialized))
+    }.to raise_error(AuthProto::DPoP::KeyManager::KeyError)
+  end
+
+  it "should preserve the signing key ID without storing the private client-authentication key" do
     bound = AuthProto::State::Session.new(client_id: client_id, scope: scope, signing_key_id: 'client-key')
     serialized = serializer.serialize(bound)
     data = JSON.parse(serialized).fetch('data')

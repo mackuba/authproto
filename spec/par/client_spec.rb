@@ -2,6 +2,7 @@
 
 describe AuthProto::PAR::Client do
   before do
+    @session = AuthProto::State::Session.new(client_id: 'client', scope: 'atproto')
     @par_endpoint = "https://auth.example.com/par"
     @authorization_server = mock('authorization_server')
     @authorization_server.stubs(:pushed_authorization_request_endpoint).returns(@par_endpoint)
@@ -49,7 +50,7 @@ describe AuthProto::PAR::Client do
         headers: { 'Content-Type' => 'application/x-www-form-urlencoded', 'DPoP' => @proof }
       ).returns(@response)
 
-      response = @client.submit(@request)
+      response = @client.submit(@request, session: @session)
       response.should be_an_instance_of(AuthProto::PAR::Response)
       response.request_uri.should == "mocked_uri"
       response.expires_in.should == 3600
@@ -58,14 +59,16 @@ describe AuthProto::PAR::Client do
     it "should accept case-insensitive JSON content types and header names with parameters" do
       @response[:headers] = { 'CoNtEnT-TyPe' => 'Application/JSON; charset=utf-8' }
 
-      @client.submit(@request).expires_in.should == 3600
+      @client.submit(@request, session: @session).expires_in.should == 3600
     end
 
     [nil, '', 'text/plain', 'application/jsonp', 'application/problem+json'].each do |content_type|
       it "should reject a non-JSON or missing content type: #{content_type.inspect}" do
         @response[:headers] = content_type ? { 'content-type' => content_type } : nil
 
-        expect { @client.submit(@request) }.to raise_error(AuthProto::PAR::Error, /must use application\/json/)
+        expect {
+          @client.submit(@request, session: @session)
+        }.to raise_error(AuthProto::PAR::Error, /must use application\/json/)
       end
     end
 
@@ -73,14 +76,18 @@ describe AuthProto::PAR::Client do
       it "should reject a JSON body that is not an object: #{body}" do
         @response[:body] = body
 
-        expect { @client.submit(@request) }.to raise_error(AuthProto::PAR::Error, /must be a JSON object/)
+        expect {
+          @client.submit(@request, session: @session)
+        }.to raise_error(AuthProto::PAR::Error, /must be a JSON object/)
       end
     end
 
     it "should reject malformed JSON" do
       @response[:body] = '{'
 
-      expect { @client.submit(@request) }.to raise_error(AuthProto::PAR::Error, /invalid JSON response/)
+      expect {
+        @client.submit(@request, session: @session)
+      }.to raise_error(AuthProto::PAR::Error, /invalid JSON response/)
     end
 
     [{}, { request_uri: [], expires_in: 90 }, { request_uri: '', expires_in: 90 },
@@ -89,7 +96,7 @@ describe AuthProto::PAR::Client do
       it "should reject invalid response fields: #{data.inspect}" do
         @response[:body] = data.to_json
 
-        expect { @client.submit(@request) }.to raise_error(AuthProto::PAR::Error, /must be/)
+        expect { @client.submit(@request, session: @session) }.to raise_error(AuthProto::PAR::Error, /must be/)
       end
     end
 
@@ -98,19 +105,21 @@ describe AuthProto::PAR::Client do
       @nonce_manager.expects(:update).with(nonce: "new_nonce", server_url: @server_origin)
       AuthProto.configuration.http_client.stubs(:post).returns(error_response).then.returns(@response)
 
-      response = @client.submit(@request)
+      response = @client.submit(@request, session: @session)
       response.should be_an_instance_of(AuthProto::PAR::Response)
     end
 
     it "should raise an error if the response is invalid" do
       AuthProto.configuration.http_client.stubs(:post).returns({ status: 400, body: '{"error":"invalid_request"}' })
-      expect { @client.submit(@request) }.to raise_error(AuthProto::PAR::Error)
+      expect { @client.submit(@request, session: @session) }.to raise_error(AuthProto::PAR::Error)
     end
 
     it "should raise an error if the argument is not a PAR request" do
       request = Net::HTTP::Get.new('/')
 
-      expect { @client.submit(request) }.to raise_error(AuthProto::PAR::Error, /Expected a PAR::Request/)
+      expect {
+        @client.submit(request, session: @session)
+      }.to raise_error(AuthProto::PAR::Error, /Expected a PAR::Request/)
     end
   end
 

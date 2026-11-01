@@ -1,17 +1,9 @@
 # frozen_string_literal: true
 
 describe AuthProto::DPoP::Client do
-  let(:mock_key_manager) do
-    Class.new(AuthProto::DPoP::KeyManager) do
-      def initialize; end
-      def public_jwk = { kty: "EC", crv: "P-256", x: "test", y: "test" }
-      def sign(jwt_payload) = "signed_jwt"
-    end.new
-  end
-
+  let(:session) { AuthProto::State::Session.new(client_id: 'client', scope: 'atproto') }
   let(:client) do
     AuthProto::DPoP::Client.new(
-      key_manager: mock_key_manager,
       nonce_ttl: 400
     )
   end
@@ -24,23 +16,39 @@ describe AuthProto::DPoP::Client do
   let(:response_headers) { { "DPoP-Nonce" => nonce } }
 
   describe "#initialize" do
-    it "should initialize with a custom key_manager and nonce_ttl" do
-      client.key_manager.should == mock_key_manager
+    it "should initialize with a custom nonce_ttl" do
       client.nonce_manager.instance_variable_get(:@ttl).should == 400
     end
   end
 
   describe "#generate_proof" do
+    it "should reuse shared helpers while signing interleaved sessions with their own keys" do
+      other = AuthProto::State::Session.new(client_id: 'client', scope: 'atproto')
+      session.dpop_key.public_jwk.should_not == other.dpop_key.public_jwk
+      generator = client.proof_generator
+      nonces = client.nonce_manager
+
+      [session, other, session].each do |current|
+        proof = client.generate_proof(session: current, method: method, uri: uri, nonce: nonce)
+        current.dpop_key.keypair.verify(proof).first.should be_truthy
+        different = current.equal?(session) ? other : session
+        different.dpop_key.keypair.verify(proof).first.should be_falsey
+        client.proof_generator.should equal(generator)
+        client.nonce_manager.should equal(nonces)
+      end
+    end
+
     it "should generate a DPoP proof using proof_generator" do
       client.nonce_manager.expects(:get).with("https://example.com").returns(nonce)
       client.proof_generator.expects(:generate).with(
+        key_manager: session.dpop_key,
         method: method,
         uri: uri,
         nonce: nonce,
         access_token: access_token
       ).returns(proof)
 
-      generated_proof = client.generate_proof(method: method, uri: uri, access_token: access_token)
+      generated_proof = client.generate_proof(session: session, method: method, uri: uri, access_token: access_token)
       generated_proof.should == proof
     end
 
@@ -49,7 +57,7 @@ describe AuthProto::DPoP::Client do
       client.proof_generator.expects(:generate).raises(StandardError, "Generation failed")
 
       expect {
-        client.generate_proof(method: method, uri: uri)
+        client.generate_proof(session: session, method: method, uri: uri)
       }.to raise_error(AuthProto::DPoP::Client::Error)
     end
   end

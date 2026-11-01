@@ -49,10 +49,6 @@ module AuthProto
         # @return [String, nil]
         attr_reader :nonce
 
-        # Optional proof value retained on the request; {Client#submit} generates its own HTTP proof.
-        # @return [String, nil]
-        attr_reader :dpop_proof
-
         # Client authentication signer; a fresh JWT is generated for each form encoding.
         # @return [ClientAssertion, nil]
         attr_reader :client_assertion

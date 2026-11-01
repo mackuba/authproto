@@ -4,12 +4,11 @@ module AuthProto
       class Error < AuthProto::Error
       end
 
-      attr_reader key_manager: KeyManager
       attr_reader proof_generator: ProofGenerator
       attr_reader nonce_manager: NonceManager
 
-      def initialize: (?key_manager: KeyManager?, ?nonce_ttl: Integer?) -> void
-      def generate_proof: (method: String, uri: String, ?access_token: String?, ?nonce: String?) -> JOSE::SignedBinary
+      def initialize: (?nonce_ttl: Integer?) -> void
+      def generate_proof: (session: State::Session, method: String, uri: String, ?access_token: String?, ?nonce: String?) -> JOSE::SignedBinary
       def process_response: (Hash[String, String]? response_headers, String server_url) -> void
     end
   end

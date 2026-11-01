@@ -33,12 +33,14 @@ describe AuthProto::State::Session do
       session.pkce_verifier.should_not be_nil
       session.pkce_challenge.should_not be_nil
       session.tokens.should be_nil
+      session.dpop_key.should be_a(AuthProto::DPoP::KeyManager)
     end
 
     it "should generate unique session_id and state_token" do
       another_session = AuthProto::State::Session.new(client_id: client_id, scope: scope)
       session.session_id.should_not == another_session.session_id
       session.state_token.should_not == another_session.state_token
+      session.dpop_key.public_jwk.should_not == another_session.dpop_key.public_jwk
     end
 
     it "should retain the selected signing key ID independently of the supplied string" do

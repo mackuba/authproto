@@ -7,7 +7,6 @@ require 'uri'
 
 require_relative 'configuration'
 require_relative 'dpop/client'
-require_relative 'dpop/key_manager'
 require_relative 'errors'
 require_relative 'metadata/authorization_server'
 require_relative 'metadata/client_metadata'
@@ -73,27 +72,25 @@ module AuthProto
     # @return [State::SessionManager]
     attr_reader :session_manager
 
-    # DPoP key, proof and nonce manager.
+    # Shared DPoP proof generator and per-server nonce manager.
     # @return [DPoP::Client]
     attr_reader :dpop_client
 
-    # Creates an OAuth client with its own DPoP key and session manager.
+    # Creates an OAuth client with shared DPoP helpers and a session manager.
     #
     # Configure {AuthProto.configure} with an HTTP transport before fetching metadata
-    # or starting authorization. Reuse `dpop_key` when restoring tokens bound to that key.
+    # or starting authorization. Session storage restores the DPoP key bound to each session.
     #
     # @param client_id [String] OAuth client ID URL
     # @param redirect_uri [String] callback URI listed in `redirect_uris`
     # @param metadata [Hash{String => Object}, nil] preloaded metadata, or `nil` to fetch `client_id`
     # @param signing_key [Hash, JOSE::JWK, nil] private ES256 client-authentication key, separate from public metadata
-    # @param dpop_key [Hash{String => Object}, nil] existing private DPoP JWK, or `nil` to generate one
     #
     # @raise [InvalidClientMetadata] if client metadata is invalid or unavailable
     # @raise [Error] if the redirect URI is not registered
-    # @raise [DPoP::KeyManager::KeyError] if the DPoP key cannot be imported or generated
     # @raise [HTTPClient::HTTPError, HTTPClient::SSRFError] if fetching client metadata fails
     #
-    def initialize(client_id:, redirect_uri:, metadata: nil, dpop_key: nil, signing_key: nil)
+    def initialize(client_id:, redirect_uri:, metadata: nil, signing_key: nil)
       @client_id = client_id
       @redirect_uri = redirect_uri
 
@@ -104,7 +101,7 @@ module AuthProto
       initialize_signing_key(signing_key)
 
       @session_manager = State::SessionManager.new(supported_signing_key_ids: [@signing_key_kid].compact)
-      @dpop_client = initialize_dpop(dpop_key)
+      @dpop_client = DPoP::Client.new
     end
 
     # Starts authorization, stores a pending session, and submits a PAR request.
@@ -125,6 +122,7 @@ module AuthProto
     # @raise [PAR::ClientAssertion::Error] if confidential-client signing fails
     # @raise [DPoP::Client::Error] if generating the PAR proof fails
     # @raise [HTTPClient::SSRFError] if server discovery rejects a destination
+    # @raise [DPoP::KeyManager::KeyError] if generating the session key fails
     # @raise [Storage::StorageError] if session storage or locking fails
     # @raise [Encryption::EncryptionError] if session serialization cannot encrypt secrets
     #
@@ -305,6 +303,7 @@ module AuthProto
       raise TokenError, "Session has expired" unless session.tokens_valid?
 
       dpop_proof = dpop_client.generate_proof(
+        session: session,
         method: method,
         uri: url,
         access_token: session.tokens.access_token
@@ -387,12 +386,6 @@ module AuthProto
       %w[kid kty crv x y].all? { |field| candidate[field] == public_key[field] }
     end
 
-    def initialize_dpop(key)
-      key_manager = key ? DPoP::KeyManager.from_jwk(key) : DPoP::KeyManager.new
-
-      DPoP::Client.new(key_manager: key_manager)
-    end
-
     def validate_auth_params(handle, pds, scope)
       unless scope.is_a?(String) && scope.valid_encoding? && Metadata::ClientMetadata::SCOPE_PATTERN.match?(scope)
         raise Error, "scope must contain valid tokens separated by single spaces"
@@ -435,14 +428,9 @@ module AuthProto
         if @client_metadata.confidential?
           req.client_assertion = PAR::ClientAssertion.new(client_id: @client_id, signing_key: @signing_key)
         end
-
-        req.dpop_proof = @dpop_client.generate_proof(
-          method: 'POST',
-          uri: authorization_server.pushed_authorization_request_endpoint
-        )
       end
 
-      par_response = par_client.submit(par_request)
+      par_response = par_client.submit(par_request, session: session)
 
       par_client.build_authorization_url(
         request_uri: par_response.request_uri,
@@ -475,6 +463,7 @@ module AuthProto
 
     def make_token_request(code, session)
       dpop_proof = dpop_client.generate_proof(
+        session: session,
         method: 'POST',
         uri: session.auth_server.token_endpoint
       )

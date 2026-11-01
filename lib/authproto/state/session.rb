@@ -3,6 +3,7 @@
 require 'monitor'
 require 'securerandom'
 
+require_relative '../dpop/key_manager'
 require_relative '../pkce'
 require_relative '../state'
 
@@ -36,6 +37,10 @@ module AuthProto
       # @return [String, nil]
       attr_reader :signing_key_id
 
+      # Private DPoP key belonging to this authorization session.
+      # @return [DPoP::KeyManager]
+      attr_reader :dpop_key
+
       # Space-separated requested scopes.
       # @return [String]
       attr_reader :scope
@@ -67,17 +72,23 @@ module AuthProto
       # @param auth_server [Metadata::AuthorizationServer, nil] pre-resolved authorization server
       # @param did [String, nil] pre-resolved account DID
       # @param signing_key_id [String, nil] client-authentication key ID selected before PAR
+      # @param dpop_key [DPoP::KeyManager] session key; a fresh key is generated for new sessions by default
       # @param authorization_expires_at [Time, nil] deadline for completing pending authorization
-      # @raise [ArgumentError] if the signing key ID is neither nil nor a nonempty string
+      # @raise [ArgumentError] if the signing key ID or DPoP key has an invalid type
+      # @raise [DPoP::KeyManager::KeyError] if DPoP key generation fails
       # @raise [PKCE::Error] if PKCE generation fails
       #
-      def initialize(client_id:, scope:, auth_server: nil, did: nil, signing_key_id: nil, authorization_expires_at: nil)
+      def initialize(client_id:, scope:, auth_server: nil, did: nil, signing_key_id: nil,
+                     dpop_key: DPoP::KeyManager.new, authorization_expires_at: nil)
         super() # Initialize MonitorMixin
 
         unless signing_key_id.nil? || (signing_key_id.is_a?(String) && !signing_key_id.empty?)
           raise ArgumentError, "signing_key_id must be a nonempty string or nil"
         end
 
+        raise ArgumentError, "dpop_key must be a DPoP::KeyManager" unless dpop_key.is_a?(DPoP::KeyManager)
+
+        @dpop_key = dpop_key
         @client_id = client_id
         @signing_key_id = signing_key_id&.dup&.freeze
         @scope = scope

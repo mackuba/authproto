@@ -3,26 +3,24 @@
 require 'uri'
 
 require_relative '../errors'
-require_relative 'key_manager'
 require_relative 'nonce_manager'
 require_relative 'proof_generator'
 
 module AuthProto
 
   #
-  # Key management, per-request proofs and server-origin nonces for DPoP authentication.
+  # Shared proof generation and server-origin nonces for DPoP authentication.
   #
 
   module DPoP
 
     ERROR_USE_NONCE = "use_dpop_nonce"
 
-    # High-level client for managing DPoP operations. Integrates key management,
-    # proof generation, and nonce tracking to provide a complete DPoP client
+    # High-level client for managing DPoP operations. Uses session-owned signing keys,
+    # shared proof generation, and nonce tracking to provide a complete DPoP client
     # implementation according to RFC 9449.
     #
     # This client handles:
-    # - Key management for signing proofs
     # - Proof generation for HTTP requests
     # - Nonce tracking across servers
     # - Header construction for requests
@@ -34,10 +32,6 @@ module AuthProto
       # Error raised for DPoP client operations
       class Error < AuthProto::Error; end
 
-      # Key manager used to sign proofs.
-      # @return [KeyManager]
-      attr_reader :key_manager
-
       # Generator for per-request DPoP JWTs.
       # @return [ProofGenerator]
       attr_reader :proof_generator
@@ -46,22 +40,19 @@ module AuthProto
       # @return [NonceManager]
       attr_reader :nonce_manager
 
-      # Creates DPoP signing, proof and nonce managers.
+      # Creates shared proof generation and per-server nonce helpers.
       #
-      # @param key_manager [KeyManager, nil] existing key manager, or `nil` to generate a keypair
       # @param nonce_ttl [Integer, nil] stored nonce lifetime in seconds; `nil` uses {Configuration#dpop_nonce_lifetime}
-      # @raise [KeyManager::KeyError] if key generation fails
-      # @raise [ProofGenerator::ProofError] if the key manager is invalid
       # @raise [ArgumentError] if the encryption master key is not valid Base64
       #
-      def initialize(key_manager: nil, nonce_ttl: nil)
-        @key_manager = key_manager || KeyManager.new
+      def initialize(nonce_ttl: nil)
         @nonce_manager = NonceManager.new(ttl: nonce_ttl)
-        @proof_generator = ProofGenerator.new(@key_manager)
+        @proof_generator = ProofGenerator.new
       end
 
       # Generates a fresh DPoP proof using a supplied or stored nonce for the origin.
       #
+      # @param session [State::Session] session whose DPoP key signs the request
       # @param method [String] HTTP method, converted to uppercase
       # @param uri [String] absolute HTTP(S) URL; callers should omit the query and fragment
       # @param access_token [String, nil] token to bind with an `ath` claim
@@ -69,7 +60,7 @@ module AuthProto
       # @return [JOSE::SignedBinary] compact signed DPoP JWT
       # @raise [Error] if URI parsing, nonce lookup or signing fails
       #
-      def generate_proof(method:, uri:, access_token: nil, nonce: nil)
+      def generate_proof(session:, method:, uri:, access_token: nil, nonce: nil)
         parsed_uri = URI(uri)
 
         server_url = "#{parsed_uri.scheme}://#{parsed_uri.host}"
@@ -79,6 +70,7 @@ module AuthProto
         nonce ||= @nonce_manager.get(server_url)
 
         @proof_generator.generate(
+          key_manager: session.dpop_key,
           method: method,
           uri: uri,
           nonce: nonce,

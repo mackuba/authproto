@@ -210,6 +210,25 @@ class CustomStorage < AuthProto::Storage::Interface
 end
 ```
 
+### DPoP Session Keys
+
+Each new OAuth session generates its own DPoP key before PAR. The session serializer
+stores its private JWK with the session and encrypts the private `d` component.
+Restoring the session restores that same key for code exchange, refresh and API
+requests. Configure persistent storage and a stable `ATPROTO_MASTER_KEY` to retain
+sessions across application restarts.
+
+`Client` and the Minisky integration no longer accept `dpop_key:`. Restore sessions
+by their session ID; no separate key export or constructor argument is needed.
+`Client#dpop_client` remains shared and accepts `session:` when generating proofs.
+Its `ProofGenerator` accepts `key_manager:` per call. Nonces remain stored per server
+origin in this step, and response processing retains its existing interface.
+
+Serialized sessions from older versions that lack a private DPoP key cannot be
+restored: start authorization again. Loading never generates a replacement key for
+an existing session. Client-authentication signing keys remain separate from these
+per-session DPoP keys.
+
 ### Confidential Client Example
 
 Here's a basic example of using the library in a confidential client application:

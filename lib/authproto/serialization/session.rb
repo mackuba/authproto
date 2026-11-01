@@ -34,6 +34,7 @@ module AuthProto
         data = {
           session_id: obj.session_id,
           client_id: obj.client_id,
+          dpop_key: obj.dpop_key.to_jwk(include_private: true).to_h,
           scope: obj.scope,
           pkce_verifier: obj.pkce_verifier,
           pkce_challenge: obj.pkce_challenge,
@@ -49,8 +50,13 @@ module AuthProto
       end
 
       def deserialize_data(data)
+        unless data['dpop_key'].is_a?(Hash)
+          raise ValidationError, "Session is missing its private DPoP key; authorize again"
+        end
+
         session = AuthProto::State::Session.new(
           client_id: data['client_id'],
+          dpop_key: AuthProto::DPoP::KeyManager.from_jwk(data.fetch('dpop_key')),
           scope: data['scope'],
           did: data['did'],
           signing_key_id: data['signing_key_id'],

@@ -41,14 +41,13 @@ class Minisky::OAuthClient
   # @param redirect_uri [String] registered callback URI
   # @param metadata [Hash{String => Object}, nil] preloaded metadata, or `nil` to fetch it
   # @param signing_key [Hash, JOSE::JWK, nil] private ES256 key for confidential-client authentication
-  # @param dpop_key [Hash{String => Object}, nil] existing private DPoP JWK, or `nil` to generate one
   #
   # @raise [AuthProto::InvalidClientMetadata] if metadata is invalid or unavailable
   # @raise [AuthProto::Error] if OAuth client or DPoP initialization fails
   # @raise [AuthProto::HTTPClient::HTTPError, AuthProto::HTTPClient::SSRFError] if fetching metadata fails
   # @see AuthProto::Client#initialize
   #
-  def initialize(host, client_id:, redirect_uri:, metadata: nil, dpop_key: nil, signing_key: nil, session_id: nil)
+  def initialize(host, client_id:, redirect_uri:, metadata: nil, signing_key: nil, session_id: nil)
     @host = host
     @session_id = session_id
 
@@ -59,7 +58,6 @@ class Minisky::OAuthClient
       client_id: client_id,
       redirect_uri: redirect_uri,
       metadata: metadata,
-      dpop_key: dpop_key,
       signing_key: signing_key
     )
   end

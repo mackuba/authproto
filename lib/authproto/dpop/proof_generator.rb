@@ -25,27 +25,12 @@ module AuthProto
       # Error raised for proof generation/validation issues
       class ProofError < AuthProto::Error; end
 
-      # Key manager used to sign proofs.
-      # @return [KeyManager]
-      attr_reader :key_manager
-
-      # Creates a new ProofGenerator instance
-      #
-      # @param key_manager [KeyManager] Key manager to use for signing proofs
-      # @raise [ProofError] if key_manager is invalid
-      #
-      def initialize(key_manager)
-        raise ProofError, "key_manager is required" unless key_manager
-        raise ProofError, "invalid key_manager type" unless key_manager.is_a?(KeyManager)
-
-        @key_manager = key_manager
-      end
-
       # Builds and signs a fresh DPoP JWT with `jti`, `htm`, `htu` and `iat` claims.
       #
       # A nonce and access-token hash are added when requested. The URI normalizer removes
       # query strings, fragments and default ports.
       #
+      # @param key_manager [KeyManager] key belonging to the session making this request
       # @param method [String] nonempty HTTP method, converted to uppercase
       # @param uri [String] absolute HTTP(S) request URL
       # @param nonce [String, nil] server-provided nonce to include
@@ -54,11 +39,13 @@ module AuthProto
       # @return [JOSE::SignedBinary] compact signed DPoP JWT
       # @raise [ProofError] if input validation or proof generation fails
       #
-      def generate(method:, uri:, nonce: nil, access_token: nil, ath: nil)
+      def generate(key_manager:, method:, uri:, nonce: nil, access_token: nil, ath: nil)
+        raise ProofError, "invalid key_manager type" unless key_manager.is_a?(KeyManager)
+
         validate_inputs(method, uri)
         ath = !access_token.nil? if ath.nil?
 
-        header = build_header
+        header = build_header(key_manager)
         payload = build_payload(
           method: method,
           uri: uri,
@@ -83,7 +70,7 @@ module AuthProto
         raise ProofError, "invalid uri: #{e.message}"
       end
 
-      def build_header
+      def build_header(key_manager)
         {
           typ: 'dpop+jwt',
           alg: ALGORITHM,

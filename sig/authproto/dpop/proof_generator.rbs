@@ -1,16 +1,13 @@
 module AuthProto
   module DPoP
     class ProofGenerator
-      @key_manager: AuthProto::DPoP::KeyManager
-
       class ProofError < AuthProto::Error
       end
 
-      attr_reader key_manager: AuthProto::DPoP::KeyManager
-
-      def initialize: (AuthProto::DPoP::KeyManager key_manager) -> void
+      def initialize: () -> void
 
       def generate: (
+          key_manager: KeyManager,
           method: String,
           uri: String,
           ?nonce: String?,
@@ -22,7 +19,7 @@ module AuthProto
 
       def validate_inputs: (String method, String uri) -> void
 
-      def build_header: () -> { typ: "dpop+jwt", alg: "ES256", jwk: Hash[String, untyped] }
+      def build_header: (KeyManager key_manager) -> { typ: "dpop+jwt", alg: "ES256", jwk: Hash[String, untyped] }
 
       def build_payload: (
           method: String,
