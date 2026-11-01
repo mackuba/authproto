@@ -336,7 +336,6 @@ module AuthProto
           raise RefreshError.new("Token response must be a JSON object", retry_possible: false)
         end
 
-        # Required fields
         %w[access_token token_type expires_in scope sub].each do |field|
           raise RefreshError.new("Missing #{field} in response", retry_possible: false) unless data[field]
         end
@@ -355,19 +354,17 @@ module AuthProto
           raise RefreshError.new("Invalid refresh_token in response", retry_possible: false)
         end
 
-        # Token type must be DPoP
-        unless data['token_type'] == 'DPoP'
+        unless data['token_type'].casecmp?('DPoP')
           raise RefreshError.new("Invalid token_type: #{data['token_type']}", retry_possible: false)
         end
 
-        # Scope must include original scopes
         original_scopes = session.scope.split
         response_scopes = data['scope'].split
+
         unless (original_scopes - response_scopes).empty?
           raise RefreshError.new("Invalid scope in response", retry_possible: false)
         end
 
-        # Subject must match
         return if data['sub'] == session.tokens.sub
 
         raise RefreshError.new("Subject mismatch in response", retry_possible: false)

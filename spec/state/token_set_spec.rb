@@ -29,6 +29,26 @@ describe AuthProto::State::TokenSet do
       token_set.expires_at.should be > Time.now
     end
 
+    ['DPoP', 'dpop', 'DPOP', 'dPoP'].each do |type|
+      context "with token_type #{type}" do
+        let(:token_type) { type }
+
+        it "should accept the token type and return its canonical spelling" do
+          token_set.token_type.should == 'DPoP'
+        end
+      end
+    end
+
+    [nil, 123, false, 'Bearer', 'DPoP '].each do |type|
+      context "with invalid token_type #{type.inspect}" do
+        let(:token_type) { type }
+
+        it "should reject the token type with ArgumentError" do
+          expect { token_set }.to raise_error(ArgumentError, /token_type must be DPoP/)
+        end
+      end
+    end
+
     it "should raise an error if token_type is not 'DPoP'" do
       expect {
         AuthProto::State::TokenSet.new(

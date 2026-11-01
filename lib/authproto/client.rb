@@ -498,7 +498,10 @@ module AuthProto
         raise TokenError, "Missing #{field} in token response" unless response[field]
       end
 
-      raise TokenError, "Invalid token_type: #{response['token_type']}" unless response['token_type'] == 'DPoP'
+      unless response['token_type'].is_a?(String) && response['token_type'].casecmp?('DPoP')
+        raise TokenError, "Invalid token_type: #{response['token_type']}"
+      end
+
       raise TokenError, "Missing atproto scope in token response" unless response['scope'].split.include?('atproto')
 
       # If we have a pre-resolved DID, verify that it matches

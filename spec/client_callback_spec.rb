@@ -32,6 +32,22 @@ describe AuthProto::Client, '#handle_callback' do
     AuthProto.stubs(:storage).returns(storage)
   end
 
+  ['dpop', 'DPOP', 'dPoP'].each do |type|
+    it "should accept token_type #{type} from code exchange and persist its canonical spelling" do
+      client.expects(:make_token_request).with('code', anything).returns(
+        status: 200, headers: { 'DPoP-Nonce' => 'nonce' }, body: {
+          access_token: 'access', refresh_token: 'refresh', token_type: type,
+          expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
+        }.to_json
+      )
+
+      result = client.handle_callback(**callback, expected_session_id: session.session_id)
+
+      result[:token_type].should == 'DPoP'
+      client.session_manager.get_session(session.session_id).tokens.token_type.should == 'DPoP'
+    end
+  end
+
   it "should require the expected session ID keyword before exchanging the code" do
     client.expects(:exchange_code).never
 

@@ -92,6 +92,17 @@ describe AuthProto::Token::Refresh do
     token_set.refresh_token.should == "rotated_refresh_token"
   end
 
+  ['dpop', 'DPOP', 'dPoP'].each do |type|
+    it "should accept refreshed token_type #{type} and return its canonical spelling" do
+      stub_request(:post, 'https://example.com/token').to_return(
+        status: 200, headers: { 'DPoP-Nonce' => 'nonce' },
+        body: successful_response.merge(token_type: type).to_json
+      )
+
+      @refresher.perform_refresh.token_type.should == 'DPoP'
+    end
+  end
+
   it "should raise a Token::RefreshError after max retries are reached" do
     # Stub HTTP request to always fail
     stub_request(:post, "https://example.com/token").to_return(

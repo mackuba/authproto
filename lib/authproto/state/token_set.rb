@@ -32,7 +32,7 @@ module AuthProto
       # Creates a token set and calculates its expiry from the current time.
       #
       # @param access_token [String] nonempty DPoP-bound access token
-      # @param token_type [String] must be `DPoP`
+      # @param token_type [String] must be `DPoP` (case-insensitive)
       # @param expires_in [Integer] lifetime of the access token in seconds; negative value means it's already expired
       # @param scope [String] nonempty space-separated granted scopes
       # @param sub [String] nonempty account DID
@@ -82,7 +82,9 @@ module AuthProto
       private
 
       def validate_token_type(type)
-        raise ArgumentError, "token_type must be DPoP" unless type == 'DPoP'
+        unless type.is_a?(String) && type.casecmp?('DPoP')
+          raise ArgumentError, "token_type must be DPoP"
+        end
       end
 
       def validate_required(name, value)
