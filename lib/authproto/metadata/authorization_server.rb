@@ -4,9 +4,11 @@ require 'json'
 require 'uri'
 
 require_relative '../configuration'
+require_relative '../dpop'
 require_relative '../errors'
 require_relative '../http_client'
 require_relative '../metadata'
+require_relative '../par/client_assertion'
 require_relative '../validated_uri'
 
 module AuthProto
@@ -258,8 +260,10 @@ module AuthProto
           @token_endpoint_auth_signing_alg_values_supported, 'token_endpoint_auth_signing_alg_values_supported'
         )
 
-        unless @token_endpoint_auth_signing_alg_values_supported.include?('ES256')
-          raise InvalidAuthorizationServer, "token_endpoint_auth_signing_alg_values_supported must include ES256"
+        algorithm = PAR::ClientAssertion::ALGORITHM
+
+        unless @token_endpoint_auth_signing_alg_values_supported.include?(algorithm)
+          raise InvalidAuthorizationServer, "token_endpoint_auth_signing_alg_values_supported must include #{algorithm}"
         end
 
         if @token_endpoint_auth_signing_alg_values_supported.include?('none')
@@ -270,8 +274,8 @@ module AuthProto
       def validate_dpop_signing_algs
         validate_string_array(@dpop_signing_alg_values_supported, 'dpop_signing_alg_values_supported')
 
-        unless @dpop_signing_alg_values_supported.include?('ES256')
-          raise InvalidAuthorizationServer, "dpop_signing_alg_values_supported must include ES256"
+        unless @dpop_signing_alg_values_supported.include?(DPoP::ALGORITHM)
+          raise InvalidAuthorizationServer, "dpop_signing_alg_values_supported must include #{DPoP::ALGORITHM}"
         end
       end
 

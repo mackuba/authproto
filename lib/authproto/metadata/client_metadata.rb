@@ -1,12 +1,13 @@
 # frozen_string_literal: true
 
-require 'json'
 require 'jose'
+require 'json'
 require 'uri'
 
 require_relative '../configuration'
 require_relative '../errors'
 require_relative '../metadata'
+require_relative '../par/client_assertion'
 require_relative '../validated_uri'
 
 module AuthProto
@@ -561,8 +562,10 @@ module AuthProto
       end
 
       def validate_auth_confidential(metadata)
-        unless @token_endpoint_auth_signing_alg == 'ES256'
-          raise InvalidClientMetadata, "token_endpoint_auth_signing_alg must be ES256"
+        algorithm = PAR::ClientAssertion::ALGORITHM
+
+        unless @token_endpoint_auth_signing_alg == algorithm
+          raise InvalidClientMetadata, "token_endpoint_auth_signing_alg must be #{algorithm}"
         end
 
         if @jwks.nil? && @jwks_uri.nil?

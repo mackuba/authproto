@@ -5,7 +5,6 @@ module AuthProto
       end
 
       CURVE: String
-      ALGORITHM: String
       attr_reader keypair: JOSE::JWK
 
       def initialize: (?JOSE::JWK? keypair) -> void

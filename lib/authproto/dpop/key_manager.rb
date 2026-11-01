@@ -5,6 +5,7 @@ require 'jose'
 require 'json'
 require 'openssl'
 
+require_relative '../dpop'
 require_relative '../errors'
 
 module AuthProto
@@ -24,10 +25,6 @@ module AuthProto
       # Elliptic curve used for DPoP signing keys.
       # @return [String]
       CURVE = "P-256"
-
-      # JWS signing algorithm used for DPoP proofs.
-      # @return [String]
-      ALGORITHM = "ES256"
 
       # Private EC P-256 keypair used for signing.
       # @return [JOSE::JWK]
@@ -72,7 +69,7 @@ module AuthProto
         payload = deep_stringify_keys(payload)
 
         # Configure JOSE to use ES256 for signing
-        signing_config = { 'alg' => 'ES256' }
+        signing_config = { 'alg' => ALGORITHM }
 
         # Merge our header with JOSE's required fields
         full_header = header.merge(signing_config)

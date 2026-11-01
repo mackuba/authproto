@@ -20,6 +20,10 @@ module AuthProto
       # Raised when client assertion key import or JWT signing fails.
       class Error < AuthProto::Error; end
 
+      # JWS signing algorithm used for client assertions.
+      # @return [String]
+      ALGORITHM = "ES256"
+
       attr_reader :signing_key
 
       # Creates an ES256 client assertion signer.
@@ -59,13 +63,13 @@ module AuthProto
         }
 
         header = {
-          alg: 'ES256',
+          alg: ALGORITHM,
           typ: 'JWT',
           kid: @signing_key.fields['kid']
         }
 
         key = JWT::JWK.import(@signing_key.to_map.to_h)
-        JWT.encode(payload, key, 'ES256', header)
+        JWT.encode(payload, key, ALGORITHM, header)
       rescue JWT::Error, ArgumentError => e
         raise Error, "Failed to generate client assertion: #{e.message}"
       end
@@ -93,17 +97,17 @@ module AuthProto
           end
         end
 
-        if (data.key?('alg') && data['alg'] != 'ES256') ||
+        if (data.key?('alg') && data['alg'] != ALGORITHM) ||
            (data.key?('use') && data['use'] != 'sig') ||
            (data.key?('key_ops') && (!data['key_ops'].is_a?(Array) || !data['key_ops'].include?('sign')))
-          raise Error, "signing_key must be active and permit ES256 signing"
+          raise Error, "signing_key must be active and permit #{ALGORITHM} signing"
         end
 
         signing_key = JOSE::JWK.from_map(data)
 
         imported = JWT::JWK.import(data)
-        proof = JWT.encode({}, imported, 'ES256')
-        JWT.decode(proof, imported.public_key, true, algorithms: ['ES256'])
+        proof = JWT.encode({}, imported, ALGORITHM)
+        JWT.decode(proof, imported.public_key, true, algorithms: [ALGORITHM])
 
         signing_key
       end

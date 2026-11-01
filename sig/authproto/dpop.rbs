@@ -1,0 +1,5 @@
+module AuthProto
+  module DPoP
+    ALGORITHM: String
+  end
+end

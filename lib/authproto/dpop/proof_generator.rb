@@ -5,6 +5,7 @@ require 'openssl'
 require 'securerandom'
 require 'uri'
 
+require_relative '../dpop'
 require_relative '../errors'
 require_relative '../validated_uri'
 require_relative 'key_manager'
@@ -85,7 +86,7 @@ module AuthProto
       def build_header
         {
           typ: 'dpop+jwt',
-          alg: 'ES256',
+          alg: ALGORITHM,
           jwk: key_manager.public_jwk.to_h
         }
       end

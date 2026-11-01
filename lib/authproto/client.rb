@@ -380,7 +380,7 @@ module AuthProto
 
     def metadata_key_matches_public_key?(candidate, public_key)
       return false if candidate['revoked']
-      return false if candidate.key?('alg') && candidate['alg'] != 'ES256'
+      return false if candidate.key?('alg') && candidate['alg'] != PAR::ClientAssertion::ALGORITHM
       return false if candidate.key?('use') && candidate['use'] != 'sig'
       return false if candidate.key?('key_ops') && !candidate['key_ops'].include?('verify')
 
