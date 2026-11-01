@@ -224,10 +224,16 @@ by their session ID; no separate key export or constructor argument is needed.
 Its `ProofGenerator` accepts `key_set:` per call. Nonces are stored separately with
 TTLs, indexed by session ID and server origin. URLs on the same origin share a
 nonce within that session; other sessions and origins have independent nonces.
+`DPoP::Client#with_nonce_handling(session, url) { ... }` runs a request block,
+processes its response, and runs it once more if the server sends a nonce challenge.
+The block must generate a fresh proof and send the request on each invocation.
+The helper returns the final response; other errors and exceptions are left to
+its caller. PAR, code exchange, and refresh use this helper.
+
 `DPoP::Client#process_response` accepts the whole HTTP response hash and requires
 `server_url:` and `session_id:` to update the requesting
-session's nonce. Call it for every DPoP response, including successes, failures,
-and retry responses; missing or empty `DPoP-Nonce` headers raise an error.
+session's nonce. When sending requests without `with_nonce_handling`, call it
+for every DPoP response, including successes, failures, and retry responses; missing or empty `DPoP-Nonce` headers raise an error.
 `has_nonce_error?` recognizes HTTP 400 JSON nonce errors and HTTP 401 DPoP
 authentication challenges. It does not update the nonce or send a retry.
 Direct nonce manager calls to `get`, `update`, and `clear` also

@@ -220,14 +220,8 @@ module AuthProto
       end
 
       def request_token_refresh
-        # Initial token request without nonce
-        response = make_token_request(session)
-        dpop_client.process_response(response, server_url: auth_server.token_endpoint, session_id: session.session_id)
-
-        if dpop_client.has_nonce_error?(response)
-          # Retry request with nonce
-          response = make_token_request(session)
-          dpop_client.process_response(response, server_url: auth_server.token_endpoint, session_id: session.session_id)
+        response = dpop_client.with_nonce_handling(session, auth_server.token_endpoint) do
+          make_token_request(session)
         end
 
         handle_refresh_response(response)

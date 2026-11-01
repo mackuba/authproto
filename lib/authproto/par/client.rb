@@ -92,14 +92,8 @@ module AuthProto
       def submit(request, session:)
         raise Error, "Expected a PAR::Request" unless request.is_a?(PAR::Request)
 
-        # Try the initial request
-        response = make_request(request, session: session)
-        dpop_client.process_response(response, server_url: @par_endpoint, session_id: session.session_id)
-
-        if dpop_client.has_nonce_error?(response)
-          # Generate new proof with nonce and retry
-          response = make_request(request, session: session)
-          dpop_client.process_response(response, server_url: @par_endpoint, session_id: session.session_id)
+        response = dpop_client.with_nonce_handling(session, @par_endpoint) do
+          make_request(request, session: session)
         end
 
         if response[:status] == 201

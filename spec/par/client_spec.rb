@@ -8,7 +8,7 @@ describe AuthProto::PAR::Client do
     @authorization_server.stubs(:pushed_authorization_request_endpoint).returns(@par_endpoint)
     @authorization_server.stubs(:issuer).returns('https://issuer.example.com')
     @authorization_server.stubs(:authorization_endpoint).returns('https://auth.example.com/authorize')
-    @dpop_client = mock("dpop_client")
+    @dpop_client = AuthProto::DPoP::Client.new
     @client = AuthProto::PAR::Client.new(authorization_server: @authorization_server, dpop_client: @dpop_client)
   end
 

@@ -195,7 +195,6 @@ module AuthProto
 
       AuthProto.storage.with_lock(Storage::KeyBuilder.lock_key("session", session.session_id), ttl: 30) do
         response = exchange_code(code: code, session: session)
-        validate_token_response(response, session)
 
         token_set = State::TokenSet.new(
           access_token: response['access_token'],
@@ -440,29 +439,21 @@ module AuthProto
     end
 
     def exchange_code(code:, session:)
-      # Initial token request without nonce
-      response = make_token_request(code, session)
-
-      dpop_client.process_response(
-        response, server_url: session.auth_server.token_endpoint, session_id: session.session_id
-      )
-
-      if dpop_client.has_nonce_error?(response)
-        # Retry request with nonce
-        response = make_token_request(code, session)
-
-        dpop_client.process_response(
-          response, server_url: session.auth_server.token_endpoint, session_id: session.session_id
-        )
+      response = dpop_client.with_nonce_handling(session, session.auth_server.token_endpoint) do
+        make_token_request(code, session)
       end
 
       raise TokenError, "Token request failed: #{response[:status]}" unless response[:status] == 200
 
       begin
-        JSON.parse(response[:body])
+        data = JSON.parse(response[:body])
       rescue JSON::ParserError => e
         raise TokenError, "Invalid token response: #{e.message}"
       end
+
+      validate_token_response(data, session)
+
+      data
     end
 
     def make_token_request(code, session)

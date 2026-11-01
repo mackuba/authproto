@@ -131,6 +131,96 @@ describe AuthProto::DPoP::Client do
     end
   end
 
+  describe "#with_nonce_handling" do
+    it "should return the original response and store its nonce without retrying" do
+      calls = 0
+      result = client.with_nonce_handling(session, uri) do
+        calls += 1
+        response
+      end
+
+      result.should equal(response)
+      calls.should == 1
+      client.nonce_manager.get(server_url: uri, session_id: session.session_id).should == nonce
+    end
+
+    [400, 401].each do |status|
+      it "should use the challenge nonce in a fresh proof and store the final nonce for HTTP #{status}" do
+        headers = { 'DPoP-Nonce' => 'challenge', 'WWW-Authenticate' => 'DPoP error="use_dpop_nonce"' }
+        challenge = { status: status, headers: headers, body: '{"error":"use_dpop_nonce"}' }
+        responses = [challenge, response]
+        proofs = []
+
+        result = client.with_nonce_handling(session, uri) do
+          proof = client.generate_proof(session: session, method: method, uri: uri)
+          proofs << JSON.parse(session.dpop_key.key.verify(proof)[1])
+          responses.shift
+        end
+
+        result.should equal(response)
+        proofs.length.should == 2
+        proofs.first.should_not have_key('nonce')
+        proofs.last['nonce'].should == 'challenge'
+        proofs.last['jti'].should_not == proofs.first['jti']
+        client.nonce_manager.get(server_url: uri, session_id: session.session_id).should == nonce
+      end
+    end
+
+    it "should return a second challenge without making a third request" do
+      calls = 0
+      challenges = []
+      result = client.with_nonce_handling(session, uri) do
+        calls += 1
+        challenges << response.merge(status: 400, headers: { 'DPoP-Nonce' => "nonce-#{calls}" },
+                                     body: '{"error":"use_dpop_nonce"}')
+        challenges.last
+      end
+
+      calls.should == 2
+      result.should equal(challenges.last)
+      client.nonce_manager.get(server_url: uri, session_id: session.session_id).should == 'nonce-2'
+    end
+
+    it "should return other errors without retrying" do
+      calls = 0
+      failure = response.merge(status: 400, body: '{"error":"invalid_grant"}')
+      result = client.with_nonce_handling(session, uri) do
+        calls += 1
+        failure
+      end
+
+      result.should equal(failure)
+      calls.should == 1
+      client.nonce_manager.get(server_url: uri, session_id: session.session_id).should == nonce
+    end
+
+    [1, 2].each do |invalid_attempt|
+      it "should reject a missing nonce on attempt #{invalid_attempt} without further requests" do
+        calls = 0
+        expect {
+          client.with_nonce_handling(session, uri) do
+            calls += 1
+            headers = calls == invalid_attempt ? {} : response_headers
+            response.merge(status: 400, headers: headers, body: '{"error":"use_dpop_nonce"}')
+          end
+        }.to raise_error(described_class::Error, /Missing DPoP-Nonce/)
+        calls.should == invalid_attempt
+      end
+    end
+
+    it "should propagate transport exceptions without retrying" do
+      calls = 0
+      failure = IOError.new("Connection lost")
+      expect {
+        client.with_nonce_handling(session, uri) do
+          calls += 1
+          raise failure
+        end
+      }.to raise_error { |error| error.should equal(failure) }
+      calls.should == 1
+    end
+  end
+
   describe "#process_response" do
     it "should update the nonce manager with a valid nonce" do
       client.nonce_manager.expects(:update).with(nonce: nonce, server_url: server_url, session_id: session.session_id)
