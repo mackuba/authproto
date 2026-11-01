@@ -62,6 +62,7 @@ Once the browser redirects to the callback URL after your approval, the console 
 
 ```
 Authentication complete ✓
+Your session id: ......
 ```
 
 The callback block supplies `expected_session_id:` from the authorization result
@@ -69,8 +70,11 @@ retained locally before opening the browser. The library checks it before exchan
 
 Then, you can run `client.get_request(...)` and `client.post_request(...)` to perform authorized actions on the given account. By default, the example asks for permissions `repo:app.bsky.feed.post` and `rpc:app.bsky.feed.getTimeline?aud=*`, which allow calling `getTimeline` and creating/modifying posts.
 
-(Note, the session is currently lost when you close the console.)
+To restore a session after closing and reopening the console, write down the sesion ID printed after successful authentication, and then pass it back to the `OAuthClient` constructor:
 
+```rb
+client = create_client('your.pds.hostname.here', session_id: '123456-789-abc-...')
+```
 
 ## Production use
 
@@ -115,6 +119,13 @@ This will print:
 
 ```
 Authentication complete ✓
+Your session id: ......
 ```
 
 Then, you can run `client.get_request(...)` and `client.post_request(...)` to perform authorized actions on the given account.
+
+Again, to restore a session after closing and reopening the console, write down the sesion ID printed after successful authentication, and then pass it back to the `OAuthClient` constructor:
+
+```rb
+client = create_client('your.server.hostname', 'your.pds.hostname', session_id: '123456-789-abc-...')
+```

@@ -6,6 +6,7 @@
 - fixed deleting a session's state token in `Client#delete_session`
 - DPoP keys are now connected to a specific session and saved & restored with it; multiple sessions used from the same `AuthProto::Client` will have proofs signed with different DPoP keys, and the keys are automatically restored and don't need to be passed in the argument to `Client` or `Minisky::OAuthClient`
 - DPoP nonces are now stored separately per session and per service, not just one per service
+- the `minisky_console` example now supports restoring previous sessions using session ID
 - for security, `Client#handle_callback` and `Minisky::OAuthClient#handle_callback` now require an `expected_session_id:` argument, where you need to pass a session ID previously saved from the output of `authorize` in browser storage or a local variable; token callback is rejected if the passed saved session ID doesn't match the ID of the session looked up using the state token from the callback
 - added `Session#pending?` and `Session#tokens_valid?`
 - removed unused `default_token_lifetime` and `encryption` configuration settings

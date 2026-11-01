@@ -12,10 +12,11 @@ AuthProto.configure do |config|
   )
 end
 
-def create_client(server_hostname, pds)
+def create_client(server_hostname, pds, session_id: nil)
   Minisky::OAuthClient.new(pds,
     client_id: "https://#{server_hostname}/oauth-client-metadata.json",
-    redirect_uri: "https://#{server_hostname}/callback"
+    redirect_uri: "https://#{server_hostname}/callback",
+    session_id: session_id
   )
 end
 
