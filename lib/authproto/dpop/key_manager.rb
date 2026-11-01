@@ -43,33 +43,6 @@ module AuthProto
         validate_keypair
       end
 
-      # Generates a new ES256 keypair for DPoP usage
-      #
-      # @return [JOSE::JWK] The newly generated keypair
-      # @raise [KeyError] if key generation fails
-      #
-      def generate_keypair
-        # Generate base keypair
-        base_key = JOSE::JWK.generate_key([:ec, CURVE])
-        base_map = base_key.to_map
-
-        # Create new map with all required properties
-        key_map = {
-          'kty' => base_map['kty'],
-          'crv' => base_map['crv'],
-          'x' => base_map['x'],
-          'y' => base_map['y'],
-          'd' => base_map['d'],
-          'use' => 'sig',
-          'kid' => generate_kid(base_map)
-        }
-
-        # Create new JWK with all properties
-        JOSE::JWK.from_map(key_map)
-      rescue StandardError => e
-        raise KeyError, "Failed to generate keypair: #{e.message}"
-      end
-
       # Exports the public key with `use: sig` and a key ID.
       #
       # @return [Hash{String => Object}] public JWK without private key material
@@ -83,18 +56,6 @@ module AuthProto
         jwk
       rescue StandardError => e
         raise KeyError, "Failed to export public key: #{e.message}"
-      end
-
-      # Signs bytes with this keypair and returns a compact JWS.
-      #
-      # @param data [String] payload bytes to sign
-      # @return [JOSE::SignedBinary] compact JWS (a string subclass)
-      # @raise [KeyError] if signing fails
-      #
-      def sign(data)
-        @keypair.sign(data).compact
-      rescue StandardError => e
-        raise KeyError, "Failed to sign data: #{e.message}"
       end
 
       # Signs a JSON payload with the supplied protected JWS header and ES256.
@@ -128,37 +89,6 @@ module AuthProto
         raise KeyError, "Failed to sign segments: #{e.message}"
       end
 
-      # Copies hashes and arrays recursively, converting hash keys to strings.
-      #
-      # @param obj [Object] input structure or scalar value
-      # @return [Object] transformed hash/array, or the original scalar
-      #
-      def deep_stringify_keys(obj)
-        case obj
-        when Hash
-          obj.each_with_object({}) do |(k, v), hash|
-            hash[k.to_s] = deep_stringify_keys(v)
-          end
-        when Array
-          obj.map { |v| deep_stringify_keys(v) }
-        else
-          obj
-        end
-      end
-
-      # Verifies a compact JWS using this keypair.
-      #
-      # @param signed_jws [String, JOSE::SignedBinary] complete signed JWS
-      # @return [Boolean] whether the signature is valid
-      # @raise [KeyError] if decoding or verification raises an error
-      #
-      def verify(signed_jws)
-        verified, payload, = @keypair.verify(signed_jws)
-        verified
-      rescue StandardError => e
-        raise KeyError, "Failed to verify signature: #{e.message}"
-      end
-
       # Exports this keypair as a JOSE map.
       #
       # @param include_private [Boolean] include secret `d` key material when `true`
@@ -185,7 +115,56 @@ module AuthProto
         raise KeyError, "Failed to import key: #{e.message}"
       end
 
+
       private
+
+      def generate_keypair
+        # Generate base keypair
+        base_key = JOSE::JWK.generate_key([:ec, CURVE])
+        base_map = base_key.to_map
+
+        # Create new map with all required properties
+        key_map = {
+          'kty' => base_map['kty'],
+          'crv' => base_map['crv'],
+          'x' => base_map['x'],
+          'y' => base_map['y'],
+          'd' => base_map['d'],
+          'use' => 'sig',
+          'kid' => generate_kid(base_map)
+        }
+
+        # Create new JWK with all properties
+        JOSE::JWK.from_map(key_map)
+      rescue StandardError => e
+        raise KeyError, "Failed to generate keypair: #{e.message}"
+      end
+
+      def sign(data)
+        @keypair.sign(data, { 'alg' => ALGORITHM }).compact
+      rescue StandardError => e
+        raise KeyError, "Failed to sign data: #{e.message}"
+      end
+
+      def deep_stringify_keys(obj)
+        case obj
+        when Hash
+          obj.each_with_object({}) do |(k, v), hash|
+            hash[k.to_s] = deep_stringify_keys(v)
+          end
+        when Array
+          obj.map { |v| deep_stringify_keys(v) }
+        else
+          obj
+        end
+      end
+
+      def verify(signed_jws)
+        verified, payload, = @keypair.verify(signed_jws)
+        verified
+      rescue StandardError => e
+        raise KeyError, "Failed to verify signature: #{e.message}"
+      end
 
       def generate_kid(jwk)
         # Generate a key ID based on the key's components
@@ -201,13 +180,9 @@ module AuthProto
         Base64.urlsafe_encode64(digest[0..7], padding: false)
       end
 
-      # Validates that the keypair meets DPoP requirements
-      # @raise [KeyError] if validation fails
       def validate_keypair
-        # Check that we have a valid EC key
         raise KeyError, "Invalid key type: #{@keypair.kty}, must be :ec" unless @keypair.kty.is_a?(JOSE::JWK::KTY_EC)
 
-        # Verify the curve
         curve = @keypair.to_map['crv']
         raise KeyError, "Invalid curve: #{curve}, must be #{CURVE}" unless curve == CURVE
 

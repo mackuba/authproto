@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'json'
+
 describe AuthProto::DPoP::KeyManager do
   let(:valid_keypair) { JOSE::JWK.generate_key([:ec, "P-256"]) }
   let(:invalid_keypair) { JOSE::JWK.generate_key([:rsa, 2048]) }
@@ -24,12 +26,19 @@ describe AuthProto::DPoP::KeyManager do
     end
   end
 
-  describe "#generate_keypair" do
-    it "should generate a valid ES256 keypair" do
-      manager = AuthProto::DPoP::KeyManager.new
-      keypair = manager.generate_keypair
-      keypair.to_map["kty"].should == "EC"
-      keypair.to_map["crv"].should == "P-256"
+  describe "key validation" do
+    it "should reject a public key without private signing material" do
+      expect {
+        described_class.new(valid_keypair.to_public)
+      }.to raise_error(described_class::KeyError)
+    end
+
+    it "should reject a key when its signing self-test fails verification" do
+      valid_keypair.stubs(:verify).returns([false, nil, nil])
+
+      expect {
+        described_class.new(valid_keypair)
+      }.to raise_error(described_class::KeyError, /signature verification error/)
     end
   end
 
@@ -42,29 +51,15 @@ describe AuthProto::DPoP::KeyManager do
     end
   end
 
-  describe "#sign" do
-    it "should sign data using the private key" do
+  describe "#sign_segments" do
+    it "should sign a JSON payload with ES256 even when a different algorithm is requested" do
       manager = AuthProto::DPoP::KeyManager.new(valid_keypair)
-      data = "test_data"
-      signature = manager.sign(data)
-      signature.should be_an_instance_of(JOSE::SignedBinary)
-    end
-  end
+      signature = manager.sign_segments({ alg: 'ES384', typ: 'dpop+jwt' }, { nested: { value: 'test' } })
+      verified, payload, header = valid_keypair.verify(signature)
 
-  describe "#verify" do
-    it "should verify a signed JWS" do
-      manager = AuthProto::DPoP::KeyManager.new(valid_keypair)
-      data = "test_data"
-      signature = manager.sign(data)
-      (manager.verify(signature)).should be_truthy
-    end
-
-    it "should raise an error if verification fails" do
-      manager = AuthProto::DPoP::KeyManager.new(valid_keypair)
-      invalid_signature = "invalid_signature"
-      expect {
-        manager.verify(invalid_signature)
-      }.to raise_error(AuthProto::DPoP::KeyManager::KeyError)
+      verified.should be_truthy
+      JSON.parse(payload)['nested']['value'].should == 'test'
+      header.to_map['alg'].should == 'ES256'
     end
   end
 
