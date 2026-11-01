@@ -8,6 +8,7 @@
 - added `Session#pending?` and `Session#tokens_valid?`
 - removed unused `default_token_lifetime` and `encryption` configuration settings
 - nonce manager now uses the global `dpop_nonce_lifetime` ttl setting by default
+- sessions store the client assertion signing key's ID in the metadata and check it when deserialized
 
 ## [0.3.0.beta2] – 2026-10-31 👻
 

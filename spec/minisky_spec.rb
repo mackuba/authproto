@@ -115,6 +115,7 @@ describe Minisky::OAuthClient do
     result = client.authorize(pds: host)
     URI(result[:url]).host.should == "auth.example.com"
     client.session_id.should == result[:session_id]
+    client.oauth_client.session_manager.get_session(result[:session_id]).signing_key_id.should be_nil
   end
 
   it "should submit a native custom-scheme callback unchanged in PAR" do
@@ -150,6 +151,12 @@ describe Minisky::OAuthClient do
         form = URI.decode_www_form(request.body).to_h
         payload, header = JWT.decode(form.fetch("client_assertion"), public_key, true, algorithm: "ES256")
         assertions << payload["jti"]
+
+        if form.key?('state')
+          pending = client.oauth_client.session_manager.get_session_by_state_token(form['state'])
+          pending.signing_key_id.should == header['kid']
+        end
+
         payload["iss"] == client_metadata["client_id"] && payload["sub"] == client_metadata["client_id"] &&
           payload["aud"] == auth_server.issuer && header["kid"] == "client-key" &&
           form["client_assertion_type"] == AuthProto::PAR::CLIENT_ASSERTION_TYPE
@@ -172,10 +179,12 @@ describe Minisky::OAuthClient do
 
       auth = client.authorize(pds: host)
       session = client.oauth_client.session_manager.get_session(auth[:session_id])
+      session.signing_key_id.should == 'client-key'
       state_token = session.state_token
       client.handle_callback(code: 'code', state: state_token, iss: auth_server.issuer,
                              expected_session_id: auth[:session_id])
       client.oauth_client.session_manager.get_session(session.session_id).state_token.should be_nil
+      client.oauth_client.session_manager.get_session(session.session_id).signing_key_id.should == 'client-key'
       AuthProto.storage.exists?(AuthProto::Storage::KeyBuilder.state_key(state_token)).should be_falsey
 
       expect {
@@ -184,6 +193,7 @@ describe Minisky::OAuthClient do
       }.to raise_error(AuthProto::Client::CallbackError, "Invalid state parameter")
 
       client.perform_token_refresh[:refresh_token].should == "new-refresh"
+      client.oauth_client.session_manager.get_session(session.session_id).signing_key_id.should == 'client-key'
       AuthProto.storage.exists?(AuthProto::Storage::KeyBuilder.state_key(state_token)).should be_falsey
       assertions.length.should == 4
       assertions.uniq.length.should == 4
@@ -191,6 +201,104 @@ describe Minisky::OAuthClient do
       par_proofs.map { |proof| proof['jti'] }.uniq.length.should == 2
       par_proofs.last['nonce'].should == 'par-nonce'
       assert_not_requested :get, "https://client.example.com/keys.json"
+    end
+  end
+
+  describe "restored signing key binding" do
+    before do
+      @signing_key = JOSE::JWK.generate_key([:ec, 'P-256']).to_map.to_h.merge('kid' => 'original-key')
+      client_metadata.merge!(
+        'token_endpoint_auth_method' => 'private_key_jwt', 'token_endpoint_auth_signing_alg' => 'ES256',
+        'jwks_uri' => 'https://client.example.com/keys.json'
+      )
+    end
+
+    let(:pending_session) do
+      stub_authorization_metadata
+      stub_request(:post, "#{auth_server.issuer}/par").to_return(
+        status: 201, headers: { 'Content-Type' => 'application/json' },
+        body: { request_uri: 'urn:example:par', expires_in: 90 }.to_json
+      )
+      auth = client.authorize(pds: host)
+      client.oauth_client.session_manager.get_session(auth[:session_id])
+    end
+    let(:replacement_key) do
+      JOSE::JWK.generate_key([:ec, 'P-256']).to_map.to_h.merge('kid' => 'replacement-key')
+    end
+
+    def restore_client(signing_key)
+      original = pending_session
+      described_class.new(
+        host, client_id: client_metadata['client_id'], redirect_uri: client_metadata['redirect_uris'].first,
+        metadata: client_metadata, signing_key: signing_key, session_id: original.session_id,
+        dpop_key: client.oauth_client.dpop_client.key_manager.to_jwk(include_private: true).to_h
+      )
+    end
+
+    it "should reject a different signing key before sending the restored session's authorization code" do
+      restored = restore_client(replacement_key)
+      restored.oauth_client.session_manager.get_session(pending_session.session_id).should be_nil
+
+      expect {
+        restored.handle_callback(
+          code: 'code', state: pending_session.state_token, iss: auth_server.issuer,
+          expected_session_id: pending_session.session_id
+        )
+      }.to raise_error(AuthProto::Client::CallbackError, "Invalid state parameter")
+
+      assert_not_requested :post, auth_server.token_endpoint
+      stored = client.oauth_client.session_manager.get_session_by_state_token(pending_session.state_token)
+      stored.should be_pending
+      stored.signing_key_id.should == 'original-key'
+    end
+
+    it "should reject a different signing key before sending the restored session's refresh token" do
+      pending_session.tokens = token_set
+      client.oauth_client.session_manager.complete_authorization(pending_session)
+      restored = restore_client(replacement_key)
+      restored.oauth_client.session_manager.get_session(pending_session.session_id).should be_nil
+
+      expect {
+        restored.perform_token_refresh
+      }.to raise_error(AuthProto::Client::TokenError, "Invalid session")
+
+      assert_not_requested :post, auth_server.token_endpoint
+      stored = client.oauth_client.session_manager.get_session(pending_session.session_id)
+      stored.signing_key_id.should == 'original-key'
+      stored.tokens.refresh_token.should == 'refresh'
+    end
+
+    it "should refresh a restored session with its original signing key" do
+      pending_session.tokens = token_set
+      client.oauth_client.session_manager.complete_authorization(pending_session)
+      restored = restore_client(@signing_key)
+      stub_refresh
+
+      restored.perform_token_refresh[:refresh_token].should == 'new-refresh'
+      stored = restored.oauth_client.session_manager.get_session(pending_session.session_id)
+      stored.signing_key_id.should == 'original-key'
+    end
+
+    it "should accept an older serialized session without a signing key ID" do
+      state_token = pending_session.state_token
+      session_key = AuthProto::Storage::KeyBuilder.session_key(pending_session.session_id)
+      serialized = JSON.parse(AuthProto.storage.get(session_key))
+      serialized.fetch('data').delete('signing_key_id')
+      AuthProto.storage.set(session_key, JSON.generate(serialized))
+      restored = restore_client(@signing_key)
+      stub_request(:post, auth_server.token_endpoint).to_return(status: 200, body: {
+        access_token: 'access', refresh_token: 'refresh', token_type: 'DPoP',
+        expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
+      }.to_json)
+
+      restored.handle_callback(
+        code: 'code', state: state_token, iss: auth_server.issuer, expected_session_id: pending_session.session_id
+      )[:access_token].should == 'access'
+      restored.perform_token_refresh[:refresh_token].should == 'refresh'
+
+      stored = restored.oauth_client.session_manager.get_session(pending_session.session_id)
+      stored.signing_key_id.should be_nil
+      assert_requested :post, auth_server.token_endpoint, times: 2
     end
   end
 

@@ -101,9 +101,9 @@ module AuthProto
       @client_metadata = load_client_metadata(metadata)
 
       validate_redirect_uri
-      @signing_key = initialize_signing_key(signing_key)
+      initialize_signing_key(signing_key)
 
-      @session_manager = State::SessionManager.new
+      @session_manager = State::SessionManager.new(supported_signing_key_ids: [@signing_key_kid].compact)
       @dpop_client = initialize_dpop(dpop_key)
     end
 
@@ -145,7 +145,8 @@ module AuthProto
         client_id: @client_id,
         scope: scope,
         auth_server: authorization_server,
-        did: did&.to_s
+        did: did&.to_s,
+        signing_key_id: @signing_key_kid
       )
 
       auth_url = submit_authorization_par(authorization_server, session, login_hint: handle)
@@ -373,7 +374,8 @@ module AuthProto
         raise InvalidClientMetadata, "signing_key must match an active public key advertised in jwks" if !key_in_jwks
       end
 
-      private_key
+      @signing_key = private_key
+      @signing_key_kid = private_key.fields.fetch('kid')
     end
 
     def metadata_key_matches_public_key?(candidate, public_key)

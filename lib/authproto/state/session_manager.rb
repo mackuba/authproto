@@ -15,9 +15,19 @@ module AuthProto
     class SessionManager
 
       # Creates a session manager and its encrypted session serializer.
+      #
+      # @param supported_signing_key_ids [Array<String>] IDs of locally available client-authentication keys
+      # @raise [ArgumentError] if supported key IDs are not an array of nonempty strings
       # @raise [ArgumentError] if `ATPROTO_MASTER_KEY` is not valid Base64
       #
-      def initialize
+      def initialize(supported_signing_key_ids: [])
+        keys = supported_signing_key_ids
+
+        unless keys.is_a?(Array) && keys.all? { |id| id.is_a?(String) && !id.empty? }
+          raise ArgumentError, "supported_signing_key_ids must be an array of nonempty strings"
+        end
+
+        @supported_signing_key_ids = keys.map { |id| id.dup.freeze }.freeze
         @serializer = Serialization::Session.new
       end
 
@@ -27,6 +37,7 @@ module AuthProto
       # @param scope [String] requested space-separated scopes
       # @param auth_server [Metadata::AuthorizationServer, nil] pre-resolved authorization server
       # @param did [String, nil] pre-resolved account DID
+      # @param signing_key_id [String, nil] client-authentication key ID selected before PAR
       #
       # @return [Session] newly created session
       # @raise [PKCE::Error] if session PKCE generation fails
@@ -34,12 +45,13 @@ module AuthProto
       # @raise [Serialization::ValidationError] if the session cannot be serialized
       # @raise [Encryption::EncryptionError] if sensitive fields cannot be encrypted
       #
-      def create_session(client_id:, scope:, auth_server: nil, did: nil)
+      def create_session(client_id:, scope:, auth_server: nil, did: nil, signing_key_id: nil)
         session = Session.new(
           client_id: client_id,
           scope: scope,
           auth_server: auth_server,
           did: did,
+          signing_key_id: signing_key_id,
           authorization_expires_at: Time.now + AuthProto.configuration.pending_session_ttl
         )
 
@@ -102,7 +114,9 @@ module AuthProto
       # Loads and decrypts a session by ID.
       #
       # Returns `nil` for missing, unreadable or malformed sessions and for expired
-      # sessions that have no refresh token. Read/deserialization errors are logged.
+      # sessions that have no refresh token. Sessions with an unsupported signing key ID
+      # are unavailable but remain in storage. Public and legacy sessions without an ID
+      # are accepted. Read/deserialization errors are logged.
       #
       # @param session_id [String] session identifier
       # @return [Session, nil] restored session, or `nil` if unavailable
@@ -120,6 +134,7 @@ module AuthProto
 
         begin
           session = @serializer.deserialize(serialized)
+          return nil if session.signing_key_id && !@supported_signing_key_ids.include?(session.signing_key_id)
 
           if session.pending?
             deadline = session.authorization_expires_at

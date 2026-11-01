@@ -32,6 +32,23 @@ describe AuthProto::Serialization::Session do
     serialized.dig("data", "tokens", "access_token").should be_encrypted if session.tokens
   end
 
+  it "should preserve the signing key ID without encrypting it or including private key material" do
+    bound = AuthProto::State::Session.new(client_id: client_id, scope: scope, signing_key_id: 'client-key')
+    serialized = serializer.serialize(bound)
+    data = JSON.parse(serialized).fetch('data')
+
+    data['signing_key_id'].should == 'client-key'
+    data.should_not have_key('signing_key')
+    data.should_not have_key('d')
+    serializer.deserialize(serialized).signing_key_id.should == 'client-key'
+  end
+
+  it "should restore older sessions without a signing key ID" do
+    serialized = serializer.serialize(session)
+    JSON.parse(serialized).fetch('data').should_not have_key('signing_key_id')
+    serializer.deserialize(serialized).signing_key_id.should be_nil
+  end
+
   it "should preserve the pending authorization deadline" do
     deadline = Time.at(1_800_000_000.25)
     pending = AuthProto::State::Session.new(

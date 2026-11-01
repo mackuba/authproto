@@ -226,6 +226,19 @@ With `jwks_uri`, the client still uses your separate private signing key. It doe
 not fetch that URL or check the advertised key locally; the authorization server
 fetches it to verify assertions.
 
+New confidential-client sessions record the signing key's `kid` as `signing_key_id`
+before PAR. Session serialization preserves this ID through callbacks and token
+refreshes, without including the private client-authentication key. The session
+manager returns `nil` when loading a session with an unsupported signing key ID,
+leaving its stored data intact. `Client` supplies IDs of its configured private
+signing keys, rather than the public keys advertised in metadata. Keep each `kid`
+associated with the same key material. Clients still accept one `signing_key:`;
+automatic key selection and rotation are not implemented.
+
+Public-client sessions have no signing key ID. Older serialized sessions without
+this field remain readable and use the configured signing key without an ID check;
+their original key ID cannot be inferred from the stored session.
+
 ```ruby
 # Initialize client with metadata
 client = AuthProto::Client.new(

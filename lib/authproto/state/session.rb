@@ -32,6 +32,10 @@ module AuthProto
       # @return [String]
       attr_reader :client_id
 
+      # Client-authentication key ID, or nil for public clients.
+      # @return [String, nil]
+      attr_reader :signing_key_id
+
       # Space-separated requested scopes.
       # @return [String]
       attr_reader :scope
@@ -62,13 +66,20 @@ module AuthProto
       # @param scope [String] requested space-separated scopes
       # @param auth_server [Metadata::AuthorizationServer, nil] pre-resolved authorization server
       # @param did [String, nil] pre-resolved account DID
+      # @param signing_key_id [String, nil] client-authentication key ID selected before PAR
       # @param authorization_expires_at [Time, nil] deadline for completing pending authorization
+      # @raise [ArgumentError] if the signing key ID is neither nil nor a nonempty string
       # @raise [PKCE::Error] if PKCE generation fails
       #
-      def initialize(client_id:, scope:, auth_server: nil, did: nil, authorization_expires_at: nil)
+      def initialize(client_id:, scope:, auth_server: nil, did: nil, signing_key_id: nil, authorization_expires_at: nil)
         super() # Initialize MonitorMixin
 
+        unless signing_key_id.nil? || (signing_key_id.is_a?(String) && !signing_key_id.empty?)
+          raise ArgumentError, "signing_key_id must be a nonempty string or nil"
+        end
+
         @client_id = client_id
+        @signing_key_id = signing_key_id&.dup&.freeze
         @scope = scope
         @auth_server = auth_server
         @did = did

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require 'jwt'
 require 'jose'
+require 'jwt'
 require 'securerandom'
 
 require_relative '../errors'

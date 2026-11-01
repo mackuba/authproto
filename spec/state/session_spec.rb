@@ -26,6 +26,7 @@ describe AuthProto::State::Session do
       session.session_id.should_not be_nil
       session.state_token.should_not be_nil
       session.client_id.should == client_id
+      session.signing_key_id.should be_nil
       session.scope.should == scope
       session.auth_server.should == auth_server
       session.did.should == did
@@ -38,6 +39,23 @@ describe AuthProto::State::Session do
       another_session = AuthProto::State::Session.new(client_id: client_id, scope: scope)
       session.session_id.should_not == another_session.session_id
       session.state_token.should_not == another_session.state_token
+    end
+
+    it "should retain the selected signing key ID independently of the supplied string" do
+      key_id = String.new('client-key')
+      bound = described_class.new(client_id: client_id, scope: scope, signing_key_id: key_id)
+      key_id.replace('other-key')
+
+      bound.signing_key_id.should == 'client-key'
+      bound.signing_key_id.should be_frozen
+    end
+
+    ['', 123, false].each do |key_id|
+      it "should reject an invalid signing key ID #{key_id.inspect}" do
+        expect {
+          described_class.new(client_id: client_id, scope: scope, signing_key_id: key_id)
+        }.to raise_error(ArgumentError, /signing_key_id/)
+      end
     end
   end
 
