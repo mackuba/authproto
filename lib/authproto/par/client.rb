@@ -134,29 +134,16 @@ module AuthProto
       private
 
       def make_request(request, session:)
-        # Generate DPoP proof for this request
-        proof = dpop_client.generate_proof(
-          session: session,
-          method: 'POST',
-          uri: @par_endpoint
-        )
+        dpop_proof = dpop_client.generate_proof(session: session, method: 'POST', uri: @par_endpoint)
 
-        # Build headers including DPoP proof
-        headers = build_headers(proof)
-
-        # Make the request
         AuthProto.configuration.http_client.post(
           @par_endpoint,
           body: request.to_form(audience: @authorization_server.issuer),
-          headers: headers
+          headers: {
+            "Content-Type" => "application/x-www-form-urlencoded",
+            "DPoP" => dpop_proof
+          }
         )
-      end
-
-      def build_headers(dpop_proof)
-        {
-          "Content-Type" => "application/x-www-form-urlencoded",
-          "DPoP" => dpop_proof
-        }
       end
 
       def handle_error_response(response)
