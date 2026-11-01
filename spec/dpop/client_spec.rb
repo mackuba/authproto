@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'net/http'
 
 describe AuthProto::DPoP::Client do
   let(:session) { AuthProto::State::Session.new(client_id: 'client', scope: 'atproto') }
@@ -228,6 +229,38 @@ describe AuthProto::DPoP::Client do
       client.nonce_manager.expects(:update).with(nonce: nonce, server_url: server_url, session_id: session.session_id)
 
       client.process_response(response, server_url: server_url, session_id: session.session_id)
+    end
+
+    it "should reject duplicate nonce headers with different casing without updating storage" do
+      client.nonce_manager.expects(:update).never
+      headers = { 'DPoP-Nonce' => 'one', 'dpop-nonce' => 'one' }
+
+      expect {
+        client.process_response(response.merge(headers: headers), server_url: server_url, session_id: session.session_id)
+      }.to raise_error(described_class::Error, /Multiple DPoP-Nonce/)
+    end
+
+    it "should reject repeated nonce headers combined by Net::HTTP without overwriting the cached nonce" do
+      client.process_response(response, server_url: server_url, session_id: session.session_id)
+      http_response = Net::HTTPOK.new('1.1', '200', 'OK')
+      http_response.add_field('DPoP-Nonce', 'one')
+      http_response.add_field('dpop-nonce', 'two')
+
+      expect {
+        client.process_response(response.merge(headers: http_response.each_header.to_h),
+                                server_url: server_url, session_id: session.session_id)
+      }.to raise_error(described_class::Error, /Invalid.*DPoP nonce/)
+
+      client.nonce_manager.get(server_url: server_url, session_id: session.session_id).should == nonce
+    end
+
+    ['has space', 'has"quote', ['one', 'two'], 123].each do |value|
+      it "should reject a malformed nonce header #{value.inspect}" do
+        expect {
+          client.process_response(response.merge(headers: { 'DPoP-Nonce' => value }),
+                                  server_url: server_url, session_id: session.session_id)
+        }.to raise_error(described_class::Error, /Invalid.*DPoP nonce/)
+      end
     end
 
     it "should reject a response without a nonce" do

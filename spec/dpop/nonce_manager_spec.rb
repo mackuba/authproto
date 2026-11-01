@@ -42,6 +42,38 @@ describe AuthProto::DPoP::NonceManager do
   end
 
   describe "#update" do
+    ['has space', "has\ttab", "has\nnewline", 'has"quote', 'has\\slash',
+     "\x7F", 'é', 'nonce'.encode('UTF-16LE'), 123, ['one', 'two'], "\xFF"].each do |value|
+      it "should reject malformed nonce #{value.inspect} without overwriting the cached nonce" do
+        nonce_manager.update(session_id: session_id, nonce: nonce, server_url: server_url)
+
+        expect {
+          nonce_manager.update(session_id: session_id, nonce: value, server_url: server_url)
+        }.to raise_error(AuthProto::DPoP::NonceManager::NonceError, /Invalid.*DPoP nonce/)
+
+        nonce_manager.get(server_url: server_url, session_id: session_id).should == nonce
+      end
+    end
+
+    [nil, ''].each do |value|
+      it "should reject a nonce of #{value.inspect} without overwriting the cached nonce" do
+        nonce_manager.update(session_id: session_id, nonce: nonce, server_url: server_url)
+
+        expect {
+          nonce_manager.update(session_id: session_id, nonce: value, server_url: server_url)
+        }.to raise_error(AuthProto::DPoP::NonceManager::NonceError, /nonce must not be empty/)
+
+        nonce_manager.get(server_url: server_url, session_id: session_id).should == nonce
+      end
+    end
+
+    it "should accept all NQCHAR characters, including commas, without changing them" do
+      value = ((0x21..0x7E).map(&:chr) - ['"', '\\']).join
+      nonce_manager.update(session_id: session_id, nonce: value, server_url: server_url)
+
+      nonce_manager.get(server_url: server_url, session_id: session_id).should == value
+    end
+
     it "should store a nonce for a server" do
       nonce_manager.update(session_id: session_id, nonce: nonce, server_url: server_url)
       stored = nonce_manager.get(server_url: server_url, session_id: session_id)

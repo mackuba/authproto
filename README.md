@@ -233,7 +233,8 @@ its caller. PAR, code exchange, and refresh use this helper.
 `DPoP::Client#process_response` accepts the whole HTTP response hash and requires
 `server_url:` and `session_id:` to update the requesting
 session's nonce. When sending requests without `with_nonce_handling`, call it
-for every DPoP response, including successes, failures, and retry responses; missing or empty `DPoP-Nonce` headers raise an error.
+for every DPoP response, including successes, failures, and retry responses; missing or empty `DPoP-Nonce` headers raise an error. Nonces must use RFC 9449's
+`NQCHAR` syntax; malformed values and duplicate nonce headers are rejected.
 `has_nonce_error?` recognizes HTTP 400 JSON nonce errors and HTTP 401 DPoP
 authentication challenges. It does not update the nonce or send a retry.
 Direct nonce manager calls to `get`, `update`, and `clear` also

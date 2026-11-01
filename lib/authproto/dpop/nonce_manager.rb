@@ -20,6 +20,9 @@ module AuthProto
 
     class NonceManager
 
+      # Regexp for checking the nonce value for invalid characters
+      NONCE_REGEXP = /\A[\x21\x23-\x5B\x5D-\x7E]+\z/
+
       # Error for nonce-related issues
       class NonceError < AuthProto::Error; end
 
@@ -35,7 +38,7 @@ module AuthProto
 
       # Stores a nonce for the session and URL's origin, replacing any previous value.
       #
-      # @param nonce [String] nonempty server-provided nonce
+      # @param nonce [String] server-provided nonce using RFC 9449's `1*NQCHAR` syntax
       # @param session_id [String] nonempty OAuth session identifier
       # @param server_url [String] HTTPS URL, or HTTP URL with host `localhost`
       # @return [void]
@@ -117,7 +120,9 @@ module AuthProto
       end
 
       def validate_inputs(nonce, server_url)
-        raise NonceError, "nonce is required" if nonce.nil? || nonce.empty?
+        raise NonceError, "nonce must not be empty" if nonce.to_s == ''
+        raise NonceError, "Invalid DPoP nonce" unless nonce.is_a?(String)
+        raise NonceError, "Invalid characters in the DPoP nonce" unless nonce.ascii_only? && nonce =~ NONCE_REGEXP
 
         validate_server_url(server_url)
       end

@@ -77,7 +77,7 @@ module AuthProto
 
       # Stores a `DPoP-Nonce` response header for future requests to the same origin.
       # Call after every DPoP HTTP attempt, before accepting a result or deciding to retry.
-      # Header names are case-insensitive; missing or empty nonces are rejected.
+      # Header names are case-insensitive; missing, malformed and duplicate nonces are rejected.
       #
       # @param session_id [String] session that made the request
       # @param response [Hash{Symbol => Object}] HTTP response with `:status`, `:headers`, and `:body`
@@ -91,9 +91,13 @@ module AuthProto
         response_headers = response[:headers]
         raise Error, "Missing or invalid response headers" unless response_headers.is_a?(Hash)
 
+        if response_headers.keys.count { |name| name.casecmp?('DPoP-Nonce') } > 1
+          raise Error, "Multiple DPoP-Nonce headers"
+        end
+
         nonce = response_header(response, 'DPoP-Nonce')
 
-        if nonce.nil? || nonce.empty?
+        if nonce.nil? || nonce == ''
           raise Error, "Missing DPoP-Nonce header"
         end
 
