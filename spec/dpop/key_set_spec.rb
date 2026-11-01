@@ -2,27 +2,27 @@
 
 require 'json'
 
-describe AuthProto::DPoP::KeyManager do
+describe AuthProto::DPoP::KeySet do
   let(:valid_keypair) { JOSE::JWK.generate_key([:ec, "P-256"]) }
   let(:invalid_keypair) { JOSE::JWK.generate_key([:rsa, 2048]) }
 
   describe "#initialize" do
-    it "should create a KeyManager with a valid EC keypair" do
-      manager = AuthProto::DPoP::KeyManager.new(valid_keypair)
-      manager.keypair.should == valid_keypair
+    it "should create a KeySet with a valid EC keypair" do
+      keyset = AuthProto::DPoP::KeySet.new(valid_keypair)
+      keyset.key.should == valid_keypair
     end
 
     it "should raise an error when initialized with an invalid keypair" do
       expect {
-        AuthProto::DPoP::KeyManager.new(invalid_keypair)
-      }.to raise_error(AuthProto::DPoP::KeyManager::KeyError)
+        AuthProto::DPoP::KeySet.new(invalid_keypair)
+      }.to raise_error(AuthProto::DPoP::KeySet::KeyError)
     end
 
     it "should generate a new keypair if none is provided" do
-      manager = AuthProto::DPoP::KeyManager.new
-      keypair = manager.keypair
-      keypair.to_map["kty"].should == "EC"
-      keypair.to_map["crv"].should == "P-256"
+      keyset = AuthProto::DPoP::KeySet.new
+      key = keyset.key
+      key.to_map["kty"].should == "EC"
+      key.to_map["crv"].should == "P-256"
     end
   end
 
@@ -44,8 +44,9 @@ describe AuthProto::DPoP::KeyManager do
 
   describe "#public_jwk" do
     it "should return the public key in JWK format" do
-      manager = AuthProto::DPoP::KeyManager.new(valid_keypair)
-      public_jwk = manager.public_jwk
+      keyset = AuthProto::DPoP::KeySet.new(valid_keypair)
+
+      public_jwk = keyset.public_jwk
       public_jwk["kty"].should == "EC"
       public_jwk["crv"].should == "P-256"
     end
@@ -53,8 +54,8 @@ describe AuthProto::DPoP::KeyManager do
 
   describe "#sign_segments" do
     it "should sign a JSON payload with ES256 even when a different algorithm is requested" do
-      manager = AuthProto::DPoP::KeyManager.new(valid_keypair)
-      signature = manager.sign_segments({ alg: 'ES384', typ: 'dpop+jwt' }, { nested: { value: 'test' } })
+      keyset = AuthProto::DPoP::KeySet.new(valid_keypair)
+      signature = keyset.sign_segments({ alg: 'ES384', typ: 'dpop+jwt' }, { nested: { value: 'test' } })
       verified, payload, header = valid_keypair.verify(signature)
 
       verified.should be_truthy
@@ -65,16 +66,16 @@ describe AuthProto::DPoP::KeyManager do
 
   describe "#to_jwk" do
     it "should export the keypair in JWK format including private key" do
-      manager = AuthProto::DPoP::KeyManager.new(valid_keypair)
-      jwk = manager.to_jwk(include_private: true)
+      keyset = AuthProto::DPoP::KeySet.new(valid_keypair)
+      jwk = keyset.to_jwk(include_private: true)
       jwk["kty"].should == "EC"
       jwk["crv"].should == "P-256"
       (jwk.key?("d")).should be_truthy
     end
 
     it "should export the public key only when include_private is false" do
-      manager = AuthProto::DPoP::KeyManager.new(valid_keypair)
-      jwk = manager.to_jwk(include_private: false)
+      keyset = AuthProto::DPoP::KeySet.new(valid_keypair)
+      jwk = keyset.to_jwk(include_private: false)
       jwk["kty"].should == "EC"
       jwk["crv"].should == "P-256"
       (jwk.key?("d")).should be_falsey
@@ -82,16 +83,16 @@ describe AuthProto::DPoP::KeyManager do
   end
 
   describe ".from_jwk" do
-    it "should create a KeyManager instance from a JWK" do
-      manager = AuthProto::DPoP::KeyManager.from_jwk(valid_keypair.to_map)
-      manager.should be_an_instance_of(AuthProto::DPoP::KeyManager)
+    it "should create a KeySet instance from a JWK" do
+      keyset = AuthProto::DPoP::KeySet.from_jwk(valid_keypair.to_map)
+      keyset.should be_an_instance_of(AuthProto::DPoP::KeySet)
     end
 
     it "should raise an error if importing the JWK fails" do
       invalid_jwk = { "kty" => "RSA", "n" => "mocked_n", "e" => "mocked_e" }
       expect {
-        AuthProto::DPoP::KeyManager.from_jwk(invalid_jwk)
-      }.to raise_error(AuthProto::DPoP::KeyManager::KeyError)
+        AuthProto::DPoP::KeySet.from_jwk(invalid_jwk)
+      }.to raise_error(AuthProto::DPoP::KeySet::KeyError)
     end
   end
 end

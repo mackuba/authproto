@@ -8,7 +8,7 @@ require 'uri'
 require_relative '../dpop'
 require_relative '../errors'
 require_relative '../validated_uri'
-require_relative 'key_manager'
+require_relative 'key_set'
 
 module AuthProto
   module DPoP
@@ -30,7 +30,7 @@ module AuthProto
       # A nonce and access-token hash are added when requested. The URI normalizer removes
       # query strings, fragments and default ports.
       #
-      # @param key_manager [KeyManager] key belonging to the session making this request
+      # @param key_set [KeySet] key belonging to the session making this request
       # @param method [String] nonempty HTTP method, converted to uppercase
       # @param uri [String] absolute HTTP(S) request URL
       # @param nonce [String, nil] server-provided nonce to include
@@ -39,13 +39,13 @@ module AuthProto
       # @return [JOSE::SignedBinary] compact signed DPoP JWT
       # @raise [ProofError] if input validation or proof generation fails
       #
-      def generate(key_manager:, method:, uri:, nonce: nil, access_token: nil, ath: nil)
-        raise ProofError, "invalid key_manager type" unless key_manager.is_a?(KeyManager)
+      def generate(key_set:, method:, uri:, nonce: nil, access_token: nil, ath: nil)
+        raise ProofError, "invalid key_set type" unless key_set.is_a?(KeySet)
 
         validate_inputs(method, uri)
         ath = !access_token.nil? if ath.nil?
 
-        header = build_header(key_manager)
+        header = build_header(key_set)
         payload = build_payload(
           method: method,
           uri: uri,
@@ -54,7 +54,7 @@ module AuthProto
           include_ath: ath
         )
 
-        key_manager.sign_segments(header, payload)
+        key_set.sign_segments(header, payload)
       rescue StandardError => e
         raise ProofError, "Failed to generate proof: #{e.message}"
       end
@@ -70,11 +70,11 @@ module AuthProto
         raise ProofError, "invalid uri: #{e.message}"
       end
 
-      def build_header(key_manager)
+      def build_header(key_set)
         {
           typ: 'dpop+jwt',
           alg: ALGORITHM,
-          jwk: key_manager.public_jwk.to_h
+          jwk: key_set.public_jwk.to_h
         }
       end
 

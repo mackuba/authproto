@@ -122,7 +122,7 @@ module AuthProto
     # @raise [PAR::ClientAssertion::Error] if confidential-client signing fails
     # @raise [DPoP::Client::Error] if generating the PAR proof fails
     # @raise [HTTPClient::SSRFError] if server discovery rejects a destination
-    # @raise [DPoP::KeyManager::KeyError] if generating the session key fails
+    # @raise [DPoP::KeySet::KeyError] if generating the session key fails
     # @raise [Storage::StorageError] if session storage or locking fails
     # @raise [Encryption::EncryptionError] if session serialization cannot encrypt secrets
     #

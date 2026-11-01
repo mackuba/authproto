@@ -7,7 +7,7 @@ module AuthProto
       def initialize: () -> void
 
       def generate: (
-          key_manager: KeyManager,
+          key_set: KeySet,
           method: String,
           uri: String,
           ?nonce: String?,
@@ -19,7 +19,7 @@ module AuthProto
 
       def validate_inputs: (String method, String uri) -> void
 
-      def build_header: (KeyManager key_manager) -> { typ: "dpop+jwt", alg: "ES256", jwk: Hash[String, untyped] }
+      def build_header: (KeySet key_set) -> { typ: "dpop+jwt", alg: "ES256", jwk: Hash[String, untyped] }
 
       def build_payload: (
           method: String,

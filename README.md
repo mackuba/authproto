@@ -221,7 +221,7 @@ sessions across application restarts.
 `Client` and the Minisky integration no longer accept `dpop_key:`. Restore sessions
 by their session ID; no separate key export or constructor argument is needed.
 `Client#dpop_client` remains shared and accepts `session:` when generating proofs.
-Its `ProofGenerator` accepts `key_manager:` per call. Nonces remain stored per server
+Its `ProofGenerator` accepts `key_set:` per call. Nonces remain stored per server
 origin in this step, and response processing retains its existing interface.
 
 Serialized sessions from older versions that lack a private DPoP key cannot be

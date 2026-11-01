@@ -33,7 +33,7 @@ describe AuthProto::State::Session do
       session.pkce_verifier.should_not be_nil
       session.pkce_challenge.should_not be_nil
       session.tokens.should be_nil
-      session.dpop_key.should be_a(AuthProto::DPoP::KeyManager)
+      session.dpop_key.should be_a(AuthProto::DPoP::KeySet)
     end
 
     it "should generate unique session_id and state_token" do

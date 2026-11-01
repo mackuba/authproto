@@ -1,6 +1,6 @@
 module AuthProto
   module DPoP
-    class KeyManager
+    class KeySet
       class KeyError < AuthProto::Error
       end
 
@@ -11,7 +11,7 @@ module AuthProto
       def public_jwk: () -> json_object
       def sign_segments: (Hash[String | Symbol, untyped] header, Hash[String | Symbol, untyped] payload) -> JOSE::SignedBinary
       def to_jwk: (?include_private: bool) -> JOSE::Map
-      def self.from_jwk: (json_object | JOSE::Map jwk) -> KeyManager
+      def self.from_jwk: (json_object | JOSE::Map jwk) -> KeySet
 
       private
       def generate_keypair: () -> JOSE::JWK

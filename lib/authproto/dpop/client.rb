@@ -70,7 +70,7 @@ module AuthProto
         nonce ||= @nonce_manager.get(server_url)
 
         @proof_generator.generate(
-          key_manager: session.dpop_key,
+          key_set: session.dpop_key,
           method: method,
           uri: uri,
           nonce: nonce,

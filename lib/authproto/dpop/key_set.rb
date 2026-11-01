@@ -17,7 +17,7 @@ module AuthProto
     # Uses JOSE for cryptographic operations and key format handling.
     #
 
-    class KeyManager
+    class KeySet
 
       # Error raised when key operations fail
       class KeyError < AuthProto::Error; end
@@ -28,15 +28,15 @@ module AuthProto
 
       # Private EC P-256 keypair used for signing.
       # @return [JOSE::JWK]
-      attr_reader :keypair
+      attr_reader :key
 
-      # Creates a new KeyManager instance with an optional existing keypair
+      # Creates a new KeySet instance with an optional existing keypair
       #
-      # @param keypair [JOSE::JWK, nil] Optional existing keypair to use
-      # @raise [KeyError] if the provided keypair is invalid
+      # @param key [JOSE::JWK, nil] Optional existing keypair to use
+      # @raise [KeyError] if the provided key is invalid
       #
-      def initialize(keypair = nil)
-        @keypair = keypair || generate_keypair
+      def initialize(key = nil)
+        @key = key || generate_keypair
         validate_keypair
       end
 
@@ -46,7 +46,7 @@ module AuthProto
       # @raise [KeyError] if public-key export fails
       #
       def public_jwk
-        jwk = @keypair.to_public.to_map.to_h
+        jwk = @key.to_public.to_map.to_h
         # If somehow the properties aren't set, add them
         jwk['use'] ||= 'sig'
         jwk['kid'] ||= generate_kid(jwk)
@@ -78,7 +78,7 @@ module AuthProto
         payload_json = JSON.generate(payload)
 
         # Create the JWS with our header and payload
-        jws = @keypair.sign(payload_json, full_header)
+        jws = @key.sign(payload_json, full_header)
 
         # Get the compact serialization
         jws.compact
@@ -93,7 +93,7 @@ module AuthProto
       # @raise [KeyError] if export fails
       #
       def to_jwk(include_private: false)
-        key = include_private ? @keypair : @keypair.to_public
+        key = include_private ? @key : @key.to_public
         key.to_map
       rescue StandardError => e
         raise KeyError, "Failed to export key: #{e.message}"
@@ -102,12 +102,12 @@ module AuthProto
       # Imports an EC P-256 JWK and validates that it can sign and verify.
       #
       # @param jwk [Hash{String => Object}, JOSE::Map] JWK including private key material
-      # @return [KeyManager] imported key manager
+      # @return [KeySet] imported key manager
       # @raise [KeyError] if import or key validation fails
       #
       def self.from_jwk(jwk)
-        keypair = JOSE::JWK.from_map(jwk)
-        new(keypair)
+        key = JOSE::JWK.from_map(jwk)
+        new(key)
       rescue StandardError => e
         raise KeyError, "Failed to import key: #{e.message}"
       end
@@ -138,7 +138,7 @@ module AuthProto
       end
 
       def sign(data)
-        @keypair.sign(data, { 'alg' => ALGORITHM }).compact
+        @key.sign(data, { 'alg' => ALGORITHM }).compact
       rescue StandardError => e
         raise KeyError, "Failed to sign data: #{e.message}"
       end
@@ -157,7 +157,7 @@ module AuthProto
       end
 
       def verify(signed_jws)
-        verified, payload, = @keypair.verify(signed_jws)
+        verified, payload, = @key.verify(signed_jws)
         verified
       rescue StandardError => e
         raise KeyError, "Failed to verify signature: #{e.message}"
@@ -178,9 +178,9 @@ module AuthProto
       end
 
       def validate_keypair
-        raise KeyError, "Invalid key type: #{@keypair.kty}, must be :ec" unless @keypair.kty.is_a?(JOSE::JWK::KTY_EC)
+        raise KeyError, "Invalid key type: #{@key.kty}, must be :ec" unless @key.kty.is_a?(JOSE::JWK::KTY_EC)
 
-        curve = @keypair.to_map['crv']
+        curve = @key.to_map['crv']
         raise KeyError, "Invalid curve: #{curve}, must be #{CURVE}" unless curve == CURVE
 
         # Verify we can perform basic operations

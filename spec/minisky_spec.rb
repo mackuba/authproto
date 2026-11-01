@@ -211,7 +211,7 @@ describe Minisky::OAuthClient do
       state = URI.decode_www_form(request.body).to_h.fetch('state')
       pending = client.oauth_client.session_manager.get_session_by_state_token(state)
       original_keys[pending.session_id] = pending.dpop_key
-      pending.dpop_key.keypair.verify(request.headers.fetch('Dpop')).first.should be_truthy
+      pending.dpop_key.key.verify(request.headers.fetch('Dpop')).first.should be_truthy
       { status: 201, headers: { 'Content-Type' => 'application/json' },
         body: { request_uri: 'urn:example:par', expires_in: 90 }.to_json }
     end
@@ -223,7 +223,7 @@ describe Minisky::OAuthClient do
     )
     stub_request(:post, auth_server.token_endpoint).to_return do |request|
       session_id = URI.decode_www_form(request.body).to_h.fetch('code')
-      original_keys.fetch(session_id).keypair.verify(request.headers.fetch('Dpop')).first.should be_truthy
+      original_keys.fetch(session_id).key.verify(request.headers.fetch('Dpop')).first.should be_truthy
       { status: 200, body: {
         access_token: "access-#{session_id}", refresh_token: 'refresh', token_type: 'DPoP',
         expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
@@ -241,7 +241,7 @@ describe Minisky::OAuthClient do
     (authorizations + authorizations.reverse).each do |auth|
       session_id = auth[:session_id]
       headers = restored.oauth_client.auth_headers(session_id: session_id, method: 'GET', url: endpoint)
-      original_keys.fetch(session_id).keypair.verify(headers.fetch('DPoP')).first.should be_truthy
+      original_keys.fetch(session_id).key.verify(headers.fetch('DPoP')).first.should be_truthy
       headers.fetch('Authorization').should == "DPoP access-#{session_id}"
     end
   end

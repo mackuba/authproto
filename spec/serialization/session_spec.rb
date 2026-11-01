@@ -37,7 +37,7 @@ describe AuthProto::Serialization::Session do
   it "should reject sessions without a saved DPoP key instead of generating a replacement" do
     serialized = JSON.parse(serializer.serialize(session))
     serialized.fetch('data').delete('dpop_key')
-    AuthProto::DPoP::KeyManager.expects(:new).never
+    AuthProto::DPoP::KeySet.expects(:new).never
 
     expect {
       serializer.deserialize(JSON.generate(serialized))
@@ -50,7 +50,7 @@ describe AuthProto::Serialization::Session do
 
     expect {
       serializer.deserialize(JSON.generate(serialized))
-    }.to raise_error(AuthProto::DPoP::KeyManager::KeyError)
+    }.to raise_error(AuthProto::DPoP::KeySet::KeyError)
   end
 
   it "should preserve the signing key ID without storing the private client-authentication key" do

@@ -8,7 +8,7 @@ require 'securerandom'
 UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 describe AuthProto::DPoP::ProofGenerator do
-  let(:key_manager) { AuthProto::DPoP::KeyManager.new }
+  let(:key_set) { AuthProto::DPoP::KeySet.new }
   let(:generator) { AuthProto::DPoP::ProofGenerator.new }
   let(:method) { 'POST' }
   let(:uri) { "https://example.com/path" }
@@ -16,20 +16,20 @@ describe AuthProto::DPoP::ProofGenerator do
   describe "key validation" do
     it "should require a key manager" do
       expect {
-        generator.generate(key_manager: nil, method: method, uri: uri)
+        generator.generate(key_set: nil, method: method, uri: uri)
       }.to raise_error(AuthProto::DPoP::ProofGenerator::ProofError)
     end
 
     it "should validate key manager type" do
       expect {
-        generator.generate(key_manager: "invalid", method: method, uri: uri)
+        generator.generate(key_set: "invalid", method: method, uri: uri)
       }.to raise_error(AuthProto::DPoP::ProofGenerator::ProofError)
     end
   end
 
   describe "#generate" do
     it "should generate valid proof JWT" do
-      proof = generator.generate(key_manager: key_manager, method: method, uri: uri)
+      proof = generator.generate(key_set: key_set, method: method, uri: uri)
       segments = proof.split(".")
       segments.length.should == 3 # header.payload.signature
 
@@ -49,7 +49,7 @@ describe AuthProto::DPoP::ProofGenerator do
     it "should include nonce when provided" do
       nonce = SecureRandom.hex
       proof = generator.generate(
-        key_manager: key_manager,
+        key_set: key_set,
         method: method,
         uri: uri,
         nonce: nonce
@@ -61,7 +61,7 @@ describe AuthProto::DPoP::ProofGenerator do
     it "should optionally include access token hash" do
       token = "test_token"
       proof = generator.generate(
-        key_manager: key_manager,
+        key_set: key_set,
         method: method,
         uri: uri,
         access_token: token,
@@ -76,33 +76,33 @@ describe AuthProto::DPoP::ProofGenerator do
 
     it "should normalize URIs" do
       uri = "https://example.com:443/path?query#fragment"
-      proof = generator.generate(key_manager: key_manager, method: method, uri: uri)
+      proof = generator.generate(key_set: key_set, method: method, uri: uri)
       payload = extract_payload(proof)
       payload["htu"].should == "https://example.com/path"
     end
 
     it "should strip query strings while preserving the path and a nondefault port" do
       uri = 'https://example.com:8443/path%2Fsegment?limit=1&cursor=next%2Fpage'
-      proof = generator.generate(key_manager: key_manager, method: method, uri: uri)
+      proof = generator.generate(key_set: key_set, method: method, uri: uri)
 
       extract_payload(proof)['htu'].should == 'https://example.com:8443/path%2Fsegment'
     end
 
     it "should validate http method" do
       expect {
-        generator.generate(key_manager: key_manager, method: "", uri: uri)
+        generator.generate(key_set: key_set, method: "", uri: uri)
       }.to raise_error(AuthProto::DPoP::ProofGenerator::ProofError)
     end
 
     it "should validate http uri" do
       expect {
-        generator.generate(key_manager: key_manager, method: method, uri: "invalid")
+        generator.generate(key_set: key_set, method: method, uri: "invalid")
       }.to raise_error(AuthProto::DPoP::ProofGenerator::ProofError)
     end
 
     it "should require https or http uri" do
       expect {
-        generator.generate(key_manager: key_manager, method: method, uri: "ftp://example.com")
+        generator.generate(key_set: key_set, method: method, uri: "ftp://example.com")
       }.to raise_error(AuthProto::DPoP::ProofGenerator::ProofError)
     end
   end

@@ -56,7 +56,7 @@ module AuthProto
 
         session = AuthProto::State::Session.new(
           client_id: data['client_id'],
-          dpop_key: AuthProto::DPoP::KeyManager.from_jwk(data.fetch('dpop_key')),
+          dpop_key: AuthProto::DPoP::KeySet.from_jwk(data.fetch('dpop_key')),
           scope: data['scope'],
           did: data['did'],
           signing_key_id: data['signing_key_id'],

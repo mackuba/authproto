@@ -30,9 +30,9 @@ describe AuthProto::DPoP::Client do
 
       [session, other, session].each do |current|
         proof = client.generate_proof(session: current, method: method, uri: uri, nonce: nonce)
-        current.dpop_key.keypair.verify(proof).first.should be_truthy
+        current.dpop_key.key.verify(proof).first.should be_truthy
         different = current.equal?(session) ? other : session
-        different.dpop_key.keypair.verify(proof).first.should be_falsey
+        different.dpop_key.key.verify(proof).first.should be_falsey
         client.proof_generator.should equal(generator)
         client.nonce_manager.should equal(nonces)
       end
@@ -41,7 +41,7 @@ describe AuthProto::DPoP::Client do
     it "should generate a DPoP proof using proof_generator" do
       client.nonce_manager.expects(:get).with("https://example.com").returns(nonce)
       client.proof_generator.expects(:generate).with(
-        key_manager: session.dpop_key,
+        key_set: session.dpop_key,
         method: method,
         uri: uri,
         nonce: nonce,
