@@ -6,6 +6,7 @@ require 'net/http'
 require 'uri'
 
 require_relative 'client'
+require_relative 'http_helpers'
 
 #
 # Experimental Minisky client backed by an AuthProto session.
@@ -13,6 +14,7 @@ require_relative 'client'
 #
 
 class Minisky::OAuthClient
+  include AuthProto::HTTPHelpers
   include Minisky::Requests
 
   # Maximum authenticated XRPC retries after nonce challenges.
@@ -264,12 +266,6 @@ class Minisky::OAuthClient
   end
 
   def authentication_error(response)
-    # Only interpret a single DPoP challenge. Leave other auth schemes and
-    # ambiguous multi-challenge headers to Minisky's normal error handling.
-    challenge = response["WWW-Authenticate"].to_s
-    return unless challenge.match?(/\ADPoP\s/i)
-    return if challenge.match?(/,\s*(?:Bearer|Basic|DPoP)\b/i)
-
-    challenge[/\berror\s*=\s*"(use_dpop_nonce|invalid_token)"/i, 1]
+    authentication_challenge(response['WWW-Authenticate'], scheme: 'DPoP')&.fetch('error', nil)
   end
 end

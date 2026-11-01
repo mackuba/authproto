@@ -608,7 +608,7 @@ describe Minisky::OAuthClient do
       payload = JWT.decode(proofs.last, nil, false).first
       if proofs.length == 1
         { status: 401, headers: response_headers("challenge").merge(
-          "WWW-Authenticate" => 'DPoP error="use_dpop_nonce"'
+          "WWW-Authenticate" => 'Bearer realm="api", DPoP error="use_dpop_nonce"'
         ), body: "{}" }
       else
         payload["nonce"].should == "challenge"
@@ -632,7 +632,7 @@ describe Minisky::OAuthClient do
     attach_session
     stub_refresh
     stub_request(:get, endpoint).to_return(status: 401, headers: response_headers.merge(
-      "WWW-Authenticate" => 'DPoP error="invalid_token"'
+      "WWW-Authenticate" => 'DPoP error="invalid_token", Bearer realm="api"'
     ), body: '{"error":"invalid_token"}')
     expect { client.get_request("app.bsky.actor.getProfile") }.to raise_error(Minisky::ClientErrorResponse)
     WebMock.should have_requested(:get, endpoint).times(2)

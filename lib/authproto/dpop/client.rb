@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'json'
-require 'strscan'
 require 'uri'
 
 require_relative '../errors'
@@ -106,9 +105,9 @@ module AuthProto
 
       # Detects a nonce challenge without treating other errors as nonce challenges.
       #
-      # Recognizes HTTP 400 JSON errors and a single HTTP 401 DPoP authentication
+      # Recognizes HTTP 400 JSON errors and an HTTP 401 DPoP authentication
       # challenge. Header/parameter names and the scheme are case-insensitive;
-      # error values are case-sensitive. Ambiguous multiple challenges are ignored.
+      # error values are case-sensitive. Multiple DPoP challenges are treated as ambiguous.
       #
       # @param response [Hash{Symbol => Object}] HTTP response with status, headers and body
       # @return [Boolean] whether the response requests a retry with a server nonce
@@ -168,33 +167,7 @@ module AuthProto
       private
 
       def nonce_challenge?(challenge)
-        return false unless challenge.is_a?(String)
-
-        scanner = StringScanner.new(challenge)
-        return false unless scanner.scan(/DPoP[ \t]+/i)
-
-        params = {}
-
-        loop do
-          name = scanner.scan(/[!#$%&'*+\-.^_`|~0-9A-Za-z]+/)&.downcase
-          return false unless name && !params.key?(name)
-
-          scanner.skip(/[ \t]*/)
-          return false unless scanner.scan(/=/)
-
-          scanner.skip(/[ \t]*/)
-          value = scanner.scan(/"(?:\\.|[^"\\])*"/) || scanner.scan(/[!#$%&'*+\-.^_`|~0-9A-Za-z]+/)
-          return false unless value
-
-          params[name] = value.start_with?('"') ? value[1...-1].gsub(/\\(.)/, '\\1') : value
-          scanner.skip(/[ \t]*/)
-          break if scanner.eos?
-          return false unless scanner.scan(/,/)
-
-          scanner.skip(/[ \t]*/)
-        end
-
-        params['error'] == DPoP::ERROR_USE_NONCE
+        authentication_challenge(challenge, scheme: 'DPoP')&.fetch('error', nil) == DPoP::ERROR_USE_NONCE
       end
     end
   end

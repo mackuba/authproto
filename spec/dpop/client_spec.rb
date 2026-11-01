@@ -100,6 +100,8 @@ describe AuthProto::DPoP::Client do
 
     [
       'DPoP error="use_dpop_nonce"',
+      'Bearer realm="api", DPoP error="use_dpop_nonce"',
+      'DPoP error="use_dpop_nonce", Bearer realm="example"',
       'dPoP ERROR = "use_dpop_nonce", algs="ES256"',
       'DPoP error_description="Expired nonce, please retry", error="use_dpop_nonce"',
       'DPoP error="use_dpop_nonce", error_description="Say \\"hello\\""'
@@ -113,7 +115,7 @@ describe AuthProto::DPoP::Client do
     [
       nil, '', 'Bearer error="use_dpop_nonce"', 'DPoP error="invalid_token"',
       'DPoP error_description="use_dpop_nonce"', 'DPoP error="USE_DPOP_NONCE"',
-      'DPoP error="use_dpop_nonce", Bearer realm="example"',
+      'DPoP error="use_dpop_nonce", DPoP error="invalid_token"',
       'DPoP error="use_dpop_nonce", error="invalid_token"', 'DPoP error="use_dpop_nonce',
       'DPoP error="invalid_token", error_description="error=use_dpop_nonce"'
     ].each do |challenge|

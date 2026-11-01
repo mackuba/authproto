@@ -41,6 +41,41 @@ describe AuthProto::HTTPHelpers do
     helper.send(:response_header, {}, 'Content-Type', strip_parameters: true).should be_nil
   end
 
+  describe '#authentication_challenge' do
+    [
+      'Bearer realm="api", DPoP error="use_dpop_nonce"',
+      'dPoP ERROR="use_dpop_nonce", Basic realm="other"',
+      'Basic YWJjZA==, DPoP error="use_dpop_nonce", Bearer',
+      'DPoP realm="api, one", error="use_dpop_nonce", Bearer realm="other"'
+    ].each do |header|
+      it "should select DPoP parameters from #{header}" do
+        result = helper.send(:authentication_challenge, header, scheme: 'dpop')
+        result['error'].should == 'use_dpop_nonce'
+      end
+    end
+
+    it "should unescape quoted values without treating their contents as challenges" do
+      header = 'Bearer realm="Say \"hello\", DPoP error=invalid_token", DPoP error="USE_DPOP_NONCE"'
+      helper.send(:authentication_challenge, header, scheme: 'Bearer').should == {
+        'realm' => 'Say "hello", DPoP error=invalid_token'
+      }
+      helper.send(:authentication_challenge, header, scheme: 'DPoP')['error'].should == 'USE_DPOP_NONCE'
+    end
+
+    it "should return empty parameters for a bare scheme" do
+      helper.send(:authentication_challenge, 'Bearer, DPoP', scheme: 'DPoP').should == {}
+    end
+
+    [nil, '', 'Bearer realm="api"', 'DPoP error="broken',
+     'DPoP error="use_dpop_nonce", error="invalid_token"',
+     'DPoP error="use_dpop_nonce", dpop error="invalid_token"',
+     'DPoP error="use_dpop_nonce", Basic realm="broken'].each do |header|
+      it "should reject absent, malformed or ambiguous DPoP challenges in #{header.inspect}" do
+        helper.send(:authentication_challenge, header, scheme: 'DPoP').should be_nil
+      end
+    end
+  end
+
   it "should keep the helper private when included" do
     helper.class.private_method_defined?(:response_header).should be true
     helper.class.public_method_defined?(:response_header).should be false
