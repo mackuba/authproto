@@ -18,6 +18,7 @@ require_relative 'par/request'
 require_relative 'state/session_manager'
 require_relative 'state/token_set'
 require_relative 'storage/key_builder'
+require_relative 'token/identity'
 require_relative 'token/refresh'
 require_relative 'token/revocation'
 
@@ -29,6 +30,7 @@ module AuthProto
   #
 
   class Client
+    include Token::Identity
 
     # Error raised when authorization callback fails
     class CallbackError < Error; end
@@ -251,7 +253,7 @@ module AuthProto
     # @param session_id [String] session to refresh
     # @return [Hash{Symbol => String, Integer, nil}] replacement tokens and session identifiers
     # @raise [TokenError] if the session is missing or has no refresh token
-    # @raise [Token::RefreshError] if token refresh fails or exhausts retries
+    # @raise [Token::RefreshError] if the current PDS differs, token refresh fails or retries are exhausted
     # @raise [DPoP::Client::Error] if a refresh response lacks a valid nonce
     # @raise [State::SessionError] if replacement tokens have a different subject
     # @raise [Storage::StorageError] if session storage or locking fails
@@ -511,11 +513,11 @@ module AuthProto
       raise TokenError, "Missing atproto scope in token response" unless response['scope'].split.include?('atproto')
 
       if session.did
-        raise TokenError, "Subject mismatch in token response" if session.did != response['sub']
+        raise Token::IdentityError, "Subject mismatch in token response" if session.did != response['sub']
       else
         validate_subject_pds(response['sub'], session)
       end
-    rescue TokenError => e
+    rescue Token::IdentityError => e
       revocation = Token::Revocation.new(
         session: session,
         dpop_client: @dpop_client,
@@ -526,18 +528,6 @@ module AuthProto
       revocation.revoke_refresh_token(response['refresh_token'])
 
       raise TokenError, e.message
-    end
-
-    def validate_subject_pds(subject, session)
-      raise TokenError, "Session is missing its PDS; authorize again" unless session.pds
-
-      pds = DIDKit::DID.new(subject).document.pds_endpoint
-
-      unless pds && URI(pds).origin.downcase == URI(session.pds).origin.downcase
-        raise TokenError, "Subject PDS does not match session PDS"
-      end
-    rescue DIDKit::DIDError, DIDKit::FormatError => e
-      raise TokenError, "Invalid token subject: #{e.message}"
     end
   end
 end

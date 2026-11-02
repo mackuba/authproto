@@ -1,3 +1,9 @@
+## Unreleased
+
+- at the end of authentication that started with a PDS URL, verify that the received DID belongs to that PDS
+- revoke received tokens if after authentication the DID or PDS doesn't match the previously known value
+- check if the known PDS matches before doing a token refresh
+
 ## [0.3.0.beta3] - 2026-11-02
 
 - session's state token is deleted on successfully completed authentication (i.e. `handle_callback`)

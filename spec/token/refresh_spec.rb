@@ -6,7 +6,7 @@ require 'jwt'
 describe AuthProto::Token::Refresh do
   let(:successful_response) do
     { access_token: "new_token", token_type: "DPoP", expires_in: 3600,
-      refresh_token: "rotated_refresh_token", scope: "atproto", sub: "subject_id" }
+      refresh_token: "rotated_refresh_token", scope: "atproto", sub: "did:plc:ewvi7nxzyoun6zhxrhs64oiz" }
   end
 
   before do
@@ -32,9 +32,11 @@ describe AuthProto::Token::Refresh do
     session = AuthProto::State::Session.new(
       client_id: "mock_client",
       scope: "atproto",
+      pds: 'https://pds.example.com',
       auth_server: AuthProto::Metadata::AuthorizationServer.new(
         "issuer" => "https://example.com",
         "token_endpoint" => "https://example.com/token",
+        'revocation_endpoint' => 'https://example.com/revoke',
         "authorization_endpoint" => "https://example.com/auth",
         "response_types_supported" => ["code"],
         "grant_types_supported" => %w[authorization_code refresh_token],
@@ -55,9 +57,21 @@ describe AuthProto::Token::Refresh do
       token_type: "DPoP",
       expires_in: 3600,
       scope: "atproto",
-      sub: "subject_id"
+      sub: "did:plc:ewvi7nxzyoun6zhxrhs64oiz"
     )
     session.tokens = token_set
+
+    Resolv::DNS.any_instance.stubs(:getaddresses).returns([Resolv::IPv4.create('93.184.216.34')])
+    stub_request(:post, 'https://example.com/revoke').to_return(
+      status: 200, headers: { 'DPoP-Nonce' => 'revoke-nonce' }
+    )
+    stub_request(:get, 'https://plc.directory/did:plc:ewvi7nxzyoun6zhxrhs64oiz').to_return(
+      status: 200, headers: { 'Content-Type' => 'application/did+ld+json' }, body: {
+        id: 'did:plc:ewvi7nxzyoun6zhxrhs64oiz',
+        service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer',
+                    serviceEndpoint: 'https://pds.example.com' }]
+      }.to_json
+    )
 
     # Real DPoP client
     @dpop_client = AuthProto::DPoP::Client.new
@@ -90,6 +104,59 @@ describe AuthProto::Token::Refresh do
     token_set.access_token.should == "new_token"
     token_set.scope.should == "atproto"
     token_set.refresh_token.should == "rotated_refresh_token"
+  end
+
+  it "should revoke the stored refresh token and skip refresh when the DID has moved to another PDS" do
+    document = stub(pds_endpoint: 'https://other.example.com')
+    DIDKit::DID.stubs(:new).with(@refresher.session.did).returns(stub(document: document))
+
+    expect { @refresher.perform_refresh }.to raise_error(AuthProto::Token::RefreshError, /PDS does not match/) { |error|
+      error.retry_possible.should be false
+    }
+
+    assert_not_requested :post, 'https://example.com/token'
+    assert_requested :post, 'https://example.com/revoke', body: {
+      token: 'mock_refresh_token', token_type_hint: 'refresh_token',
+      client_id: @refresher.client_metadata.client_id
+    }
+  end
+
+  it "should check the DID's PDS again before each refresh" do
+    document = mock
+    document.expects(:pds_endpoint).twice.returns('https://pds.example.com', 'https://other.example.com')
+    DIDKit::DID.expects(:new).with(@refresher.session.did).twice.returns(stub(document: document))
+
+    @refresher.perform_refresh.should be_a(AuthProto::State::TokenSet)
+    expect { @refresher.perform_refresh }.to raise_error(AuthProto::Token::RefreshError, /PDS does not match/)
+
+    assert_requested :post, 'https://example.com/token', times: 1
+  end
+
+  it "should retain the refresh token without revocation when identity lookup temporarily fails" do
+    did = mock
+    did.expects(:document).raises(IOError, "Connection failed")
+    DIDKit::DID.stubs(:new).with(@refresher.session.did).returns(did)
+
+    expect { @refresher.perform_refresh }.to raise_error(IOError, "Connection failed")
+
+    assert_not_requested :post, 'https://example.com/token'
+    assert_not_requested :post, 'https://example.com/revoke'
+    @refresher.session.tokens.refresh_token.should == 'mock_refresh_token'
+  end
+
+  it "should revoke the replacement refresh token when a refresh response changes the DID" do
+    stub_request(:post, 'https://example.com/token').to_return(
+      status: 200, headers: { 'DPoP-Nonce' => 'nonce' },
+      body: successful_response.merge(sub: 'did:plc:someone-else').to_json
+    )
+
+    expect { @refresher.perform_refresh }.to raise_error(AuthProto::Token::RefreshError, /Subject mismatch/)
+
+    assert_requested :post, 'https://example.com/revoke', body: {
+      token: 'rotated_refresh_token', token_type_hint: 'refresh_token',
+      client_id: @refresher.client_metadata.client_id
+    }
+    @refresher.session.tokens.refresh_token.should == 'mock_refresh_token'
   end
 
   ['dpop', 'DPOP', 'dPoP'].each do |type|

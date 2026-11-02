@@ -11,6 +11,8 @@ require_relative '../http_helpers'
 require_relative '../par'
 require_relative '../par/client_assertion'
 require_relative '../state/token_set'
+require_relative 'identity'
+require_relative 'revocation'
 
 module AuthProto
 
@@ -118,6 +120,7 @@ module AuthProto
 
     class Refresh
       include HTTPHelpers
+      include Identity
       include MonitorMixin
 
       # Maximum attempts for one refresh operation.
@@ -178,6 +181,7 @@ module AuthProto
       # and jitter. Each attempt can retry one DPoP nonce challenge. Does not assign
       # the returned tokens to the session or persist them; the caller must do so.
       # HTTP 400/401 OAuth errors preserve the server's error code and description in the exception message.
+      # Verifies the subject's current PDS before the exchange and attempts revocation on identity mismatch.
       #
       # @return [State::TokenSet] validated replacement tokens
       # @raise [RefreshError] if the session is not renewable, refresh fails, or retries are exhausted
@@ -188,6 +192,8 @@ module AuthProto
           raise RefreshError.new("No refresh token available", retry_possible: false) unless session.renewable?
           raise RefreshError.new("No access token to refresh", retry_possible: false) if session.tokens.nil?
 
+          validate_identity
+
           with_retries do
             request_token_refresh
           end
@@ -196,6 +202,24 @@ module AuthProto
 
 
       private
+
+      def validate_identity
+        validate_subject_pds(session.did, session)
+      rescue IdentityError => e
+        revoke_refresh_token(session.tokens.refresh_token)
+        raise RefreshError.new(e.message, retry_possible: false)
+      end
+
+      def revoke_refresh_token(token)
+        revocation = Revocation.new(
+          session: session,
+          dpop_client: dpop_client,
+          client_metadata: client_metadata,
+          client_assertion: @client_assertion
+        )
+
+        revocation.revoke_refresh_token(token)
+      end
 
       def with_retries
         @attempt_count = 0
@@ -366,6 +390,7 @@ module AuthProto
 
         return if data['sub'] == session.tokens.sub
 
+        revoke_refresh_token(data['refresh_token'])
         raise RefreshError.new("Subject mismatch in response", retry_possible: false)
       end
     end
