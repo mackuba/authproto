@@ -11,6 +11,8 @@ require 'authproto'
 ENV["ATPROTO_MASTER_KEY"] = Base64.strict_encode64("0" * 32)
 
 RSpec.configure do |config|
+  config.pending_failure_output = :skip
+
   config.expect_with(:rspec) do |expectations|
     expectations.syntax = %i[should expect]
   end
