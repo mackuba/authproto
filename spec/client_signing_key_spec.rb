@@ -19,6 +19,35 @@ describe AuthProto::Client, 'client authentication keys' do
                         metadata: metadata, signing_key: key)
   end
 
+  ['none', 'private_key_jwt'].each do |auth_method|
+    context "with preloaded metadata using #{auth_method}" do
+      before do
+        metadata['token_endpoint_auth_method'] = auth_method
+        metadata.delete('token_endpoint_auth_signing_alg') if auth_method == 'none'
+      end
+
+      let(:key) { auth_method == 'none' ? nil : private_jwk }
+
+      it "should accept an exactly matching client ID" do
+        build_client(key).client_metadata.client_id.should == metadata['client_id']
+      end
+
+      it "should reject a metadata client ID that differs from the configured client ID" do
+        expect {
+          described_class.new(client_id: 'https://other.example.com/metadata.json',
+                              redirect_uri: metadata['redirect_uris'].first, metadata: metadata, signing_key: key)
+        }.to raise_error(AuthProto::InvalidClientMetadata, /client_id mismatch/)
+      end
+
+      it "should compare client IDs exactly without normalizing their spelling" do
+        expect {
+          described_class.new(client_id: 'https://CLIENT.example.com/metadata.json',
+                              redirect_uri: metadata['redirect_uris'].first, metadata: metadata, signing_key: key)
+        }.to raise_error(AuthProto::InvalidClientMetadata, /client_id mismatch/)
+      end
+    end
+  end
+
   it 'should accept a private JWK separately from matching public metadata' do
     client = build_client(private_jwk)
     client.client_metadata.jwks['keys'].first.should_not have_key('d')

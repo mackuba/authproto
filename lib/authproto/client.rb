@@ -86,13 +86,17 @@ module AuthProto
     # @param metadata [Hash{String => Object}, nil] preloaded metadata, or `nil` to fetch `client_id`
     # @param signing_key [Hash, JOSE::JWK, nil] private ES256 client-authentication key, separate from public metadata
     #
-    # @raise [InvalidClientMetadata] if client metadata is invalid or unavailable
+    # @raise [InvalidClientMetadata] if client metadata is invalid, unavailable, or has a different client ID
     # @raise [Error] if the redirect URI is not registered
     # @raise [HTTPClient::HTTPError, HTTPClient::SSRFError] if fetching client metadata fails
     #
     def initialize(client_id:, redirect_uri:, metadata: nil, signing_key: nil)
       @client_id = client_id
       @redirect_uri = redirect_uri
+
+      if metadata && metadata['client_id'] != @client_id
+        raise InvalidClientMetadata, "client_id mismatch: #{metadata['client_id']} != #{@client_id}"
+      end
 
       # Client metadata is fetched from .well-known if not provided directly
       @client_metadata = load_client_metadata(metadata)
