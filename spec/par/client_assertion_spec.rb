@@ -21,6 +21,38 @@ describe AuthProto::PAR::ClientAssertion do
   end
   let(:client_assertion) { AuthProto::PAR::ClientAssertion.new(client_id: client_id, signing_key: signing_key) }
 
+  describe "signing key operations" do
+    [nil, 'sign', [], ['verify'], ['sign', 'sign'], ['sign', 'verify', 'verify'],
+     ['sign', 'decrypt'], ['sign', 'encrypt'], ['sign', 'wrapKey'], ['sign', 'deriveKey'],
+     ['sign', 'unknown'], ['SIGN'], ['sign', 123]].each do |operations|
+      [nil, 'sig'].each do |use|
+        it "should reject key_ops #{operations.inspect} with use #{use.inspect}" do
+          key = signing_key.to_map.to_h.except('use').merge('key_ops' => operations)
+          key['use'] = use if use
+
+          expect {
+            described_class.new(client_id: client_id, signing_key: key)
+          }.to raise_error(described_class::Error, /key_ops/)
+        end
+      end
+    end
+
+    [nil, ['sign'], ['sign', 'verify'], ['verify', 'sign']].each do |operations|
+      [nil, 'sig'].each do |use|
+        it "should accept signing key_ops #{operations.inspect} with use #{use.inspect}" do
+          key = signing_key.to_map.to_h.except('use')
+          key['key_ops'] = operations unless operations.nil?
+          key['use'] = use if use
+          signer = described_class.new(client_id: client_id, signing_key: key)
+          token = signer.generate_jwt(audience: audience)
+          public_key = JWT::JWK.import(signing_key.to_public_map.to_h).public_key
+
+          JWT.decode(token, public_key, true, algorithms: ['ES256']).first['iss'].should == client_id
+        end
+      end
+    end
+  end
+
   describe "#generate_jwt" do
     it "should reuse the imported key while generating fresh claims for each request" do
       signer = client_assertion

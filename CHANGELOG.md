@@ -12,7 +12,7 @@
 - removed unused `default_token_lifetime` and `encryption` configuration settings
 - simplified the DPoP public key JWT included in headers
 - nonce manager now uses the global `dpop_nonce_lifetime` ttl setting by default
-- improved validation of nonce-related headers & responses and client metadata
+- improved validation of nonce-related headers & responses, client metadata, and assertion signing keys
 - sessions store the client assertion signing key's ID in the metadata and check it when deserialized
 - various refactors and reorganizations
 

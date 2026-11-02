@@ -31,6 +31,7 @@ module AuthProto
       # @param client_id [String] client ID used in `iss` and `sub`
       # @param signing_key [Hash, JOSE::JWK] private EC P-256 signing key, including its `kid`
       # @raise [Error] if the key cannot sign with ES256 or its usage is incompatible
+      #   (`key_ops`, when present, must contain `sign` and optionally `verify`, without duplicates)
       #
       def initialize(client_id:, signing_key:)
         @client_id = client_id
@@ -97,9 +98,18 @@ module AuthProto
         end
 
         if (data.key?('alg') && data['alg'] != ALGORITHM) ||
-           (data.key?('use') && data['use'] != 'sig') ||
-           (data.key?('key_ops') && (!data['key_ops'].is_a?(Array) || !data['key_ops'].include?('sign')))
+           (data.key?('use') && data['use'] != 'sig')
           raise Error, "signing_key must be active and permit #{ALGORITHM} signing"
+        end
+
+        if data.key?('key_ops')
+          raise Error, "signing_key.key_ops is not an array" unless data['key_ops'].is_a?(Array)
+
+          ops = data['key_ops'].sort_by(&:to_s)
+
+          unless ops == ['sign'] || ops == ['sign', 'verify']
+            raise Error, "signing_key.key_ops must contain sign and optionally verify, without duplicates"
+          end
         end
 
         signing_key = JOSE::JWK.from_map(data)
