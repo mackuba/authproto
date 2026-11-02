@@ -60,20 +60,29 @@ describe AuthProto::DPoP::ProofGenerator do
       payload["nonce"].should == nonce
     end
 
-    it "should optionally include access token hash" do
+    it "should include the access token hash whenever a token is supplied" do
       token = "test_token"
       proof = generator.generate(
         key_set: key_set,
         method: method,
         uri: uri,
-        access_token: token,
-        ath: true
+        access_token: token
       )
       payload = extract_payload(proof)
 
       digest = OpenSSL::Digest::SHA256.digest(token)
       expected_hash = Base64.urlsafe_encode64(digest, padding: false)
       payload["ath"].should == expected_hash
+    end
+
+    it "should omit the access token hash when no token is supplied" do
+      proof = generator.generate(key_set: key_set, method: method, uri: uri)
+      extract_payload(proof).should_not have_key('ath')
+    end
+
+    it "should omit the access token hash when the token is explicitly nil" do
+      proof = generator.generate(key_set: key_set, method: method, uri: uri, access_token: nil)
+      extract_payload(proof).should_not have_key('ath')
     end
 
     it "should normalize URIs" do

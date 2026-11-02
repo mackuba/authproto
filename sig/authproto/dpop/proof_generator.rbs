@@ -11,8 +11,7 @@ module AuthProto
           method: String,
           uri: String,
           ?nonce: String?,
-          ?access_token: String?,
-          ?ath: bool?
+          ?access_token: String?
         ) -> JOSE::SignedBinary
 
       private
@@ -25,8 +24,7 @@ module AuthProto
           method: String,
           uri: String,
           ?nonce: String?,
-          ?access_token: String?,
-          ?include_ath: bool?
+          ?access_token: String?
         ) -> Hash[String, untyped]
 
       def normalize_uri: (String uri) -> String

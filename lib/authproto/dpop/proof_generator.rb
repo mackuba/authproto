@@ -27,31 +27,28 @@ module AuthProto
 
       # Builds and signs a fresh DPoP JWT with `jti`, `htm`, `htu` and `iat` claims.
       #
-      # A nonce and access-token hash are added when requested. The URI normalizer removes
-      # query strings, fragments and default ports.
+      # Includes a nonce when provided and an access-token hash whenever an access token
+      # is supplied. The URI normalizer removes query strings, fragments and default ports.
       #
       # @param key_set [KeySet] key belonging to the session making this request
       # @param method [String] nonempty HTTP method, converted to uppercase
       # @param uri [String] absolute HTTP(S) request URL
       # @param nonce [String, nil] server-provided nonce to include
       # @param access_token [String, nil] access token to bind to the proof
-      # @param ath [Boolean, nil] include an access-token hash; `nil` enables it when a token is supplied
       # @return [JOSE::SignedBinary] compact signed DPoP JWT
       # @raise [ProofError] if input validation or proof generation fails
       #
-      def generate(key_set:, method:, uri:, nonce: nil, access_token: nil, ath: nil)
+      def generate(key_set:, method:, uri:, nonce: nil, access_token: nil)
         raise ProofError, "invalid key_set type" unless key_set.is_a?(KeySet)
 
         validate_inputs(method, uri)
-        ath = !access_token.nil? if ath.nil?
 
         header = build_header(key_set)
         payload = build_payload(
           method: method,
           uri: uri,
           nonce: nonce,
-          access_token: access_token,
-          include_ath: ath
+          access_token: access_token
         )
 
         key_set.sign_segments(header, payload)
@@ -78,7 +75,7 @@ module AuthProto
         }
       end
 
-      def build_payload(method:, uri:, nonce: nil, access_token: nil, include_ath: nil)
+      def build_payload(method:, uri:, nonce: nil, access_token: nil)
         payload = {
           'jti' => SecureRandom.uuid,
           'htm' => method.upcase,
@@ -89,8 +86,8 @@ module AuthProto
         # Add the nonce if provided
         payload['nonce'] = nonce if nonce
 
-        # Add access token hash if needed
-        payload['ath'] = generate_access_token_hash(access_token) if access_token && include_ath
+        # Bind the proof to the access token whenever one is supplied
+        payload['ath'] = generate_access_token_hash(access_token) unless access_token.nil?
 
         payload
       end
