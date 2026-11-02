@@ -152,6 +152,7 @@ module AuthProto
         scope: scope,
         auth_server: authorization_server,
         did: did&.to_s,
+        pds: pds,
         signing_key_id: @signing_key_kid
       )
 
@@ -508,8 +509,23 @@ module AuthProto
 
       raise TokenError, "Missing atproto scope in token response" unless response['scope'].split.include?('atproto')
 
-      # If we have a pre-resolved DID, verify that it matches
-      raise TokenError, "Subject mismatch in token response" if session.did && session.did != response['sub']
+      if session.did
+        raise TokenError, "Subject mismatch in token response" if session.did != response['sub']
+      else
+        validate_subject_pds(response['sub'], session)
+      end
+    end
+
+    def validate_subject_pds(subject, session)
+      raise TokenError, "Session is missing its PDS; authorize again" unless session.pds
+
+      pds = DIDKit::DID.new(subject).document.pds_endpoint
+
+      unless pds && URI(pds).origin.downcase == URI(session.pds).origin.downcase
+        raise TokenError, "Subject PDS does not match session PDS"
+      end
+    rescue DIDKit::DIDError, DIDKit::FormatError => e
+      raise TokenError, "Invalid token subject: #{e.message}"
     end
   end
 end

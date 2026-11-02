@@ -65,6 +65,10 @@ module AuthProto
       # @return [String, nil]
       attr_reader :did
 
+      # PDS URL used to discover the authorization server.
+      # @return [String, nil]
+      attr_reader :pds
+
       # Most recently assigned tokens, if any.
       # @return [TokenSet, nil]
       attr_reader :tokens
@@ -75,6 +79,7 @@ module AuthProto
       # @param scope [String] requested space-separated scopes
       # @param auth_server [Metadata::AuthorizationServer, nil] pre-resolved authorization server
       # @param did [String, nil] pre-resolved account DID
+      # @param pds [String, nil] PDS URL used for authorization server discovery
       # @param signing_key_id [String, nil] client-authentication key ID selected before PAR
       # @param signing_key_thumbprint [String, nil] RFC 7638 SHA-256 thumbprint of that key
       # @param dpop_key [DPoP::KeySet] session key; a fresh key is generated for new sessions by default
@@ -83,7 +88,8 @@ module AuthProto
       # @raise [DPoP::KeySet::KeyError] if DPoP key generation fails
       # @raise [PKCE::Error] if PKCE generation fails
       #
-      def initialize(client_id:, scope:, auth_server: nil, did: nil, signing_key_id: nil, signing_key_thumbprint: nil,
+      def initialize(client_id:, scope:, auth_server: nil, did: nil, pds: nil,
+                     signing_key_id: nil, signing_key_thumbprint: nil,
                      dpop_key: DPoP::KeySet.new, authorization_expires_at: nil)
         super() # Initialize MonitorMixin
 
@@ -104,6 +110,7 @@ module AuthProto
         @scope = scope
         @auth_server = auth_server
         @did = did
+        @pds = pds&.dup&.freeze
         @authorization_expires_at = authorization_expires_at
 
         @session_id = SecureRandom.uuid

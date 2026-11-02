@@ -8,7 +8,8 @@ describe AuthProto::Serialization::Session do
   let(:session) do
     AuthProto::State::Session.new(
       client_id: client_id,
-      scope: scope
+      scope: scope,
+      pds: 'https://pds.example.com'
     )
   end
   let(:serializer) { AuthProto::Serialization::Session.new }
@@ -21,6 +22,7 @@ describe AuthProto::Serialization::Session do
     deserialized.state_token.should == session.state_token
     deserialized.client_id.should == session.client_id
     deserialized.scope.should == session.scope
+    deserialized.pds.should == session.pds
     deserialized.pkce_verifier.should == session.pkce_verifier
     deserialized.pkce_challenge.should == session.pkce_challenge
     deserialized.dpop_key.private_jwk.should == session.dpop_key.private_jwk

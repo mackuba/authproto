@@ -24,7 +24,9 @@ describe AuthProto::Client, '#handle_callback' do
     )
   end
   let(:session) do
-    client.session_manager.create_session(client_id: client.client_id, scope: 'atproto', auth_server: auth_server)
+    client.session_manager.create_session(
+      client_id: client.client_id, scope: 'atproto', auth_server: auth_server, did: 'did:plc:alice'
+    )
   end
   let(:callback) { { code: 'code', state: session.state_token, iss: auth_server.issuer } }
 
@@ -113,5 +115,96 @@ describe AuthProto::Client, '#handle_callback' do
     result[:access_token].should == 'access'
     client.session_manager.get_session(session.session_id).should be_authorized
     client.session_manager.get_session_by_state_token(state).should be_nil
+  end
+
+  describe "when authorization starts with a PDS" do
+    let(:pds) { 'https://pds.example.com' }
+    let(:subject) { 'did:plc:ewvi7nxzyoun6zhxrhs64oiz' }
+    let(:session) do
+      client.session_manager.create_session(
+        client_id: client.client_id, scope: 'atproto', auth_server: auth_server, pds: pds
+      )
+    end
+
+    before do
+      client.stubs(:make_token_request).returns(
+        status: 200, headers: { 'DPoP-Nonce' => 'nonce' }, body: {
+          access_token: 'access', refresh_token: 'refresh', token_type: 'DPoP',
+          expires_in: 3600, scope: 'atproto', sub: subject
+        }.to_json
+      )
+    end
+
+    it "should persist the PDS used for authorization server discovery" do
+      client.expects(:resolve_auth_server_info).with(pds).returns(auth_server)
+      client.stubs(:submit_authorization_par).returns('https://auth.example.com/authorize')
+
+      result = client.authorize(pds: pds)
+
+      client.session_manager.get_session(result[:session_id]).pds.should == pds
+    end
+
+    [
+      'https://pds.example.com',
+      'https://pds.example.com/',
+      'https://PDS.EXAMPLE.COM:443/'
+    ].each do |endpoint|
+      it "should accept a subject hosted at #{endpoint}" do
+        document = stub(pds_endpoint: endpoint)
+        DIDKit::DID.expects(:new).with(subject).returns(stub(document: document))
+
+        result = client.handle_callback(**callback, expected_session_id: session.session_id)
+
+        result[:did].should == subject
+        client.session_manager.get_session(session.session_id).should be_authorized
+      end
+    end
+
+    ['https://other.example.com', 'https://pds.example.com:8443', 'http://pds.example.com', nil].each do |endpoint|
+      it "should reject a subject whose PDS is #{endpoint.inspect} without completing authorization" do
+        document = stub(pds_endpoint: endpoint)
+        DIDKit::DID.expects(:new).with(subject).returns(stub(document: document))
+
+        expect {
+          client.handle_callback(**callback, expected_session_id: session.session_id)
+        }.to raise_error(AuthProto::Client::TokenError, "Subject PDS does not match session PDS")
+
+        client.session_manager.get_session_by_state_token(session.state_token).should be_pending
+      end
+    end
+
+    it "should reject an invalid subject DID without completing authorization" do
+      DIDKit::DID.expects(:new).with(subject).raises(DIDKit::DIDError, "Invalid DID")
+
+      expect {
+        client.handle_callback(**callback, expected_session_id: session.session_id)
+      }.to raise_error(AuthProto::Client::TokenError, /Invalid token subject/)
+
+      client.session_manager.get_session_by_state_token(session.state_token).should be_pending
+    end
+
+    it "should leave authorization pending if DID resolution fails" do
+      did = mock
+      did.expects(:document).raises(IOError, "Connection failed")
+      DIDKit::DID.expects(:new).with(subject).returns(did)
+
+      expect {
+        client.handle_callback(**callback, expected_session_id: session.session_id)
+      }.to raise_error(IOError, "Connection failed")
+
+      client.session_manager.get_session_by_state_token(session.state_token).should be_pending
+    end
+
+    it "should reject an older pending session without a stored PDS" do
+      old_session = client.session_manager.create_session(
+        client_id: client.client_id, scope: 'atproto', auth_server: auth_server
+      )
+      DIDKit::DID.expects(:new).never
+
+      expect {
+        client.handle_callback(code: 'code', state: old_session.state_token, iss: auth_server.issuer,
+                               expected_session_id: old_session.session_id)
+      }.to raise_error(AuthProto::Client::TokenError, /missing its PDS/)
+    end
   end
 end

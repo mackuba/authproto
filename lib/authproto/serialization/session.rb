@@ -39,6 +39,7 @@ module AuthProto
           pkce_verifier: obj.pkce_verifier,
           pkce_challenge: obj.pkce_challenge,
           did: obj.did,
+          pds: obj.pds,
           tokens: serialize_token_set(obj.tokens),
           auth_server: serialize_auth_server(obj.auth_server)
         }
@@ -60,6 +61,7 @@ module AuthProto
           dpop_key: AuthProto::DPoP::KeySet.from_jwk(data.fetch('dpop_key')),
           scope: data['scope'],
           did: data['did'],
+          pds: data['pds'],
           signing_key_id: data['signing_key_id'],
           signing_key_thumbprint: data['signing_key_thumbprint'],
           authorization_expires_at: data['authorization_expires_at'] && Time.iso8601(data['authorization_expires_at']),

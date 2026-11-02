@@ -58,8 +58,10 @@ describe Minisky::OAuthClient do
   end
 
   def token_set(expires_in: 3600)
-    AuthProto::State::TokenSet.new(access_token: "access", refresh_token: "refresh", token_type: "DPoP",
-                                     expires_in: expires_in, scope: "atproto", sub: "did:plc:alice")
+    AuthProto::State::TokenSet.new(
+      access_token: 'access', refresh_token: 'refresh', token_type: 'DPoP',
+      expires_in: expires_in, scope: 'atproto', sub: 'did:plc:ewvi7nxzyoun6zhxrhs64oiz'
+    )
   end
 
   def attach_session(expires_in: 3600)
@@ -83,11 +85,18 @@ describe Minisky::OAuthClient do
       URI.decode_www_form(request.body).to_h["grant_type"] == "refresh_token"
     end.to_return(status: 200, headers: response_headers("auth-nonce"), body: {
       access_token: "new-access", refresh_token: "new-refresh", token_type: "DPoP",
-      expires_in: 3600, scope: "atproto", sub: "did:plc:alice"
+      expires_in: 3600, scope: "atproto", sub: "did:plc:ewvi7nxzyoun6zhxrhs64oiz"
     }.to_json)
   end
 
   def stub_authorization_metadata
+    subject = 'did:plc:ewvi7nxzyoun6zhxrhs64oiz'
+    stub_request(:get, "https://plc.directory/#{subject}").to_return(
+      status: 200, headers: { 'Content-Type' => 'application/did+ld+json' }, body: {
+        id: subject,
+        service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: host }]
+      }.to_json
+    )
     Resolv::DNS.any_instance.stubs(:getaddresses).returns([Resolv::IPv4.create("93.184.216.34")])
     stub_request(:get, "#{host}/.well-known/oauth-protected-resource")
       .to_return(status: 200, headers: { "Content-Type" => "application/json" },
@@ -179,7 +188,7 @@ describe Minisky::OAuthClient do
         { status: 400, headers: { 'DPoP-Nonce' => 'token-challenge' }, body: '{"error":"use_dpop_nonce"}' },
         { status: 200, headers: { 'DPoP-Nonce' => 'token-success' }, body: {
           access_token: 'new-access', refresh_token: 'new-refresh', token_type: 'DPoP',
-          expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
+          expires_in: 3600, scope: 'atproto', sub: 'did:plc:ewvi7nxzyoun6zhxrhs64oiz'
         }.to_json }
       )
 
@@ -235,7 +244,7 @@ describe Minisky::OAuthClient do
       original_keys.fetch(session_id).key.verify(request.headers.fetch('Dpop')).first.should be_truthy
       { headers: { "DPoP-Nonce" => "fixture-nonce" }, status: 200, body: {
         access_token: "access-#{session_id}", refresh_token: 'refresh', token_type: 'DPoP',
-        expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
+        expires_in: 3600, scope: 'atproto', sub: 'did:plc:ewvi7nxzyoun6zhxrhs64oiz'
       }.to_json }
     end
 
@@ -356,7 +365,7 @@ describe Minisky::OAuthClient do
       stub_request(:post, auth_server.token_endpoint).to_return(headers: { "DPoP-Nonce" => "fixture-nonce" },
         status: 200, body: {
         access_token: 'access', refresh_token: 'refresh', token_type: 'DPoP',
-        expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
+        expires_in: 3600, scope: 'atproto', sub: 'did:plc:ewvi7nxzyoun6zhxrhs64oiz'
       }.to_json)
 
       restored.handle_callback(
@@ -526,11 +535,11 @@ describe Minisky::OAuthClient do
                                       }) do |request|
       payload = JWT.decode(request.headers["Dpop"], nil, false).first
       payload["htm"] == "GET" && payload["htu"] == endpoint && payload.key?("ath")
-    end.to_return(status: 200, headers: response_headers, body: '{"did":"did:plc:alice"}')
+    end.to_return(status: 200, headers: response_headers, body: '{"did":"did:plc:ewvi7nxzyoun6zhxrhs64oiz"}')
 
     result = client.get_request("app.bsky.actor.getProfile", { actor: "alice.example.com" },
                                 headers: { "X-Test" => "yes", "authorization" => "Bearer wrong" })
-    result["did"].should == "did:plc:alice"
+    result["did"].should == "did:plc:ewvi7nxzyoun6zhxrhs64oiz"
     client.oauth_client.dpop_client.nonce_manager.get(
       server_url: host, session_id: client.session_id
     ).should == "pds-nonce"
@@ -599,7 +608,7 @@ describe Minisky::OAuthClient do
       JWT.decode(request.headers["Dpop"], nil, false).last["jwk"] == original_public_key
     end.to_return(headers: { "DPoP-Nonce" => "fixture-nonce" }, status: 200, body: {
       access_token: "restored-access", refresh_token: "restored-refresh", token_type: "DPoP",
-      expires_in: 3600, scope: "atproto", sub: "did:plc:alice"
+      expires_in: 3600, scope: "atproto", sub: "did:plc:ewvi7nxzyoun6zhxrhs64oiz"
     }.to_json)
 
     restored.check_access.should == :refreshed
@@ -730,7 +739,9 @@ describe Minisky::OAuthClient do
   describe "POST requests" do
     let(:rpc_method) { "com.atproto.repo.createRecord" }
     let(:post_endpoint) { "#{host}/xrpc/#{rpc_method}" }
-    let(:record) { { repo: "did:plc:alice", collection: "app.bsky.feed.post", record: { text: "Hello" } } }
+    let(:record) do
+      { repo: 'did:plc:ewvi7nxzyoun6zhxrhs64oiz', collection: 'app.bsky.feed.post', record: { text: 'Hello' } }
+    end
 
     it "should send JSON with a POST proof and accept a successful response without a nonce" do
       attach_session

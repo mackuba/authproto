@@ -38,6 +38,7 @@ module AuthProto
       # @param scope [String] requested space-separated scopes
       # @param auth_server [Metadata::AuthorizationServer, nil] pre-resolved authorization server
       # @param did [String, nil] pre-resolved account DID
+      # @param pds [String, nil] PDS URL used for authorization server discovery
       # @param signing_key_id [String, nil] client-authentication key ID selected before PAR
       #
       # @return [Session] newly created session
@@ -48,7 +49,7 @@ module AuthProto
       # @raise [Serialization::ValidationError] if the session cannot be serialized
       # @raise [Encryption::EncryptionError] if sensitive fields cannot be encrypted
       #
-      def create_session(client_id:, scope:, auth_server: nil, did: nil, signing_key_id: nil)
+      def create_session(client_id:, scope:, auth_server: nil, did: nil, pds: nil, signing_key_id: nil)
         if signing_key_id && !@supported_signing_keys.key?(signing_key_id)
           raise ArgumentError, "Unsupported signing_key_id: #{signing_key_id}"
         end
@@ -58,6 +59,7 @@ module AuthProto
           scope: scope,
           auth_server: auth_server,
           did: did,
+          pds: pds,
           signing_key_id: signing_key_id,
           signing_key_thumbprint: @supported_signing_keys[signing_key_id],
           authorization_expires_at: Time.now + AuthProto.configuration.pending_session_ttl
