@@ -34,6 +34,7 @@ module AuthProto
   end
 
   class Configuration
+    attr_accessor client_assertion_lifetime: Integer
     attr_accessor dpop_nonce_lifetime: Integer
     attr_accessor http_client: _HTTPClient?
     attr_accessor logger: Logger

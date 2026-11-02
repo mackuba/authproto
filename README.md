@@ -65,6 +65,9 @@ AuthProto.configure do |config|
   # Set the default nonce cache lifetime (seconds), used by newly created clients.
   config.dpop_nonce_lifetime = 300  # 5 minutes
 
+  # Set client assertion validity (seconds), used for each newly generated JWT.
+  config.client_assertion_lifetime = 300  # 5 minutes
+
   # Configure storage backend (default is in-memory)
   config.storage = AuthProto::Storage::Memory.new
 end
@@ -78,6 +81,11 @@ Set `dpop_nonce_lifetime` to a positive integer before creating clients or nonce
 managers. Its default is 300 seconds. An explicit `NonceManager.new(ttl: ...)` or
 `DPoP::Client.new(nonce_ttl: ...)` overrides it. Existing managers retain the
 lifetime chosen at initialization.
+
+`client_assertion_lifetime` must also be a positive integer and defaults to 300
+seconds. It is read for each assertion, including by existing clients and signers.
+An explicit `ClientAssertion#generate_jwt(lifetime: ...)` overrides the configured
+default. This controls assertion validity, not access-token or session lifetime.
 
 ### Local HTTP debugging
 

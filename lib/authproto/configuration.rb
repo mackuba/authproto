@@ -71,6 +71,10 @@ module AuthProto
 
   class Configuration
 
+    # Default client assertion validity in seconds, read when generating each assertion.
+    # @return [Integer] positive lifetime in seconds; defaults to 300
+    attr_accessor :client_assertion_lifetime
+
     # Default stored nonce lifetime in seconds; used when creating nonce managers without an explicit TTL.
     # @return [Integer] positive lifetime in seconds; defaults to 300
     attr_accessor :dpop_nonce_lifetime
@@ -94,14 +98,15 @@ module AuthProto
     # Creates default settings with in-memory storage and no HTTP transport.
     #
     def initialize
-      @dpop_nonce_lifetime = 300  # 5 minutes
-      @pending_session_ttl = 900  # 15 minutes
+      @client_assertion_lifetime = 300  # 5 minutes
+      @dpop_nonce_lifetime = 300        # 5 minutes
+      @pending_session_ttl = 900        # 15 minutes
       @http_client = nil
       @logger = Logger.new($stdout)
       @storage = AuthProto::Storage::Memory.new
     end
 
-    # Checks storage and transport interfaces and positive nonce and pending session lifetimes.
+    # Checks storage and transport interfaces and positive assertion, nonce and pending session lifetimes.
     #
     # A `nil` HTTP client is accepted, but cannot perform OAuth or discovery requests.
     #
@@ -111,6 +116,7 @@ module AuthProto
     def validate
       validate_storage
       validate_http_client
+      validate_client_assertion_lifetime
       validate_dpop_nonce_lifetime
       validate_pending_session_ttl
       true
@@ -118,6 +124,12 @@ module AuthProto
 
 
     private
+
+    def validate_client_assertion_lifetime
+      return if @client_assertion_lifetime.is_a?(Integer) && @client_assertion_lifetime.positive?
+
+      raise ConfigurationError, "Client assertion lifetime must be a positive integer"
+    end
 
     def validate_dpop_nonce_lifetime
       return if @dpop_nonce_lifetime.is_a?(Integer) && @dpop_nonce_lifetime.positive?

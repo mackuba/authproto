@@ -4,6 +4,7 @@ require 'jose'
 require 'jwt'
 require 'securerandom'
 
+require_relative '../configuration'
 require_relative '../errors'
 
 module AuthProto
@@ -52,11 +53,11 @@ module AuthProto
       # Includes `iss`, `sub`, `aud`, a unique `jti`, and `iat`/`exp` times.
       #
       # @param audience [String] authorization server issuer URL used as the assertion audience
-      # @param lifetime [Integer] positive validity in seconds; defaults to five minutes
+      # @param lifetime [Integer] positive validity in seconds; defaults to {Configuration#client_assertion_lifetime}
       # @return [String] compact signed client assertion JWT
       # @raise [Error] if the audience is not a nonblank string, lifetime is not a positive integer, or signing fails
       #
-      def generate_jwt(audience:, lifetime: 300)
+      def generate_jwt(audience:, lifetime: AuthProto.configuration.client_assertion_lifetime)
         unless audience.is_a?(String) && !audience.strip.empty?
           raise Error, "audience must be a nonblank string"
         end

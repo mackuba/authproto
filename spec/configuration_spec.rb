@@ -7,6 +7,7 @@ describe AuthProto::Configuration do
 
   describe "#initialize" do
     it "should set default values" do
+      configuration.client_assertion_lifetime.should == 300
       configuration.dpop_nonce_lifetime.should == 300
       configuration.pending_session_ttl.should == 900
       configuration.logger.should be_an_instance_of(Logger)
@@ -15,6 +16,21 @@ describe AuthProto::Configuration do
   end
 
   describe "#validate" do
+    it "should accept a positive client assertion lifetime above five minutes" do
+      configuration.client_assertion_lifetime = 600
+      configuration.validate.should be true
+    end
+
+    [nil, 0, -1, 1.5, '300', false].each do |lifetime|
+      it "should reject an invalid client assertion lifetime #{lifetime.inspect}" do
+        configuration.client_assertion_lifetime = lifetime
+
+        expect {
+          configuration.validate
+        }.to raise_error(AuthProto::ConfigurationError, "Client assertion lifetime must be a positive integer")
+      end
+    end
+
     it "should accept a custom positive DPoP nonce lifetime" do
       configuration.dpop_nonce_lifetime = 120
       configuration.validate.should be true

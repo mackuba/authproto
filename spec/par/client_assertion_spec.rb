@@ -90,6 +90,22 @@ describe AuthProto::PAR::ClientAssertion do
   end
 
   describe "#generate_jwt" do
+    it "should read the configured lifetime for each assertion from a reused signer" do
+      signer = client_assertion
+      [90, 600].each do |lifetime|
+        AuthProto.configuration.stubs(:client_assertion_lifetime).returns(lifetime)
+        claims = JWT.decode(signer.generate_jwt(audience: audience), nil, false).first
+        (claims['exp'] - claims['iat']).should == lifetime
+      end
+    end
+
+    it "should allow an explicit lifetime to override configuration" do
+      AuthProto.configuration.stubs(:client_assertion_lifetime).returns(90)
+      claims = JWT.decode(client_assertion.generate_jwt(audience: audience, lifetime: 120), nil, false).first
+
+      (claims['exp'] - claims['iat']).should == 120
+    end
+
     it "should reuse the imported key while generating fresh claims for each request" do
       signer = client_assertion
       JWT::JWK.expects(:import).never
