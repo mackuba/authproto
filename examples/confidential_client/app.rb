@@ -57,20 +57,37 @@ class ExampleApp < Sinatra::Base
     metadata = JSON.parse(File.read(metadata_path))
 
     client_id = metadata['client_id']
+    redirect_uri = metadata['redirect_uris'][0]
+
+    # Private client-authentication keys are kept outside public metadata.
+    keys_file = File.join(__dir__, "config", "keys.json")
+    signing_key = JSON.parse(File.read(keys_file))['keys'].first if File.exist?(keys_file)
 
     if client_id.chomp("/") == "http://localhost"
       scope = CGI.escape(metadata['scope'])
-      redirect_uri = CGI.escape(metadata['redirect_uris'][0])
-      client_id += "?scope=#{scope}&redirect_uri=#{redirect_uri}"
-    end
+      redirect = CGI.escape(metadata['redirect_uris'][0])
+      client_id += "?scope=#{scope}&redirect_uri=#{redirect}"
+      metadata = nil
 
-    # Private client-authentication keys are kept outside public metadata.
-    signing_key = JSON.parse(File.read(File.join(__dir__, "config", "keys.json")))["keys"].first
+      if signing_key
+        warn "-" * 100
+        warn "Running the app on localhost as a public client - confidential clients require a production server."
+        warn "-" * 100
+
+        signing_key = nil
+      end
+    else
+      if !signing_key
+        warn "-" * 100
+        warn "Missing config/keys.json - running the app as a public client."
+        warn "-" * 100
+      end
+    end
 
     # Create OAuth client
     set :oauth_client, AuthProto::Client.new(
       client_id: client_id,
-      redirect_uri: metadata['redirect_uris'][0],
+      redirect_uri: redirect_uri,
       metadata: metadata,
       signing_key: signing_key
     )

@@ -16,7 +16,7 @@ The example implements a simple web application using Sinatra that:
 - Demonstrates secure session management with encryption
 - Shows how to make authenticated API calls to Bluesky
 - Provides examples of both development and production storage configurations
-- Supports running on localhost
+- Supports running on localhost (but as a public client)
 
 ## Requirements
 
