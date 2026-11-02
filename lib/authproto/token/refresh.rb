@@ -176,6 +176,7 @@ module AuthProto
       # Retries eligible failures up to {MAX_RETRIES} times with exponential backoff and
       # jitter, and handles a DPoP nonce challenge during token exchange. Does not assign
       # the returned tokens to the session or persist them; the caller must do so.
+      # HTTP 400/401 OAuth errors preserve the server's error code and description in the exception message.
       #
       # @return [State::TokenSet] validated replacement tokens
       # @raise [RefreshError] if the session is not renewable, refresh fails, or retries are exhausted
@@ -266,10 +267,8 @@ module AuthProto
         case response[:status]
         when 200
           process_successful_response(response)
-        when 400
-          handle_400_response(response)
-        when 401
-          raise RefreshError.new("Refresh token is invalid", retry_possible: false)
+        when 400, 401
+          handle_error_response(response)
         when 429
           handle_rate_limit_response(response)
         else
@@ -295,7 +294,7 @@ module AuthProto
         raise RefreshError.new("Invalid response format: #{e.message}", retry_possible: false)
       end
 
-      def handle_400_response(response)
+      def handle_error_response(response)
         raise RefreshError.new("Missing error response body", retry_possible: false) if response[:body].nil?
 
         error_data = JSON.parse(response[:body])
@@ -304,7 +303,7 @@ module AuthProto
           raise RefreshError.new("Invalid error response format", retry_possible: false)
         end
 
-        error_description = error_data['error_description'] || error_data['error']
+        error_description = [error_data['error'], error_data['error_description']].compact.join(': ')
 
         case error_data['error']
         when "invalid_grant"

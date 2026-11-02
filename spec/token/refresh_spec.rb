@@ -190,26 +190,45 @@ describe AuthProto::Token::Refresh do
   end
 
   { "invalid_grant" => /Refresh token has been invalidated/, "invalid_client" => /Refresh request failed/ }.each do |code, message|
-    it "should report #{code} without retrying or masking the server error" do
-      stub_request(:post, "https://example.com/token").to_return(
-        headers: { "DPoP-Nonce" => "fixture-nonce" }, status: 400, body: { error: code,
-          error_description: "Server explanation" }.to_json
-      )
-      expect { @refresher.perform_refresh }.to raise_error(AuthProto::Token::RefreshError, message) { |error|
-        error.message.should include("Server explanation")
-        error.token_type.should == "refresh"
-        error.error_code.should == "refresh_failed"
-        error.retry_possible.should be false
-      }
-      assert_requested :post, "https://example.com/token", times: 1
+    [400, 401].each do |status|
+      it "should report #{code} on HTTP #{status} without retrying or masking the server error" do
+        stub_request(:post, "https://example.com/token").to_return(
+          headers: { "DPoP-Nonce" => "fixture-nonce" }, status: status, body: { error: code,
+            error_description: "Server explanation" }.to_json
+        )
+        expect { @refresher.perform_refresh }.to raise_error(AuthProto::Token::RefreshError, message) { |error|
+          error.message.should include(code)
+          error.message.should include("Server explanation")
+          error.token_type.should == "refresh"
+          error.error_code.should == "refresh_failed"
+          error.retry_possible.should be false
+        }
+        assert_requested :post, "https://example.com/token", times: 1
+      end
     end
   end
 
-  it "should report HTTP 401 without retrying" do
+  it "should report a missing or malformed HTTP 401 error body without blaming the refresh token" do
     stub_request(:post, "https://example.com/token").to_return(headers: { "DPoP-Nonce" => "fixture-nonce" },
       status: 401)
-    expect { @refresher.perform_refresh }.to raise_error(AuthProto::Token::RefreshError, /Refresh token is invalid/)
+    expect { @refresher.perform_refresh }.to raise_error(AuthProto::Token::RefreshError, /error response/)
     assert_requested :post, "https://example.com/token", times: 1
+  end
+
+  [400, 401].each do |status|
+    it "should preserve invalid_client without an error description on HTTP #{status}" do
+      stub_request(:post, 'https://example.com/token').to_return(
+        status: status, headers: { 'DPoP-Nonce' => 'nonce' }, body: '{"error":"invalid_client"}'
+      )
+
+      expect {
+        @refresher.perform_refresh
+      }.to raise_error(AuthProto::Token::RefreshError, /Refresh request failed: invalid_client/) { |error|
+        error.retry_possible.should be false
+        error.message.should_not include('Refresh token is invalid')
+      }
+      assert_requested :post, 'https://example.com/token', times: 1
+    end
   end
 
   ['retry-after', 'Retry-After', 'rEtRy-AfTeR'].each do |header_name|
@@ -233,7 +252,7 @@ describe AuthProto::Token::Refresh do
     assert_requested :post, "https://example.com/token", times: 2
   end
 
-  [200, 400].each do |status|
+  [200, 400, 401].each do |status|
     ["invalid json", "[]", "null", '"string"'].each do |body|
       it "should report a malformed HTTP #{status} response #{body.inspect} without retrying" do
         stub_request(:post, "https://example.com/token").to_return(headers: { "DPoP-Nonce" => "fixture-nonce" },

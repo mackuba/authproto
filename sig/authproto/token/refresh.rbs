@@ -38,7 +38,7 @@ module AuthProto
       def add_client_authentication: (Hash[Symbol, untyped] body) -> void
       def handle_refresh_response: (http_response response) -> State::TokenSet
       def process_successful_response: (http_response response) -> State::TokenSet
-      def handle_400_response: (http_response response) -> bot
+      def handle_error_response: (http_response response) -> bot
       def handle_rate_limit_response: (http_response response) -> bot
       def validate_refresh_response: (json_object data) -> void
     end
