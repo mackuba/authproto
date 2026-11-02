@@ -10,6 +10,7 @@
 - for security, `Client#handle_callback` and `Minisky::OAuthClient#handle_callback` now require an `expected_session_id:` argument, where you need to pass a session ID previously saved from the output of `authorize` in browser storage or a local variable; token callback is rejected if the passed saved session ID doesn't match the ID of the session looked up using the state token from the callback
 - added `Session#pending?` and `Session#tokens_valid?`
 - removed unused `default_token_lifetime` and `encryption` configuration settings
+- simplified the DPoP public key JWT included in headers
 - nonce manager now uses the global `dpop_nonce_lifetime` ttl setting by default
 - improved validation of nonce-related headers and responses
 - sessions store the client assertion signing key's ID in the metadata and check it when deserialized

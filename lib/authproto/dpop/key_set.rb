@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
-require 'base64'
 require 'jose'
 require 'json'
-require 'openssl'
 
 require_relative '../dpop'
 require_relative '../errors'
@@ -40,17 +38,13 @@ module AuthProto
         validate_keypair
       end
 
-      # Exports the public key with `use: sig` and a key ID.
+      # Exports the public key for embedding in a DPoP proof.
       #
       # @return [Hash{String => Object}] public JWK without private key material
       # @raise [KeyError] if public-key export fails
       #
       def public_jwk
-        jwk = @key.to_public.to_map.to_h
-        # If somehow the properties aren't set, add them
-        jwk['use'] ||= 'sig'
-        jwk['kid'] ||= generate_kid(jwk)
-        jwk
+        @key.to_public_map.to_h
       rescue StandardError => e
         raise KeyError, "Failed to export public key: #{e.message}"
       end
@@ -116,23 +110,7 @@ module AuthProto
       private
 
       def generate_keypair
-        # Generate base keypair
-        base_key = JOSE::JWK.generate_key([:ec, CURVE])
-        base_map = base_key.to_map
-
-        # Create new map with all required properties
-        key_map = {
-          'kty' => base_map['kty'],
-          'crv' => base_map['crv'],
-          'x' => base_map['x'],
-          'y' => base_map['y'],
-          'd' => base_map['d'],
-          'use' => 'sig',
-          'kid' => generate_kid(base_map)
-        }
-
-        # Create new JWK with all properties
-        JOSE::JWK.from_map(key_map)
+        JOSE::JWK.generate_key([:ec, CURVE])
       rescue StandardError => e
         raise KeyError, "Failed to generate keypair: #{e.message}"
       end
@@ -161,20 +139,6 @@ module AuthProto
         verified
       rescue StandardError => e
         raise KeyError, "Failed to verify signature: #{e.message}"
-      end
-
-      def generate_kid(jwk)
-        # Generate a key ID based on the key's components
-        components = [
-          jwk['kty'],
-          jwk['crv'],
-          jwk['x'],
-          jwk['y']
-        ].join(':')
-
-        # Create a SHA-256 hash and take first 8 bytes
-        digest = OpenSSL::Digest::SHA256.digest(components)
-        Base64.urlsafe_encode64(digest[0..7], padding: false)
       end
 
       def validate_keypair

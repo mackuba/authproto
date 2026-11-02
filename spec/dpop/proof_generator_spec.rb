@@ -39,6 +39,8 @@ describe AuthProto::DPoP::ProofGenerator do
       header["typ"].should == "dpop+jwt"
       header["alg"].should == "ES256"
       header["jwk"].should be_a(Hash)
+      header['jwk'].keys.sort.should == %w[crv kty x y]
+      key_set.key.verify(proof).first.should be_truthy
 
       payload["jti"].should match(UUID_REGEX)
       payload["htm"].should == method

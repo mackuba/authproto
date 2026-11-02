@@ -49,6 +49,9 @@ describe AuthProto::DPoP::KeySet do
       public_jwk = keyset.public_jwk
       public_jwk["kty"].should == "EC"
       public_jwk["crv"].should == "P-256"
+      public_jwk.should be_a(Hash)
+      public_jwk.keys.sort.should == %w[crv kty x y]
+      public_jwk.should == valid_keypair.to_public_map.to_h
     end
   end
 

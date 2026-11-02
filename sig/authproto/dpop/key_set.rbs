@@ -18,7 +18,6 @@ module AuthProto
       def sign: (String data) -> JOSE::SignedBinary
       def deep_stringify_keys: (untyped obj) -> untyped
       def verify: (String signed_jws) -> bool
-      def generate_kid: (json_object | JOSE::Map jwk) -> String
       def validate_keypair: () -> void
     end
   end
