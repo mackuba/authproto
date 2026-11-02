@@ -8,6 +8,7 @@
 - added `#granted_scope` and `#has_limited_scope?` to `Session`
 - require the `ATPROTO_MASTER_KEY` to be exactly 32 bytes long (or 44 Base64 characters)
 - when loading a session, verify that it has been created with the same `client_id`
+- ignore the redirect URI's port when testing if the redirect URI passed for authentication for a localhost client is included on the metadata list (as the spec says)
 
 ## [0.3.0.beta3] - 2026-11-02
 

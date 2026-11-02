@@ -359,9 +359,35 @@ module AuthProto
     end
 
     def validate_redirect_uri
-      unless @client_metadata.redirect_uris.include?(@redirect_uri)
-        raise Error, "redirect_uri not found in client metadata"
+      return if @client_metadata.redirect_uris.include?(@redirect_uri)
+
+      # localhost development exception
+      if URI(@client_id).scheme == 'http'
+        components = loopback_redirect_components(@redirect_uri)
+
+        if components && @client_metadata.redirect_uris.any? { |uri| loopback_redirect_components(uri) == components }
+          return
+        end
       end
+
+      raise Error, "redirect_uri not found in client metadata"
+    end
+
+    def loopback_redirect_components(url)
+      uri = URI(url)
+
+      unless uri.is_a?(URI::HTTP) && uri.scheme == 'http' && ['127.0.0.1', '[::1]'].include?(uri.host) &&
+          !uri.userinfo && !uri.fragment && uri.port.between?(1, 65_535)
+        return nil
+      end
+
+      # compare the localhost URLs while ignoring the port
+      # "redirect_uri (string, multiple query parameters allowed, optional):
+      #  allows declaring a local redirect/callback URL, with path component matched but port numbers ignored"
+
+      URI.split(url).tap { |components| components[3] = nil }
+    rescue URI::InvalidURIError
+      nil
     end
 
     def initialize_client_assertion(key)
