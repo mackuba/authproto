@@ -171,7 +171,7 @@ module AuthProto
     #
     # The result contains `:access_token` (String), `:token_type` (String, `DPoP`),
     # `:expires_in` (Integer seconds remaining), `:refresh_token` (String or nil),
-    # and `:scope` (String).
+    # and `:scope` / `:granted_scope` (String, the granted permissions).
     # It also contains `:session_id` (String) and `:did` (String).
     #
     # Supply the session ID retained when starting authorization as `expected_session_id`.
@@ -228,7 +228,7 @@ module AuthProto
     #
     # The result contains `:access_token` (String), `:token_type` (String, `DPoP`),
     # `:expires_in` (Integer seconds remaining), `:refresh_token` (String or nil),
-    # and `:scope` (String).
+    # and `:scope` / `:granted_scope` (String, the granted permissions).
     # It also contains `:session_id` (String) and `:did` (String).
     # This method does not refresh expired tokens.
     #
@@ -246,7 +246,7 @@ module AuthProto
     #
     # The result contains `:access_token` (String), `:token_type` (String, `DPoP`),
     # `:expires_in` (Integer seconds remaining), `:refresh_token` (String or nil),
-    # and `:scope` (String).
+    # and `:scope` / `:granted_scope` (String, the granted permissions).
     # The result also contains `:session_id` (String) and `:did` (String). An expired access token can
     # still be refreshed when the stored session has a refresh token.
     #

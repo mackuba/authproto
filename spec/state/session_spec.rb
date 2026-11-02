@@ -160,6 +160,7 @@ describe AuthProto::State::Session do
         expires_in: 3540,
         refresh_token: tokens.refresh_token,
         scope: tokens.scope,
+        granted_scope: tokens.scope,
         session_id: session.session_id,
         did: did
       }
@@ -174,6 +175,46 @@ describe AuthProto::State::Session do
 
       session.session_data[:refresh_token].should be_nil
       session.session_data[:expires_in].should == -10
+    end
+  end
+
+  describe "granted scopes" do
+    let(:scope) { 'atproto transition:email' }
+
+    it "should report no grant and no limitation before authorization" do
+      session.granted_scope.should be_nil
+      session.has_limited_scope?.should be false
+    end
+
+    {
+      'atproto' => true,
+      'transition:email atproto' => false,
+      'atproto transition:email transition:email' => false,
+      'atproto repo:app.bsky.feed.post' => true
+    }.each do |granted, limited|
+      it "should compare requested scope tokens with the grant #{granted}" do
+        session.tokens = AuthProto::State::TokenSet.new(
+          access_token: 'access', token_type: 'DPoP', expires_in: 3600, scope: granted, sub: did
+        )
+
+        session.scope.should == scope
+        session.granted_scope.should == granted
+        session.has_limited_scope?.should == limited
+        session.session_data[:granted_scope].should == granted
+      end
+    end
+
+    it "should expose a changed grant after replacement tokens are assigned" do
+      session.tokens = tokens
+      session.has_limited_scope?.should be false
+
+      session.tokens = AuthProto::State::TokenSet.new(
+        access_token: 'replacement', token_type: 'DPoP', expires_in: 3600, scope: 'atproto', sub: did
+      )
+
+      session.granted_scope.should == 'atproto'
+      session.has_limited_scope?.should be true
+      session.scope.should == scope
     end
   end
 

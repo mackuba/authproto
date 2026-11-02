@@ -141,6 +141,28 @@ describe AuthProto::Client, '#handle_callback' do
     client.session_manager.get_session_by_state_token(session.state_token).should be_pending
   end
 
+  it "should persist and expose a reduced grant when completing authorization" do
+    pending = client.session_manager.create_session(
+      client_id: client.client_id, scope: 'atproto transition:email',
+      auth_server: auth_server, did: 'did:plc:alice'
+    )
+    client.stubs(:make_token_request).returns(
+      status: 200, headers: { 'DPoP-Nonce' => 'nonce' }, body: {
+        access_token: 'access', refresh_token: 'refresh', token_type: 'DPoP',
+        expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
+      }.to_json
+    )
+
+    result = client.handle_callback(code: 'code', state: pending.state_token, iss: auth_server.issuer,
+                                    expected_session_id: pending.session_id)
+    restored = client.session_manager.get_session(pending.session_id)
+
+    result[:granted_scope].should == 'atproto'
+    restored.scope.should == 'atproto transition:email'
+    restored.granted_scope.should == 'atproto'
+    restored.has_limited_scope?.should be true
+  end
+
   it "should preserve the subject mismatch error if revocation fails" do
     client.stubs(:make_token_request).returns(
       status: 200, headers: { 'DPoP-Nonce' => 'nonce' }, body: {

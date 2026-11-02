@@ -22,6 +22,8 @@ module AuthProto
       def authorization_server=: (Metadata::AuthorizationServer server) -> Metadata::AuthorizationServer
       def did=: (String did) -> String
       def tokens=: (TokenSet tokens) -> String
+      def granted_scope: () -> String?
+      def has_limited_scope?: () -> bool
       def session_data: () -> AuthProto::session_data?
       def pending?: () -> bool
       def tokens_valid?: () -> bool

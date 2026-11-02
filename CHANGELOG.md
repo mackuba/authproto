@@ -5,6 +5,7 @@
 - check if the known PDS matches before doing a token refresh
 - fixed decryption code accepting encrypted data with truncated tags
 - fixed token refresh failing if some originally requested scopes were not granted (e.g. email access)
+- added `#granted_scope` and `#has_limited_scope?` to `Session`
 
 ## [0.3.0.beta3] - 2026-11-02
 

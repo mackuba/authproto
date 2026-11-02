@@ -36,6 +36,19 @@ describe AuthProto::Serialization::Session do
     serialized.dig("data", "tokens", "access_token").should be_encrypted if session.tokens
   end
 
+  it "should preserve requested and granted scopes independently when restoring a session" do
+    authorized = AuthProto::State::Session.new(client_id: client_id, scope: 'atproto transition:email')
+    authorized.tokens = AuthProto::State::TokenSet.new(
+      access_token: 'access', token_type: 'DPoP', expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
+    )
+
+    restored = serializer.deserialize(serializer.serialize(authorized))
+
+    restored.scope.should == 'atproto transition:email'
+    restored.granted_scope.should == 'atproto'
+    restored.has_limited_scope?.should be true
+  end
+
   it "should reject sessions without a saved DPoP key instead of generating a replacement" do
     serialized = JSON.parse(serializer.serialize(session))
     serialized.fetch('data').delete('dpop_key')
