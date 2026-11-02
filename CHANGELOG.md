@@ -1,4 +1,4 @@
-## Unreleased
+## [0.3.0.beta3] - 2026-11-02
 
 - session's state token is deleted on successfully completed authentication (i.e. `handle_callback`)
 - pending sessions (that haven't completed authentication) are stored with a TTL of 15 minutes by default, and expire after that; this can be changed through `pending_session_ttl` in the global configuration
@@ -11,8 +11,8 @@
 - added `Session#pending?` and `Session#tokens_valid?`
 - removed unused `default_token_lifetime` and `encryption` configuration settings
 - added `client_assertion_lifetime` configuration setting
-- simplified the DPoP public key JWT included in headers
 - nonce manager now uses the global `dpop_nonce_lifetime` ttl setting by default
+- simplified the DPoP public key JWT included in headers
 - improved validation of nonce-related headers & responses, client metadata, refresh errors, and assertion signing keys
 - sessions store the client assertion signing key's ID in the metadata and check it when deserialized
 - various refactors and reorganizations
