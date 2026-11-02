@@ -9,6 +9,11 @@ describe AuthProto::Storage::Redis do
   # Include shared storage implementation tests
   include_examples "a storage implementation"
 
+  # Redis expiration uses the server's clock rather than Ruby's clock.
+  def advance_storage_time(seconds)
+    sleep seconds
+  end
+
   unless ENV["REDIS_URL"]
     warn "** Set REDIS_URL to run Redis storage tests"
   end

@@ -116,8 +116,13 @@ describe AuthProto::DPoP::NonceManager do
     end
 
     it "should return nil if the nonce has expired" do
+      now = Time.utc(2026, 1, 1)
+      Time.stubs(:now).returns(now)
+      AuthProto.stubs(:storage).returns(AuthProto::Storage::Memory.new)
       nonce_manager.update(session_id: session_id, nonce: expired_nonce, server_url: server_url)
-      sleep(ttl + 0.1) # Wait for expiration
+      nonce_manager.get(server_url: server_url, session_id: session_id).should == expired_nonce
+
+      Time.stubs(:now).returns(now + ttl)
       nonce_manager.get(server_url: server_url, session_id: session_id).should be_nil
     end
 

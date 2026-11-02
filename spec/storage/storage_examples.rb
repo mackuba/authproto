@@ -1,6 +1,11 @@
 # frozen_string_literal: true
 
 shared_examples "a storage implementation" do
+  def advance_storage_time(seconds)
+    now = Time.now
+    Time.stubs(:now).returns(now + seconds)
+  end
+
   describe "basic operations" do
     it "should store and retrieve values" do
       storage.set("atproto:test:key", "value")
@@ -57,9 +62,10 @@ shared_examples "a storage implementation" do
 
   describe "TTL handling" do
     it "should expire values after TTL" do
+      Time.stubs(:now).returns(Time.utc(2026, 1, 1))
       storage.set("atproto:test:ttl", "value", ttl: 1)
       storage.get("atproto:test:ttl").should == "value"
-      sleep 1.1 # Wait for expiration
+      advance_storage_time(1.1)
       storage.get("atproto:test:ttl").should be_nil
     end
 
@@ -90,12 +96,14 @@ shared_examples "a storage implementation" do
     end
 
     it "should expire locks after TTL" do
+      Time.stubs(:now).returns(Time.utc(2026, 1, 1))
+
       storage.with_lock("atproto:test:lock", ttl: 1) do
         expect {
           storage.with_lock("atproto:test:lock", ttl: 30) { true }
         }.to raise_error(AuthProto::Storage::LockError)
 
-        sleep 1.1 # Wait for expiration
+        advance_storage_time(1.1)
         (storage.with_lock("atproto:test:lock", ttl: 30) { true }).should be_truthy
       end
     end

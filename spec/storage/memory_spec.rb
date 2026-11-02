@@ -19,11 +19,13 @@ describe AuthProto::Storage::Memory do
     end
 
     it "should clean up expired keys automatically" do
+      now = Time.utc(2026, 1, 1)
+      Time.stubs(:now).returns(now)
       storage.set("atproto:test:short", "value", ttl: 1)
       storage.set("atproto:test:long", "value", ttl: 3600)
 
       storage.get("atproto:test:short").should == "value"
-      sleep 1.1 # Wait for expiration
+      Time.stubs(:now).returns(now + 1)
       storage.get("atproto:test:short").should be_nil
       storage.get("atproto:test:long").should == "value"
     end

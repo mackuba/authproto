@@ -168,6 +168,8 @@ describe AuthProto::Storage::SQLite do
     end
 
     it "should not clean a stale lock on exit if it was already replaced" do
+      now = Time.utc(2026, 1, 1)
+      Time.stubs(:now).returns(now)
       second_storage = AuthProto::Storage::SQLite.new(path: database_path)
       second_thread = nil
 
@@ -175,7 +177,7 @@ describe AuthProto::Storage::SQLite do
       release_newer_owner = Queue.new
 
       storage.with_lock("atproto:test:lock", ttl: 1) do
-        sleep 1.1
+        Time.stubs(:now).returns(now + 1)
 
         second_thread = Thread.new do
           second_storage.with_lock("atproto:test:lock", ttl: 30) do
