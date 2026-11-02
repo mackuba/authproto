@@ -21,6 +21,42 @@ describe AuthProto::PAR::ClientAssertion do
   end
   let(:client_assertion) { AuthProto::PAR::ClientAssertion.new(client_id: client_id, signing_key: signing_key) }
 
+  describe 'assertion inputs' do
+    [nil, '', '   ', "\t\n", 123, false].each do |value|
+      it "should reject invalid client_id #{value.inspect}" do
+        expect {
+          described_class.new(client_id: value, signing_key: signing_key)
+        }.to raise_error(described_class::Error, /client_id must be a nonblank string/)
+      end
+
+      it "should reject invalid audience #{value.inspect} before signing" do
+        client_assertion
+        JWT.expects(:encode).never
+        expect {
+          client_assertion.generate_jwt(audience: value)
+        }.to raise_error(described_class::Error, /audience must be a nonblank string/)
+      end
+    end
+
+    [nil, 0, -1, 1.5, '300', true].each do |value|
+      it "should reject invalid lifetime #{value.inspect} before signing" do
+        client_assertion
+        JWT.expects(:encode).never
+        expect {
+          client_assertion.generate_jwt(audience: audience, lifetime: value)
+        }.to raise_error(described_class::Error, /lifetime must be a positive integer/)
+      end
+    end
+
+    [1, 3600].each do |lifetime|
+      it "should allow a positive lifetime of #{lifetime} seconds without a five-minute cap" do
+        token = client_assertion.generate_jwt(audience: audience, lifetime: lifetime)
+        claims = JWT.decode(token, nil, false).first
+        claims['exp'].should == claims['iat'] + lifetime
+      end
+    end
+  end
+
   describe "signing key operations" do
     [nil, 'sign', [], ['verify'], ['sign', 'sign'], ['sign', 'verify', 'verify'],
      ['sign', 'decrypt'], ['sign', 'encrypt'], ['sign', 'wrapKey'], ['sign', 'deriveKey'],

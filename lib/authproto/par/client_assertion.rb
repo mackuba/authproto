@@ -32,9 +32,14 @@ module AuthProto
       # @param signing_key [Hash, JOSE::JWK] private EC P-256 signing key, including its `kid`
       # @raise [Error] if the key cannot sign with ES256 or its usage is incompatible
       #   (`key_ops`, when present, must contain `sign` and optionally `verify`, without duplicates)
+      # @raise [Error] if the client ID is not a nonblank string
       #
       def initialize(client_id:, signing_key:)
-        @client_id = client_id
+        unless client_id.is_a?(String) && !client_id.strip.empty?
+          raise Error, "client_id must be a nonblank string"
+        end
+
+        @client_id = client_id.dup.freeze
         @signing_key = validate_signing_key(signing_key)
       rescue ClientAssertion::Error
         raise
@@ -47,11 +52,19 @@ module AuthProto
       # Includes `iss`, `sub`, `aud`, a unique `jti`, and `iat`/`exp` times.
       #
       # @param audience [String] authorization server issuer URL used as the assertion audience
-      # @param lifetime [Integer] validity in seconds; defaults to five minutes
+      # @param lifetime [Integer] positive validity in seconds; defaults to five minutes
       # @return [String] compact signed client assertion JWT
-      # @raise [Error] if JWK import or JWT signing fails
+      # @raise [Error] if the audience is not a nonblank string, lifetime is not a positive integer, or signing fails
       #
       def generate_jwt(audience:, lifetime: 300)
+        unless audience.is_a?(String) && !audience.strip.empty?
+          raise Error, "audience must be a nonblank string"
+        end
+
+        unless lifetime.is_a?(Integer) && lifetime.positive?
+          raise Error, "lifetime must be a positive integer"
+        end
+
         now = Time.now.to_i
 
         payload = {
