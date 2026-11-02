@@ -11,13 +11,15 @@ module AuthProto
     class DecryptionError < Error
     end
 
+    CIPHER: String
+    VERSION: Integer
+    MASTER_KEY_BYTES: Integer
+
     module HKDF
       def self.derive: (_ToS secret, salt: String, info: String, length: Integer) -> String
     end
 
     class Service
-      CIPHER: String
-      VERSION: Integer
       def initialize: () -> void
       def encrypt: (_ToS data, context: String) -> envelope
       def decrypt: (envelope encrypted, context: String) -> String

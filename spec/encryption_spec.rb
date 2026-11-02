@@ -69,7 +69,7 @@ describe AuthProto::Encryption do
       it "should encrypt data with a context" do
         result = encryption_service.encrypt(sample_data, context: context)
 
-        result[:version].should == AuthProto::Encryption::Service::VERSION
+        result[:version].should == AuthProto::Encryption::VERSION
         result[:iv].should be_a(String)
         result[:data].should be_a(String)
         result[:tag].should be_a(String)
@@ -208,6 +208,42 @@ describe AuthProto::Encryption do
 
   describe AuthProto::Encryption::KeyProvider do
     let(:key_provider) { AuthProto::Encryption::KeyProvider.new }
+
+    describe "#initialize" do
+      before do
+        @original_master_key = ENV['ATPROTO_MASTER_KEY']
+      end
+
+      after do
+        ENV['ATPROTO_MASTER_KEY'] = @original_master_key
+      end
+
+      [0, 1, 16, 31, 33, 64].each do |length|
+        it "should reject a master key that decodes to #{length} bytes" do
+          ENV['ATPROTO_MASTER_KEY'] = Base64.strict_encode64(SecureRandom.random_bytes(length))
+
+          expect {
+            described_class.new
+          }.to raise_error(AuthProto::Encryption::ConfigurationError, /must decode to exactly 32 bytes/)
+        end
+      end
+
+      it "should accept a Base64-encoded 32-byte binary master key" do
+        key = "\xFF".b * 32
+        ENV['ATPROTO_MASTER_KEY'] = Base64.strict_encode64(key)
+        expected = AuthProto::Encryption::HKDF.derive(
+          key, salt: OpenSSL::Digest.digest('SHA256', 'atproto-salt-test'), info: 'atproto-test', length: 32
+        )
+
+        described_class.new.key_for_context('test').should == expected
+      end
+
+      it "should reject malformed Base64 even when its encoded length looks valid" do
+        ENV['ATPROTO_MASTER_KEY'] = '!' * 44
+
+        expect { described_class.new }.to raise_error(ArgumentError, /invalid base64/)
+      end
+    end
 
     describe "#key_for_context" do
       it "should derive different keys for different contexts" do

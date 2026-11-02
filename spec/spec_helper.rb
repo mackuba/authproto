@@ -23,7 +23,7 @@ end
 RSpec::Matchers.define :be_encrypted do
   match do |value|
     value.is_a?(Hash) &&
-      value["version"] == AuthProto::Encryption::Service::VERSION &&
+      value["version"] == AuthProto::Encryption::VERSION &&
       value["iv"] && value["data"] && value["tag"]
   end
 

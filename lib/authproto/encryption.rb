@@ -17,7 +17,7 @@ module AuthProto
     # Base class for encryption and key-configuration failures.
     class Error < AuthProto::Error; end
 
-    # Raised when a required key derivation context is missing.
+    # Raised when the master key length is invalid or a required key derivation context is missing.
     class ConfigurationError < Error; end
 
     # Raised when plaintext inputs are invalid or encryption fails.
@@ -25,6 +25,18 @@ module AuthProto
 
     # Raised when an encrypted envelope cannot be decoded, authenticated or decrypted.
     class DecryptionError < Error; end
+
+    # OpenSSL cipher name used for authenticated encryption.
+    # @return [String]
+    CIPHER = "aes-256-gcm"
+
+    # Version stored in encrypted field envelopes.
+    # @return [Integer]
+    VERSION = 1
+
+    # Required length of the decoded master key in bytes.
+    # @return [Integer]
+    MASTER_KEY_BYTES = 32
 
     #
     # HKDF implementation based on RFC 5869
@@ -70,16 +82,9 @@ module AuthProto
 
     class Service
 
-      # OpenSSL cipher name used for authenticated encryption.
-      # @return [String]
-      CIPHER = "aes-256-gcm"
-
-      # Version stored in encrypted field envelopes.
-      # @return [Integer]
-      VERSION = 1
-
       # Creates an encryption service backed by {KeyProvider}.
       # @raise [ArgumentError] if the configured master key is not valid Base64
+      # @raise [ConfigurationError] if the configured master key does not decode to exactly 32 bytes
       #
       def initialize
         @key_provider = KeyProvider.new
@@ -197,18 +202,19 @@ module AuthProto
       #
       def self.ephemeral_master_key
         EPHEMERAL_KEY_MUTEX.synchronize do
-          @ephemeral_master_key ||= SecureRandom.random_bytes(32)
+          @ephemeral_master_key ||= SecureRandom.random_bytes(MASTER_KEY_BYTES)
         end
       end
 
       # Loads the master key from `ATPROTO_MASTER_KEY` or uses the process fallback.
       #
-      # Set the environment variable to a Base64-encoded master secret, typically
+      # Set the environment variable to a Base64-encoded master secret containing exactly
       # 32 random bytes. Context-specific AES-256 keys are derived from that secret.
       # Without it, a warning is emitted and {KeyProvider.ephemeral_master_key} is used;
       # data encrypted with that fallback cannot be recovered after a restart.
       #
       # @raise [ArgumentError] if `ATPROTO_MASTER_KEY` is not valid Base64
+      # @raise [ConfigurationError] if `ATPROTO_MASTER_KEY` does not decode to exactly 32 bytes
       #
       def initialize
         @master_key = load_master_key
@@ -237,7 +243,16 @@ module AuthProto
       def load_master_key
         # Try environment variable first
         key = ENV.fetch("ATPROTO_MASTER_KEY", nil)
-        return Base64.strict_decode64(key) if key
+
+        if key
+          decoded = Base64.strict_decode64(key)
+
+          unless decoded.bytesize == MASTER_KEY_BYTES
+            raise ConfigurationError, "ATPROTO_MASTER_KEY must decode to exactly #{MASTER_KEY_BYTES} bytes"
+          end
+
+          return decoded
+        end
 
         # Generate and store a random key if not configured
         warn "WARNING: Using randomly generated encryption key - tokens will not persist across restarts"
