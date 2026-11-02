@@ -28,7 +28,7 @@ describe AuthProto::PAR::ClientAssertion do
       Time.stubs(:now).returns(Time.at(now)) # Stub Time.now for predictable timestamps
 
       jwt = client_assertion.generate_jwt(audience: audience, lifetime: lifetime)
-      public_key = JWT::JWK.import(signing_key.to_public.to_map.to_h).public_key
+      public_key = JWT::JWK.import(signing_key.to_public_map.to_h).public_key
       decoded, header = JWT.decode(jwt, public_key, true, { algorithm: "ES256" })
 
       # Verify claims
@@ -80,7 +80,7 @@ describe AuthProto::PAR::ClientAssertion do
       Time.stubs(:now).returns(Time.at(now))
 
       jwt = client_assertion.generate_jwt(audience: audience)
-      public_key = JWT::JWK.import(signing_key.to_public.to_map.to_h).public_key
+      public_key = JWT::JWK.import(signing_key.to_public_map.to_h).public_key
       decoded, header = JWT.decode(jwt, public_key, true, { algorithm: "ES256" })
 
       decoded["exp"].should == now + 300 # Default lifetime of 300 seconds
@@ -90,7 +90,7 @@ describe AuthProto::PAR::ClientAssertion do
       jti_values = []
       5.times do
         jwt = client_assertion.generate_jwt(audience: audience)
-        public_key = JWT::JWK.import(signing_key.to_public.to_map.to_h).public_key
+        public_key = JWT::JWK.import(signing_key.to_public_map.to_h).public_key
         decoded, = JWT.decode(jwt, public_key, true, { algorithm: "ES256" })
         jti_values << decoded["jti"]
       end
@@ -100,7 +100,7 @@ describe AuthProto::PAR::ClientAssertion do
 
     it "should include the correct kid in the header" do
       jwt = client_assertion.generate_jwt(audience: audience)
-      public_key = JWT::JWK.import(signing_key.to_public.to_map.to_h).public_key
+      public_key = JWT::JWK.import(signing_key.to_public_map.to_h).public_key
       decoded, header = JWT.decode(jwt, public_key, true, { algorithm: "ES256" })
 
       header["kid"].should == "test-key-id"

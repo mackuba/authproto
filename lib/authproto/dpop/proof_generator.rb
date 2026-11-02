@@ -74,7 +74,7 @@ module AuthProto
         {
           typ: 'dpop+jwt',
           alg: ALGORITHM,
-          jwk: key_set.public_jwk.to_h
+          jwk: key_set.public_jwk
         }
       end
 

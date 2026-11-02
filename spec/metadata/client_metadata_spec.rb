@@ -4,7 +4,7 @@ require 'json'
 
 describe AuthProto::Metadata::ClientMetadata do
   let(:public_jwk) do
-    JOSE::JWK.generate_key([:ec, "P-256"]).to_public.to_map.to_h.merge("kid" => "client-key", "use" => "sig")
+    JOSE::JWK.generate_key([:ec, "P-256"]).to_public_map.to_h.merge("kid" => "client-key", "use" => "sig")
   end
   before do
     @valid_metadata = {

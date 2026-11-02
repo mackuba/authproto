@@ -364,7 +364,7 @@ module AuthProto
       private_key = assertion.signing_key
 
       if @client_metadata.jwks
-        public_key = private_key.to_public.to_map.to_h
+        public_key = private_key.to_public_map.to_h
 
         key_in_jwks = @client_metadata.jwks['keys'].any? { |candidate|
           metadata_key_matches_public_key?(candidate, public_key)

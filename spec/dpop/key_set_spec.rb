@@ -67,21 +67,25 @@ describe AuthProto::DPoP::KeySet do
     end
   end
 
-  describe "#to_jwk" do
+  describe "#private_jwk" do
     it "should export the keypair in JWK format including private key" do
       keyset = AuthProto::DPoP::KeySet.new(valid_keypair)
-      jwk = keyset.to_jwk(include_private: true)
+      jwk = keyset.private_jwk
       jwk["kty"].should == "EC"
       jwk["crv"].should == "P-256"
       (jwk.key?("d")).should be_truthy
     end
 
-    it "should export the public key only when include_private is false" do
-      keyset = AuthProto::DPoP::KeySet.new(valid_keypair)
-      jwk = keyset.to_jwk(include_private: false)
-      jwk["kty"].should == "EC"
-      jwk["crv"].should == "P-256"
-      (jwk.key?("d")).should be_falsey
+    it "should return a hash that can restore the same signing key" do
+      keyset = described_class.new(valid_keypair)
+      jwk = keyset.private_jwk
+      jwk.should be_a(Hash)
+      jwk.should == valid_keypair.to_map.to_h
+
+      restored = described_class.from_jwk(jwk)
+      signed = restored.sign_segments({ alg: 'ES256' }, { value: 'test' })
+      valid_keypair.verify(signed).first.should be_truthy
+      restored.public_jwk.should_not have_key('d')
     end
   end
 

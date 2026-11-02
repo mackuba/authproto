@@ -80,15 +80,13 @@ module AuthProto
         raise KeyError, "Failed to sign segments: #{e.message}"
       end
 
-      # Exports this keypair as a JOSE map.
+      # Exports this keypair including its private signing material.
       #
-      # @param include_private [Boolean] include secret `d` key material when `true`
-      # @return [JOSE::Map] JWK fields; call `to_h` for a Ruby hash
+      # @return [Hash{String => Object}] private JWK including the secret `d` component
       # @raise [KeyError] if export fails
       #
-      def to_jwk(include_private: false)
-        key = include_private ? @key : @key.to_public
-        key.to_map
+      def private_jwk
+        @key.to_map.to_h
       rescue StandardError => e
         raise KeyError, "Failed to export key: #{e.message}"
       end

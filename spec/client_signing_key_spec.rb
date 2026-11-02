@@ -40,18 +40,18 @@ describe AuthProto::Client, 'client authentication keys' do
   end
 
   it 'should match key material as well as kid' do
-    metadata['jwks']['keys'] = [JOSE::JWK.generate_key([:ec, 'P-256']).to_public.to_map.to_h.merge('kid' => 'client-key')]
+    metadata['jwks']['keys'] = [JOSE::JWK.generate_key([:ec, 'P-256']).to_public_map.to_h.merge('kid' => 'client-key')]
     expect { build_client(private_jwk) }.to raise_error(AuthProto::InvalidClientMetadata, /match an active public key/)
   end
 
   it 'should find the advertised key even if it is not the first entry' do
-    other = JOSE::JWK.generate_key([:ec, 'P-256']).to_public.to_map.to_h.merge('kid' => 'other')
+    other = JOSE::JWK.generate_key([:ec, 'P-256']).to_public_map.to_h.merge('kid' => 'other')
     metadata['jwks']['keys'].unshift(other)
     build_client(private_jwk).client_metadata.should be_confidential
   end
 
   it 'should accept other advertised keys with encryption usage and different algorithms' do
-    encryption_key = JOSE::JWK.generate_key([:rsa, 2048]).to_public.to_map.to_h.merge(
+    encryption_key = JOSE::JWK.generate_key([:rsa, 2048]).to_public_map.to_h.merge(
       'kid' => 'encryption', 'use' => 'enc', 'key_ops' => ['encrypt', 'wrapKey'], 'alg' => 'RSA-OAEP'
     )
     metadata['jwks']['keys'].unshift(encryption_key)

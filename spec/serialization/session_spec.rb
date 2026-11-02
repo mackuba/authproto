@@ -23,7 +23,7 @@ describe AuthProto::Serialization::Session do
     deserialized.scope.should == session.scope
     deserialized.pkce_verifier.should == session.pkce_verifier
     deserialized.pkce_challenge.should == session.pkce_challenge
-    deserialized.dpop_key.to_jwk(include_private: true).should == session.dpop_key.to_jwk(include_private: true)
+    deserialized.dpop_key.private_jwk.should == session.dpop_key.private_jwk
   end
 
   it "should encrypt sensitive session data" do

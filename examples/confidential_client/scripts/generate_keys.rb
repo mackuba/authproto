@@ -6,7 +6,7 @@ require 'json'
 key = JOSE::JWK.generate_key([:ec, "P-256"])
 
 private_jwk = key.to_map.to_h.merge("kid" => "key-1", "use" => "sig")
-public_jwk = key.to_public.to_map.to_h.merge("kid" => "key-1", "use" => "sig")
+public_jwk = key.to_public_map.to_h.merge("kid" => "key-1", "use" => "sig")
 
 config_dir = File.expand_path('../config', __dir__)
 private_path = File.join(config_dir, 'keys.json')

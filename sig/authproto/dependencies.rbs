@@ -15,5 +15,6 @@ module JOSE
     def self.generate_key: (untyped params) -> JWK
     def to_map: (?untyped key, ?untyped jwe) -> Map
     def to_public: () -> JWK
+    def to_public_map: () -> Map
   end
 end

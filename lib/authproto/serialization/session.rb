@@ -34,7 +34,7 @@ module AuthProto
         data = {
           session_id: obj.session_id,
           client_id: obj.client_id,
-          dpop_key: obj.dpop_key.to_jwk(include_private: true).to_h,
+          dpop_key: obj.dpop_key.private_jwk,
           scope: obj.scope,
           pkce_verifier: obj.pkce_verifier,
           pkce_challenge: obj.pkce_challenge,

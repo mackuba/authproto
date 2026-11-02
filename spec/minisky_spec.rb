@@ -144,7 +144,7 @@ describe Minisky::OAuthClient do
         client_metadata["jwks"] = { "keys" => [@signing_key.except("d").merge("key_ops" => ["verify"])] }
       end
       stub_authorization_metadata
-      public_key = JWT::JWK.import(key.to_public.to_map.to_h).public_key
+      public_key = JWT::JWK.import(key.to_public_map.to_h).public_key
       assertions = []
       par_proofs = []
       validate_assertion = lambda do |request|
