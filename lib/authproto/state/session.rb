@@ -37,6 +37,10 @@ module AuthProto
       # @return [String, nil]
       attr_reader :signing_key_id
 
+      # RFC 7638 SHA-256 thumbprint of the client-authentication public key.
+      # @return [String, nil]
+      attr_reader :signing_key_thumbprint
+
       # Private DPoP key belonging to this authorization session.
       # @return [DPoP::KeySet]
       attr_reader :dpop_key
@@ -72,13 +76,14 @@ module AuthProto
       # @param auth_server [Metadata::AuthorizationServer, nil] pre-resolved authorization server
       # @param did [String, nil] pre-resolved account DID
       # @param signing_key_id [String, nil] client-authentication key ID selected before PAR
+      # @param signing_key_thumbprint [String, nil] RFC 7638 SHA-256 thumbprint of that key
       # @param dpop_key [DPoP::KeySet] session key; a fresh key is generated for new sessions by default
       # @param authorization_expires_at [Time, nil] deadline for completing pending authorization
       # @raise [ArgumentError] if the signing key ID or DPoP key has an invalid type
       # @raise [DPoP::KeySet::KeyError] if DPoP key generation fails
       # @raise [PKCE::Error] if PKCE generation fails
       #
-      def initialize(client_id:, scope:, auth_server: nil, did: nil, signing_key_id: nil,
+      def initialize(client_id:, scope:, auth_server: nil, did: nil, signing_key_id: nil, signing_key_thumbprint: nil,
                      dpop_key: DPoP::KeySet.new, authorization_expires_at: nil)
         super() # Initialize MonitorMixin
 
@@ -86,11 +91,16 @@ module AuthProto
           raise ArgumentError, "signing_key_id must be a nonempty string or nil"
         end
 
+        unless signing_key_thumbprint.nil? || (signing_key_thumbprint.is_a?(String) && !signing_key_thumbprint.empty?)
+          raise ArgumentError, "signing_key_thumbprint must be a nonempty string or nil"
+        end
+
         raise ArgumentError, "dpop_key must be a DPoP::KeySet" unless dpop_key.is_a?(DPoP::KeySet)
 
         @dpop_key = dpop_key
         @client_id = client_id
         @signing_key_id = signing_key_id&.dup&.freeze
+        @signing_key_thumbprint = signing_key_thumbprint&.dup&.freeze
         @scope = scope
         @auth_server = auth_server
         @did = did

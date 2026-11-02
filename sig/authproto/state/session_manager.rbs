@@ -2,9 +2,9 @@ module AuthProto
   module State
     class SessionManager
       @serializer: Serialization::Session
-      @supported_signing_key_ids: Array[String]
+      @supported_signing_keys: Hash[String, String]
 
-      def initialize: (?supported_signing_key_ids: Array[String]) -> void
+      def initialize: (?supported_signing_keys: Hash[String, String]) -> void
       def create_session: (client_id: String, scope: String, ?auth_server: Metadata::AuthorizationServer?, ?did: String?, ?signing_key_id: String?) -> Session
       def update_session: (Session session) -> Session
       def get_session: (String session_id) -> Session?

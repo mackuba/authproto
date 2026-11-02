@@ -54,11 +54,14 @@ describe AuthProto::Serialization::Session do
   end
 
   it "should preserve the signing key ID without storing the private client-authentication key" do
-    bound = AuthProto::State::Session.new(client_id: client_id, scope: scope, signing_key_id: 'client-key')
+    bound = AuthProto::State::Session.new(client_id: client_id, scope: scope, signing_key_id: 'client-key',
+                                            signing_key_thumbprint: 'thumbprint')
     serialized = serializer.serialize(bound)
     data = JSON.parse(serialized).fetch('data')
 
     data['signing_key_id'].should == 'client-key'
+    data['signing_key_thumbprint'].should == 'thumbprint'
+    serializer.deserialize(serialized).signing_key_thumbprint.should == 'thumbprint'
     data.should_not have_key('signing_key')
     data.should_not have_key('d')
     serializer.deserialize(serialized).signing_key_id.should == 'client-key'

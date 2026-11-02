@@ -61,6 +61,24 @@ describe AuthProto::State::Session do
     end
   end
 
+  describe 'signing key thumbprint' do
+    it "should copy and freeze the recorded thumbprint" do
+      thumbprint = String.new('thumbprint')
+      bound = described_class.new(client_id: client_id, scope: scope, signing_key_thumbprint: thumbprint)
+      thumbprint.replace('changed')
+      bound.signing_key_thumbprint.should == 'thumbprint'
+      bound.signing_key_thumbprint.should be_frozen
+    end
+
+    ['', 123, false].each do |value|
+      it "should reject an invalid thumbprint #{value.inspect}" do
+        expect {
+          described_class.new(client_id: client_id, scope: scope, signing_key_thumbprint: value)
+        }.to raise_error(ArgumentError, /signing_key_thumbprint/)
+      end
+    end
+  end
+
   describe "#authorization_server=" do
     it "should set the authorization server if not already set" do
       new_server = mock("AuthorizationServer")

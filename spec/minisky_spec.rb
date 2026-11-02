@@ -329,6 +329,23 @@ describe Minisky::OAuthClient do
       stored.signing_key_id.should == 'original-key'
     end
 
+    it "should reject changed key material with the same kid before code exchange or refresh" do
+      replacement = replacement_key.merge('kid' => 'original-key')
+      restored = restore_client(replacement)
+      restored.oauth_client.session_manager.get_session(pending_session.session_id).should be_nil
+      expect {
+        restored.handle_callback(code: 'code', state: pending_session.state_token, iss: auth_server.issuer,
+                                 expected_session_id: pending_session.session_id)
+      }.to raise_error(AuthProto::Client::CallbackError, "Invalid state parameter")
+
+      pending_session.tokens = token_set
+      client.oauth_client.session_manager.complete_authorization(pending_session)
+      expect { restored.perform_token_refresh }.to raise_error(AuthProto::Client::TokenError, "Invalid session")
+      assert_not_requested :post, auth_server.token_endpoint
+      original = client.oauth_client.session_manager.get_session(pending_session.session_id)
+      original.signing_key_thumbprint.should == JOSE::JWK.from_map(@signing_key).thumbprint('SHA256')
+    end
+
     it "should accept an older serialized session without a signing key ID" do
       state_token = pending_session.state_token
       session_key = AuthProto::Storage::KeyBuilder.session_key(pending_session.session_id)

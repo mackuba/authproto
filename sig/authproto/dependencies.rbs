@@ -16,5 +16,6 @@ module JOSE
     def to_map: (?untyped key, ?untyped jwe) -> Map
     def to_public: () -> JWK
     def to_public_map: () -> Map
+    def thumbprint: (?String? digest_type) -> String
   end
 end

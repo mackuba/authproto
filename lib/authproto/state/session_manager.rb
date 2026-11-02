@@ -16,18 +16,18 @@ module AuthProto
 
       # Creates a session manager and its encrypted session serializer.
       #
-      # @param supported_signing_key_ids [Array<String>] IDs of locally available client-authentication keys
-      # @raise [ArgumentError] if supported key IDs are not an array of nonempty strings
+      # @param supported_signing_keys [Hash{String => String}] key IDs mapped to RFC 7638 SHA-256 thumbprints
+      # @raise [ArgumentError] if key IDs or thumbprints are not nonempty strings
       # @raise [ArgumentError] if `ATPROTO_MASTER_KEY` is not valid Base64
       #
-      def initialize(supported_signing_key_ids: [])
-        keys = supported_signing_key_ids
+      def initialize(supported_signing_keys: {})
+        keys = supported_signing_keys
 
-        unless keys.is_a?(Array) && keys.all? { |id| id.is_a?(String) && !id.empty? }
-          raise ArgumentError, "supported_signing_key_ids must be an array of nonempty strings"
+        unless keys.is_a?(Hash) && keys.all? { |id, thumb| [id, thumb].all? { |x| x.is_a?(String) && !x.empty? }}
+          raise ArgumentError, "supported_signing_keys must map nonempty key IDs to nonempty thumbprints"
         end
 
-        @supported_signing_key_ids = keys.map { |id| id.dup.freeze }.freeze
+        @supported_signing_keys = keys.to_h { |id, thumb| [id.dup.freeze, thumb.dup.freeze] }.freeze
         @serializer = Serialization::Session.new
       end
 
@@ -39,7 +39,10 @@ module AuthProto
       # @param did [String, nil] pre-resolved account DID
       # @param signing_key_id [String, nil] client-authentication key ID selected before PAR
       #
+      # The signing key thumbprint is taken from the configured key mapping.
+      #
       # @return [Session] newly created session
+      # @raise [ArgumentError] if the signing key ID is not configured
       # @raise [DPoP::KeySet::KeyError] if session key generation fails
       # @raise [PKCE::Error] if session PKCE generation fails
       # @raise [Storage::StorageError] if writing or locking fails
@@ -47,12 +50,17 @@ module AuthProto
       # @raise [Encryption::EncryptionError] if sensitive fields cannot be encrypted
       #
       def create_session(client_id:, scope:, auth_server: nil, did: nil, signing_key_id: nil)
+        if signing_key_id && !@supported_signing_keys.key?(signing_key_id)
+          raise ArgumentError, "Unsupported signing_key_id: #{signing_key_id}"
+        end
+
         session = Session.new(
           client_id: client_id,
           scope: scope,
           auth_server: auth_server,
           did: did,
           signing_key_id: signing_key_id,
+          signing_key_thumbprint: @supported_signing_keys[signing_key_id],
           authorization_expires_at: Time.now + AuthProto.configuration.pending_session_ttl
         )
 
@@ -116,7 +124,8 @@ module AuthProto
       #
       # Returns `nil` for missing, unreadable or malformed sessions and for expired
       # sessions that have no refresh token. Sessions with an unsupported signing key ID
-      # are unavailable but remain in storage. Public and legacy sessions without an ID
+      # or a missing/mismatching key thumbprint are unavailable but remain in storage.
+      # Public and legacy sessions without an ID
       # are accepted. Read/deserialization errors are logged.
       #
       # @param session_id [String] session identifier
@@ -135,7 +144,11 @@ module AuthProto
 
         begin
           session = @serializer.deserialize(serialized)
-          return nil if session.signing_key_id && !@supported_signing_key_ids.include?(session.signing_key_id)
+
+          if session.signing_key_id
+            thumbprint = @supported_signing_keys[session.signing_key_id]
+            return nil unless thumbprint && thumbprint == session.signing_key_thumbprint
+          end
 
           if session.pending?
             deadline = session.authorization_expires_at

@@ -104,7 +104,9 @@ module AuthProto
       validate_redirect_uri
       initialize_client_assertion(signing_key)
 
-      @session_manager = State::SessionManager.new(supported_signing_key_ids: [@signing_key_kid].compact)
+      signing_keys = @client_assertion ? { @signing_key_kid => @signing_key_thumbprint } : {}
+      @session_manager = State::SessionManager.new(supported_signing_keys: signing_keys)
+
       @dpop_client = DPoP::Client.new
     end
 
@@ -379,6 +381,7 @@ module AuthProto
 
       @client_assertion = assertion
       @signing_key_kid = private_key.fields.fetch('kid')
+      @signing_key_thumbprint = private_key.thumbprint('SHA256')
     end
 
     def metadata_key_matches_public_key?(candidate, public_key)

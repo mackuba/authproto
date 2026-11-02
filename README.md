@@ -263,13 +263,15 @@ not fetch that URL or check the advertised key locally; the authorization server
 fetches it to verify assertions.
 
 New confidential-client sessions record the signing key's `kid` as `signing_key_id`
-before PAR. Session serialization preserves this ID through callbacks and token
-refreshes, without including the private client-authentication key. The session
-manager returns `nil` when loading a session with an unsupported signing key ID,
-leaving its stored data intact. `Client` supplies IDs of its configured private
-signing keys, rather than the public keys advertised in metadata. Keep each `kid`
-associated with the same key material. Clients still accept one `signing_key:`;
-automatic key selection and rotation are not implemented.
+and its RFC 7638 SHA-256 thumbprint as `signing_key_thumbprint` before PAR. Both
+values persist through callbacks and refreshes without including the private
+client-authentication key. The session manager returns `nil` if the key ID is
+unsupported or its thumbprint no longer matches, leaving stored data intact.
+`Client` supplies a key-ID-to-thumbprint mapping derived from its configured
+private signing key, rather than the public keys advertised in metadata.
+Sessions with a recorded key ID but no thumbprint must authorize again.
+Clients still accept one `signing_key:`; automatic key selection and rotation
+are not implemented.
 
 Public-client sessions have no signing key ID. Older serialized sessions without
 this field remain readable and use the configured signing key without an ID check;

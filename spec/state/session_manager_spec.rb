@@ -50,12 +50,24 @@ describe AuthProto::State::SessionManager do
   describe "supported signing keys" do
     let(:key_id) { 'original-key' }
     let(:bound_session) do
-      session_manager.create_session(client_id: client_id, scope: scope, signing_key_id: key_id)
+      described_class.new(supported_signing_keys: { key_id => 'thumbprint' }).create_session(
+        client_id: client_id, scope: scope, signing_key_id: key_id
+      )
+    end
+
+    it "should record the thumbprint from the configured mapping" do
+      bound_session.signing_key_thumbprint.should == 'thumbprint'
+    end
+
+    it "should reject an unconfigured key ID before storing a session" do
+      expect {
+        session_manager.create_session(client_id: client_id, scope: scope, signing_key_id: 'unknown')
+      }.to raise_error(ArgumentError, /Unsupported signing_key_id/)
     end
 
     it "should accept sessions made with any supported key" do
       session_id = bound_session.session_id
-      reader = described_class.new(supported_signing_key_ids: ['new-key', key_id])
+      reader = described_class.new(supported_signing_keys: { 'new-key' => 'new-thumbprint', key_id => 'thumbprint' })
 
       reader.get_session(session_id).signing_key_id.should == key_id
       reader.get_session_by_state_token(bound_session.state_token).session_id.should == session_id
@@ -63,7 +75,7 @@ describe AuthProto::State::SessionManager do
 
     it "should hide unsupported sessions without deleting their stored data or state lookup" do
       session_id = bound_session.session_id
-      reader = described_class.new(supported_signing_key_ids: ['new-key'])
+      reader = described_class.new(supported_signing_keys: { 'new-key' => 'new-thumbprint' })
 
       reader.get_session(session_id).should be_nil
       reader.get_session_by_state_token(bound_session.state_token).should be_nil
@@ -71,8 +83,26 @@ describe AuthProto::State::SessionManager do
 
       storage.exists?(AuthProto::Storage::KeyBuilder.session_key(session_id)).should be_truthy
       storage.exists?(AuthProto::Storage::KeyBuilder.state_key(bound_session.state_token)).should be_truthy
-      original_reader = described_class.new(supported_signing_key_ids: [key_id])
+      original_reader = described_class.new(supported_signing_keys: { key_id => 'thumbprint' })
       original_reader.get_session(session_id).signing_key_id.should == key_id
+    end
+
+    it "should reject a changed thumbprint under the same key ID without deleting the session" do
+      reader = described_class.new(supported_signing_keys: { key_id => 'different-thumbprint' })
+      reader.get_session(bound_session.session_id).should be_nil
+      reader.get_session_by_state_token(bound_session.state_token).should be_nil
+      matching = described_class.new(supported_signing_keys: { key_id => 'thumbprint' })
+      matching.get_session(bound_session.session_id).should_not be_nil
+    end
+
+    it "should reject a session with a recorded key ID but no thumbprint" do
+      stored = bound_session
+      key = AuthProto::Storage::KeyBuilder.session_key(stored.session_id)
+      serialized = JSON.parse(storage.get(key))
+      serialized.fetch('data').delete('signing_key_thumbprint')
+      storage.set(key, JSON.generate(serialized))
+      reader = described_class.new(supported_signing_keys: { key_id => 'thumbprint' })
+      reader.get_session(stored.session_id).should be_nil
     end
 
     it "should reject recorded key IDs when no keys are configured" do
@@ -81,17 +111,17 @@ describe AuthProto::State::SessionManager do
 
     it "should accept public and legacy sessions without a recorded key ID" do
       session = session_manager.create_session(client_id: client_id, scope: scope)
-      reader = described_class.new(supported_signing_key_ids: ['new-key'])
+      reader = described_class.new(supported_signing_keys: { 'new-key' => 'new-thumbprint' })
 
       reader.get_session(session.session_id).signing_key_id.should be_nil
       session_manager.get_session(session.session_id).should_not be_nil
     end
 
-    [nil, 'key', [''], [123]].each do |ids|
+    [nil, [], 'key', { '' => 'thumb' }, { 'key' => '' }, { 'key' => 123 }].each do |ids|
       it "should reject invalid supported key IDs #{ids.inspect}" do
         expect {
-          described_class.new(supported_signing_key_ids: ids)
-        }.to raise_error(ArgumentError, /supported_signing_key_ids/)
+          described_class.new(supported_signing_keys: ids)
+        }.to raise_error(ArgumentError, /supported_signing_keys/)
       end
     end
   end

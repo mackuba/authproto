@@ -45,6 +45,7 @@ module AuthProto
 
         data[:state_token] = obj.state_token if obj.state_token
         data[:signing_key_id] = obj.signing_key_id if obj.signing_key_id
+        data[:signing_key_thumbprint] = obj.signing_key_thumbprint if obj.signing_key_thumbprint
         data[:authorization_expires_at] = obj.authorization_expires_at.utc.iso8601(9) if obj.authorization_expires_at
         data
       end
@@ -60,6 +61,7 @@ module AuthProto
           scope: data['scope'],
           did: data['did'],
           signing_key_id: data['signing_key_id'],
+          signing_key_thumbprint: data['signing_key_thumbprint'],
           authorization_expires_at: data['authorization_expires_at'] && Time.iso8601(data['authorization_expires_at']),
           auth_server: deserialize_auth_server(data['auth_server'])
         )
