@@ -25,8 +25,20 @@ require_relative 'validated_uri'
     valid_types = %w[authorization_code refresh_token]
 ```
 
+- add one additional empty line above access control directives like `private`, i.e. two lines space up to the method above, unless the line with the directive is at the beginning of the block, e.g.:
+
+```
+    end
+
+
+    private
+
+    def process_response(response)
+```
+
 - prefer single-quote strings for strings containing identifiers without spaces, like `'code'`, `'access_token'`, and for `require`s
 - prefer double-quote strings for strings containing messages with spaces meant to be shown to the user, e.g. `puts "grant_types must include authorization_code"`
+- don't use `_` parameter names for unused parameters
 
 ### Unit tests:
 
@@ -73,6 +85,9 @@ require_relative 'validated_uri'
   class TokenError < Error; end
 
 ```
+
+- don't add YARD comments to private methods
+- don't touch the TODO.md
 
 
 ### Running code:
