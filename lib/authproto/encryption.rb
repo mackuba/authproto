@@ -133,6 +133,8 @@ module AuthProto
         data = Base64.strict_decode64(encrypted[:data])
         auth_tag = Base64.strict_decode64(encrypted[:tag])
 
+        raise DecryptionError, "Authentication tag must be 16 bytes" unless auth_tag.bytesize == 16
+
         cipher = OpenSSL::Cipher.new(CIPHER)
         cipher.decrypt
         cipher.key = @key_provider.key_for_context(context)

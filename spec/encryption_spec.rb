@@ -154,6 +154,28 @@ describe AuthProto::Encryption do
         }.to raise_error(AuthProto::Encryption::DecryptionError)
       end
 
+      (0...16).each do |length|
+        it "should reject an authentic tag truncated to #{length} bytes" do
+          encrypted = encryption_service.encrypt(sample_data, context: context)
+          tag = Base64.strict_decode64(encrypted[:tag])
+          encrypted[:tag] = Base64.strict_encode64(tag.byteslice(0, length))
+
+          expect {
+            encryption_service.decrypt(encrypted, context: context)
+          }.to raise_error(AuthProto::Encryption::DecryptionError, /Authentication tag must be 16 bytes/)
+        end
+      end
+
+      it "should reject an authentication tag longer than 16 bytes" do
+        encrypted = encryption_service.encrypt(sample_data, context: context)
+        tag = Base64.strict_decode64(encrypted[:tag])
+        encrypted[:tag] = Base64.strict_encode64(tag + "\x00")
+
+        expect {
+          encryption_service.decrypt(encrypted, context: context)
+        }.to raise_error(AuthProto::Encryption::DecryptionError, /Authentication tag must be 16 bytes/)
+      end
+
       it "should raise DecryptionError for nil encrypted data" do
         expect {
           encryption_service.decrypt(nil, context: context)
