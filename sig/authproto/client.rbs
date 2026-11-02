@@ -28,7 +28,7 @@ module AuthProto
     private
     def load_client_metadata: (json_object? metadata) -> Metadata::ClientMetadata
     def validate_redirect_uri: () -> void
-    def initialize_signing_key: ((json_object | JOSE::JWK)? key) -> JOSE::JWK?
+    def initialize_client_assertion: ((json_object | JOSE::JWK)? key) -> String?
     def validate_auth_params: (String? handle, String? pds, String scope) -> void
     def resolve_auth_server_info: (String pds) -> Metadata::AuthorizationServer
     def submit_authorization_par: (Metadata::AuthorizationServer authorization_server, State::Session session, ?login_hint: String?) -> String

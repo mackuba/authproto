@@ -154,9 +154,9 @@ module AuthProto
       # @param dpop_client [DPoP::Client] proof signer and nonce tracker
       # @param auth_server [Metadata::AuthorizationServer] server with a token endpoint
       # @param client_metadata [Metadata::ClientMetadata] client ID and authentication key configuration
-      # @param signing_key [Hash, JOSE::JWK, nil] private ES256 client-authentication key
+      # @param client_assertion [PAR::ClientAssertion, nil] reusable validated signer for confidential clients
       #
-      def initialize(session:, dpop_client:, auth_server:, client_metadata:, signing_key: nil)
+      def initialize(session:, dpop_client:, auth_server:, client_metadata:, client_assertion: nil)
         super() # Initialize MonitorMixin
 
         @session = session
@@ -164,7 +164,11 @@ module AuthProto
         @auth_server = auth_server
         @attempt_count = 0
         @client_metadata = client_metadata
-        @signing_key = signing_key
+        @client_assertion = client_assertion
+
+        if client_metadata.confidential? && !client_assertion.is_a?(PAR::ClientAssertion)
+          raise ArgumentError, "Confidential clients require a client_assertion signer"
+        end
       end
 
       # Exchanges a refresh token for a replacement token set.
@@ -252,14 +256,9 @@ module AuthProto
       end
 
       def add_client_authentication(body)
-        client_assertion = PAR::ClientAssertion.new(
-          client_id: client_metadata.client_id,
-          signing_key: @signing_key
-        )
-
         body.merge!(
           client_assertion_type: PAR::CLIENT_ASSERTION_TYPE,
-          client_assertion: client_assertion.generate_jwt(audience: auth_server.issuer)
+          client_assertion: @client_assertion.generate_jwt(audience: auth_server.issuer)
         )
       end
 

@@ -22,6 +22,21 @@ describe AuthProto::PAR::ClientAssertion do
   let(:client_assertion) { AuthProto::PAR::ClientAssertion.new(client_id: client_id, signing_key: signing_key) }
 
   describe "#generate_jwt" do
+    it "should reuse the imported key while generating fresh claims for each request" do
+      signer = client_assertion
+      JWT::JWK.expects(:import).never
+      now = Time.now.to_i
+      Time.stubs(:now).returns(Time.at(now))
+      first = JWT.decode(signer.generate_jwt(audience: audience), nil, false).first
+      Time.stubs(:now).returns(Time.at(now + 10))
+      second = JWT.decode(signer.generate_jwt(audience: 'https://other.example.com'), nil, false).first
+
+      second['jti'].should_not == first['jti']
+      second['iat'].should == now + 10
+      second['exp'].should == now + 310
+      second['aud'].should == 'https://other.example.com'
+    end
+
     it "should generate a valid JWT assertion" do
       lifetime = 300
       now = Time.now.to_i
@@ -47,7 +62,7 @@ describe AuthProto::PAR::ClientAssertion do
 
     it "should raise an error if signing fails" do
       client_assertion
-      client_assertion.signing_key.stubs(:to_map).raises(ArgumentError, "Invalid key")
+      JWT.stubs(:encode).raises(ArgumentError, "Invalid key")
 
       expect {
         client_assertion.generate_jwt(audience: audience)

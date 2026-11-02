@@ -143,6 +143,9 @@ describe Minisky::OAuthClient do
       else
         client_metadata["jwks"] = { "keys" => [@signing_key.except("d").merge("key_ops" => ["verify"])] }
       end
+      signer = AuthProto::PAR::ClientAssertion.new(client_id: client_metadata['client_id'], signing_key: @signing_key)
+      AuthProto::PAR::ClientAssertion.expects(:new)
+        .with(client_id: client_metadata['client_id'], signing_key: @signing_key).once.returns(signer)
       stub_authorization_metadata
       public_key = JWT::JWK.import(key.to_public_map.to_h).public_key
       assertions = []

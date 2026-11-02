@@ -102,7 +102,7 @@ module AuthProto
       @client_metadata = load_client_metadata(metadata)
 
       validate_redirect_uri
-      initialize_signing_key(signing_key)
+      initialize_client_assertion(signing_key)
 
       @session_manager = State::SessionManager.new(supported_signing_key_ids: [@signing_key_kid].compact)
       @dpop_client = DPoP::Client.new
@@ -263,7 +263,7 @@ module AuthProto
           dpop_client: @dpop_client,
           auth_server: session.auth_server,
           client_metadata: @client_metadata,
-          signing_key: @signing_key
+          client_assertion: @client_assertion
         )
 
         new_tokens = refresher.perform_refresh
@@ -356,7 +356,7 @@ module AuthProto
       end
     end
 
-    def initialize_signing_key(key)
+    def initialize_client_assertion(key)
       if @client_metadata.confidential?
         raise InvalidClientMetadata, "Confidential clients require a signing_key" if key.nil?
       else
@@ -377,7 +377,7 @@ module AuthProto
         raise InvalidClientMetadata, "signing_key must match an active public key advertised in jwks" if !key_in_jwks
       end
 
-      @signing_key = private_key
+      @client_assertion = assertion
       @signing_key_kid = private_key.fields.fetch('kid')
     end
 
@@ -430,7 +430,7 @@ module AuthProto
         req.code_challenge = session.pkce_challenge
 
         if @client_metadata.confidential?
-          req.client_assertion = PAR::ClientAssertion.new(client_id: @client_id, signing_key: @signing_key)
+          req.client_assertion = @client_assertion
         end
       end
 
@@ -476,14 +476,9 @@ module AuthProto
       }
 
       if @client_metadata.confidential?
-        assertion = PAR::ClientAssertion.new(
-          client_id: @client_id,
-          signing_key: @signing_key
-        )
-
         body.merge!(
           client_assertion_type: PAR::CLIENT_ASSERTION_TYPE,
-          client_assertion: assertion.generate_jwt(audience: session.auth_server.issuer)
+          client_assertion: @client_assertion.generate_jwt(audience: session.auth_server.issuer)
         )
       end
 

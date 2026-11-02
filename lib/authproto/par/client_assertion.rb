@@ -41,7 +41,7 @@ module AuthProto
         raise Error, "Invalid signing_key: #{e.message}"
       end
 
-      # Signs a short-lived client authentication JWT with ES256.
+      # Signs a fresh, short-lived client authentication JWT with the cached ES256 key.
       #
       # Includes `iss`, `sub`, `aud`, a unique `jti`, and `iat`/`exp` times.
       #
@@ -68,8 +68,7 @@ module AuthProto
           kid: @signing_key.fields['kid']
         }
 
-        key = JWT::JWK.import(@signing_key.to_map.to_h)
-        JWT.encode(payload, key, ALGORITHM, header)
+        JWT.encode(payload, @jwt_signing_key, ALGORITHM, header)
       rescue JWT::Error, ArgumentError => e
         raise Error, "Failed to generate client assertion: #{e.message}"
       end
@@ -105,9 +104,11 @@ module AuthProto
 
         signing_key = JOSE::JWK.from_map(data)
 
-        imported = JWT::JWK.import(data)
-        proof = JWT.encode({}, imported, ALGORITHM)
-        JWT.decode(proof, imported.public_key, true, algorithms: [ALGORITHM])
+        imported_key = JWT::JWK.import(data)
+        proof = JWT.encode({}, imported_key, ALGORITHM)
+        JWT.decode(proof, imported_key.public_key, true, algorithms: [ALGORITHM])
+
+        @jwt_signing_key = imported_key
 
         signing_key
       end
