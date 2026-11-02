@@ -30,6 +30,21 @@ describe AuthProto::Metadata::AuthorizationServer do
   end
 
   describe "#initialize" do
+    it "should preserve the optional revocation endpoint when serialized and restored" do
+      server = described_class.new(valid_metadata.merge('revocation_endpoint' => 'https://auth.example.com/revoke'))
+      restored = described_class.new(JSON.parse(server.to_h.to_json))
+
+      restored.revocation_endpoint.should == 'https://auth.example.com/revoke'
+    end
+
+    ['http://auth.example.com/revoke', 'https://auth.example.com/revoke#fragment'].each do |endpoint|
+      it "should reject an invalid revocation endpoint #{endpoint}" do
+        expect {
+          described_class.new(valid_metadata.merge('revocation_endpoint' => endpoint))
+        }.to raise_error(AuthProto::InvalidAuthorizationServer)
+      end
+    end
+
     it "should initialize successfully with valid metadata" do
       server = AuthProto::Metadata::AuthorizationServer.new(valid_metadata)
       server.issuer.should == valid_metadata["issuer"]

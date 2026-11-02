@@ -9,6 +9,7 @@ describe AuthProto::Client, '#handle_callback' do
     AuthProto::Metadata::AuthorizationServer.new(
       'issuer' => 'https://auth.example.com',
       'token_endpoint' => 'https://auth.example.com/token',
+      'revocation_endpoint' => 'https://auth.example.com/revoke',
       'authorization_endpoint' => 'https://auth.example.com/authorize',
       'response_types_supported' => ['code'],
       'grant_types_supported' => %w[authorization_code refresh_token],
@@ -32,6 +33,11 @@ describe AuthProto::Client, '#handle_callback' do
 
   before do
     AuthProto.stubs(:storage).returns(storage)
+    AuthProto.configuration.stubs(:http_client).returns(AuthProto::HTTPClient.new)
+    Resolv::DNS.any_instance.stubs(:getaddresses).returns([Resolv::IPv4.create('93.184.216.34')])
+    stub_request(:post, 'https://auth.example.com/revoke').to_return(
+      status: 200, headers: { 'DPoP-Nonce' => 'revoke-nonce' }
+    )
   end
 
   ['dpop', 'DPOP', 'dPoP'].each do |type|
@@ -117,6 +123,38 @@ describe AuthProto::Client, '#handle_callback' do
     client.session_manager.get_session_by_state_token(state).should be_nil
   end
 
+  it "should revoke the received refresh token when the subject differs from the expected DID" do
+    client.stubs(:make_token_request).returns(
+      status: 200, headers: { 'DPoP-Nonce' => 'nonce' }, body: {
+        access_token: 'access', refresh_token: 'rejected-refresh', token_type: 'DPoP',
+        expires_in: 3600, scope: 'atproto', sub: 'did:plc:someone-else'
+      }.to_json
+    )
+
+    expect {
+      client.handle_callback(**callback, expected_session_id: session.session_id)
+    }.to raise_error(AuthProto::Client::TokenError, "Subject mismatch in token response")
+
+    assert_requested :post, 'https://auth.example.com/revoke', body: {
+      token: 'rejected-refresh', token_type_hint: 'refresh_token', client_id: client.client_id
+    }
+    client.session_manager.get_session_by_state_token(session.state_token).should be_pending
+  end
+
+  it "should preserve the subject mismatch error if revocation fails" do
+    client.stubs(:make_token_request).returns(
+      status: 200, headers: { 'DPoP-Nonce' => 'nonce' }, body: {
+        access_token: 'access', refresh_token: 'rejected-refresh', token_type: 'DPoP',
+        expires_in: 3600, scope: 'atproto', sub: 'did:plc:someone-else'
+      }.to_json
+    )
+    stub_request(:post, 'https://auth.example.com/revoke').to_raise(IOError)
+
+    expect {
+      client.handle_callback(**callback, expected_session_id: session.session_id)
+    }.to raise_error(AuthProto::Client::TokenError, "Subject mismatch in token response")
+  end
+
   describe "when authorization starts with a PDS" do
     let(:pds) { 'https://pds.example.com' }
     let(:subject) { 'did:plc:ewvi7nxzyoun6zhxrhs64oiz' }
@@ -170,6 +208,9 @@ describe AuthProto::Client, '#handle_callback' do
         }.to raise_error(AuthProto::Client::TokenError, "Subject PDS does not match session PDS")
 
         client.session_manager.get_session_by_state_token(session.state_token).should be_pending
+        assert_requested :post, 'https://auth.example.com/revoke', body: {
+          token: 'refresh', token_type_hint: 'refresh_token', client_id: client.client_id
+        }
       end
     end
 
@@ -193,6 +234,7 @@ describe AuthProto::Client, '#handle_callback' do
       }.to raise_error(IOError, "Connection failed")
 
       client.session_manager.get_session_by_state_token(session.state_token).should be_pending
+      assert_not_requested :post, 'https://auth.example.com/revoke'
     end
 
     it "should reject an older pending session without a stored PDS" do

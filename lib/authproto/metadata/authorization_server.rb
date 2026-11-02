@@ -70,6 +70,10 @@ module AuthProto
       # @return [String]
       attr_reader :token_endpoint
 
+      # Optional HTTPS endpoint for token revocation.
+      # @return [String, nil]
+      attr_reader :revocation_endpoint
+
       # HTTPS PAR endpoint.
       # @return [String]
       attr_reader :pushed_authorization_request_endpoint
@@ -148,6 +152,7 @@ module AuthProto
           issuer: issuer,
           authorization_endpoint: authorization_endpoint,
           token_endpoint: token_endpoint,
+          revocation_endpoint: revocation_endpoint,
           pushed_authorization_request_endpoint: pushed_authorization_request_endpoint,
           response_types_supported: response_types_supported,
           grant_types_supported: grant_types_supported,
@@ -175,6 +180,7 @@ module AuthProto
         # Endpoint strings
         @authorization_endpoint = validate_https_url(data['authorization_endpoint'])
         @token_endpoint = validate_https_url(data['token_endpoint'])
+        @revocation_endpoint = validate_https_url(data['revocation_endpoint']) if data['revocation_endpoint']
         @pushed_authorization_request_endpoint = validate_https_url(data['pushed_authorization_request_endpoint'])
 
         # Capability lists

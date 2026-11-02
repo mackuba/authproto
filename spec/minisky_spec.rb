@@ -66,7 +66,7 @@ describe Minisky::OAuthClient do
 
   def attach_session(expires_in: 3600)
     session = client.oauth_client.session_manager.create_session(
-      client_id: client_metadata["client_id"], scope: "atproto", auth_server: auth_server
+      client_id: client_metadata["client_id"], scope: "atproto", auth_server: auth_server, pds: host
     )
     session.tokens = token_set(expires_in: expires_in)
     client.oauth_client.session_manager.update_session(session)
@@ -79,6 +79,7 @@ describe Minisky::OAuthClient do
   end
 
   def stub_refresh
+    stub_authorization_metadata
     # HTTPClient validates DNS before the mocked HTTP request.
     Resolv::DNS.any_instance.stubs(:getaddresses).returns([Resolv::IPv4.create("93.184.216.34")])
     stub_request(:post, "https://auth.example.com/token").with do |request|

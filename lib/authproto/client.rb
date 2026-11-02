@@ -19,6 +19,7 @@ require_relative 'state/session_manager'
 require_relative 'state/token_set'
 require_relative 'storage/key_builder'
 require_relative 'token/refresh'
+require_relative 'token/revocation'
 
 module AuthProto
 
@@ -183,7 +184,7 @@ module AuthProto
     #
     # @return [Hash{Symbol => String, Integer, nil}] tokens and authenticated session details
     # @raise [CallbackError] if the expected session ID is invalid, state is unknown, or session/issuer validation fails
-    # @raise [TokenError] if token exchange or response validation fails
+    # @raise [TokenError] if token exchange or response validation fails; identity failures attempt token revocation
     # @raise [DPoP::Client::Error, PAR::ClientAssertion::Error] if proof/assertion generation fails
     # @raise [HTTPClient::HTTPError, HTTPClient::SSRFError] if token transport fails
     # @raise [State::SessionError] if token subject conflicts with the session DID
@@ -514,6 +515,17 @@ module AuthProto
       else
         validate_subject_pds(response['sub'], session)
       end
+    rescue TokenError => e
+      revocation = Token::Revocation.new(
+        session: session,
+        dpop_client: @dpop_client,
+        client_metadata: @client_metadata,
+        client_assertion: @client_assertion
+      )
+
+      revocation.revoke_refresh_token(response['refresh_token'])
+
+      raise TokenError, e.message
     end
 
     def validate_subject_pds(subject, session)
