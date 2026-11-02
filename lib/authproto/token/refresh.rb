@@ -265,7 +265,6 @@ module AuthProto
         body = {
           grant_type: 'refresh_token',
           refresh_token: session.tokens.refresh_token,
-          scope: session.scope,
           client_id: client_metadata.client_id
         }
 
@@ -381,10 +380,9 @@ module AuthProto
           raise RefreshError.new("Invalid token_type: #{data['token_type']}", retry_possible: false)
         end
 
-        original_scopes = session.scope.split
         response_scopes = data['scope'].split
 
-        unless (original_scopes - response_scopes).empty?
+        unless response_scopes.include?('atproto')
           raise RefreshError.new("Invalid scope in response", retry_possible: false)
         end
 

@@ -4,6 +4,8 @@ require 'json'
 require 'jwt'
 
 describe AuthProto::Token::Refresh do
+  let(:requested_scope) { 'atproto' }
+
   let(:successful_response) do
     { access_token: "new_token", token_type: "DPoP", expires_in: 3600,
       refresh_token: "rotated_refresh_token", scope: "atproto", sub: "did:plc:ewvi7nxzyoun6zhxrhs64oiz" }
@@ -31,7 +33,7 @@ describe AuthProto::Token::Refresh do
     # Set up a real session
     session = AuthProto::State::Session.new(
       client_id: "mock_client",
-      scope: "atproto",
+      scope: requested_scope,
       pds: 'https://pds.example.com',
       auth_server: AuthProto::Metadata::AuthorizationServer.new(
         "issuer" => "https://example.com",
@@ -104,6 +106,29 @@ describe AuthProto::Token::Refresh do
     token_set.access_token.should == "new_token"
     token_set.scope.should == "atproto"
     token_set.refresh_token.should == "rotated_refresh_token"
+  end
+
+  describe "with a partially approved grant" do
+    let(:requested_scope) { 'atproto transition:email' }
+
+    it "should omit scope when refreshing a partially granted authorization" do
+      result = @refresher.perform_refresh
+
+      result.scope.should == 'atproto'
+      assert_requested(:post, 'https://example.com/token') do |request|
+        form = URI.decode_www_form(request.body).to_h
+        !form.key?('scope') && form['grant_type'] == 'refresh_token' && form['refresh_token'] == 'mock_refresh_token'
+      end
+    end
+  end
+
+  it "should accept an updated effective scope and retain it in the replacement tokens" do
+    successful_response[:scope] = 'atproto repo:app.bsky.feed.post'
+    stub_request(:post, 'https://example.com/token').to_return(
+      status: 200, headers: { 'DPoP-Nonce' => 'nonce' }, body: successful_response.to_json
+    )
+
+    @refresher.perform_refresh.scope.should == successful_response[:scope]
   end
 
   it "should revoke the stored refresh token and skip refresh when the DID has moved to another PDS" do
@@ -353,7 +378,7 @@ describe AuthProto::Token::Refresh do
     end
   end
 
-  it "should reject a response that drops the session scope" do
+  it "should reject a response without the atproto scope" do
     successful_response[:scope] = "other"
     stub_request(:post, "https://example.com/token").to_return(headers: { "DPoP-Nonce" => "fixture-nonce" },
       status: 200, body: successful_response.to_json)
