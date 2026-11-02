@@ -1,5 +1,6 @@
 module AuthProto
   module DPoP
     ALGORITHM: String
+    ERROR_USE_NONCE: String
   end
 end

@@ -7,10 +7,14 @@ module AuthProto
       def initialize: (?supported_signing_keys: Hash[String, String]) -> void
       def create_session: (client_id: String, scope: String, ?auth_server: Metadata::AuthorizationServer?, ?did: String?, ?signing_key_id: String?) -> Session
       def update_session: (Session session) -> Session
+      def complete_authorization: (Session session) -> Session
       def get_session: (String session_id) -> Session?
       def get_session_by_state_token: (String? state) -> Session?
       def delete_session: (String session_id) -> void
       def cleanup_expired: () -> void
+
+      private
+      def session_ttl: (Session session) -> Integer?
     end
   end
 end

@@ -56,7 +56,7 @@ module AuthProto
 
       def self.from_url: (String url) -> ClientMetadata
 
-      def self.from_localhost_url: (String url) -> ClientMetadata
+      private def self.from_localhost_url: (String url) -> ClientMetadata
 
       def confidential?: () -> bool
 

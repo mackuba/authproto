@@ -3,14 +3,13 @@ module AuthProto
     class TokenSet
       @access_token: String
       @refresh_token: String?
-      @token_type: String
       @scope: String
       @sub: String
       @expires_at: Time
 
       attr_reader access_token: String
       attr_reader refresh_token: String?
-      attr_reader token_type: String
+      def token_type: () -> "DPoP"
       attr_reader scope: String
       attr_reader expires_at: Time
       attr_reader sub: String

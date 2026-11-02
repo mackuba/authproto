@@ -40,15 +40,9 @@ module AuthProto
 
       def build_params: (audience: String?) -> Hash[String, String]
 
-      def add_optional_params: (Hash[String, String] params) -> void
-
-      def add_client_auth_params: (Hash[String, String] params) -> void
-
       def validate_request: () -> void
 
       def validate_required_params: () -> void
-
-      def validate_scope: () -> void
 
       def validate_client_auth: () -> void
     end

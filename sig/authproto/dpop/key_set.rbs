@@ -5,9 +5,9 @@ module AuthProto
       end
 
       CURVE: String
-      attr_reader keypair: JOSE::JWK
+      attr_reader key: JOSE::JWK
 
-      def initialize: (?JOSE::JWK? keypair) -> void
+      def initialize: (?JOSE::JWK? key) -> void
       def public_jwk: () -> json_object
       def sign_segments: (Hash[String | Symbol, untyped] header, Hash[String | Symbol, untyped] payload) -> JOSE::SignedBinary
       def private_jwk: () -> json_object

@@ -7,6 +7,9 @@ module AuthProto
       attr_reader signing_key: JOSE::JWK
       def initialize: (client_id: String, signing_key: (json_object | JOSE::JWK)) -> void
       def generate_jwt: (audience: String, ?lifetime: Integer) -> String
+
+      private
+      def validate_signing_key: ((json_object | JOSE::JWK) signing_key) -> JOSE::JWK
     end
   end
 end

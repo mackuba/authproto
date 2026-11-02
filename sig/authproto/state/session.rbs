@@ -4,7 +4,8 @@ module AuthProto
       include MonitorMixin
 
       attr_reader session_id: String
-      attr_reader state_token: String
+      attr_reader state_token: String?
+      attr_reader authorization_expires_at: Time?
       attr_reader client_id: String
       attr_reader dpop_key: DPoP::KeySet
       attr_reader signing_key_id: String?
@@ -17,12 +18,14 @@ module AuthProto
       attr_reader tokens: TokenSet?
 
       def initialize: (client_id: String, scope: String, ?auth_server: Metadata::AuthorizationServer?, ?did: String?, ?signing_key_id: String?, ?signing_key_thumbprint: String?, ?dpop_key: DPoP::KeySet, ?authorization_expires_at: Time?) -> void
+      def clear_state_token: () -> nil
       def authorization_server=: (Metadata::AuthorizationServer server) -> Metadata::AuthorizationServer
       def did=: (String did) -> String
       def tokens=: (TokenSet tokens) -> String
       def session_data: () -> AuthProto::session_data?
       def pending?: () -> bool
-      def authorized?: () -> bool
+      def tokens_valid?: () -> bool
+      alias authorized? tokens_valid?
       def renewable?: () -> bool
     end
   end

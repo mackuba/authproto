@@ -38,11 +38,15 @@ module AuthProto
     attr_accessor dpop_nonce_lifetime: Integer
     attr_accessor http_client: _HTTPClient?
     attr_accessor logger: Logger
+    attr_accessor pending_session_ttl: Integer
     attr_accessor storage: Storage::Interface
     def initialize: () -> void
     def validate: () -> true
 
     private
+    def validate_client_assertion_lifetime: () -> void
+    def validate_dpop_nonce_lifetime: () -> void
+    def validate_pending_session_ttl: () -> void
     def validate_storage: () -> void
     def validate_http_client: () -> void
   end

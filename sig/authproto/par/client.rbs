@@ -12,7 +12,6 @@ module AuthProto
 
       private
       def make_request: (Request request, session: State::Session) -> http_response
-      def build_headers: (String dpop_proof) -> Hash[String, String]
       def handle_error_response: (http_response response) -> bot
       def handle_success_response: (http_response response) -> Response
     end

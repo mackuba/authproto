@@ -1,6 +1,6 @@
 module AuthProto
   class LocalhostServer
-    type metadata = Hash[String | Symbol, untyped]
+    type metadata = Hash[String | Symbol, untyped] | Metadata::ClientMetadata
     type callback_params = { code: String, state: String, iss: String }
 
     MAX_HEADER_BYTES: Integer
