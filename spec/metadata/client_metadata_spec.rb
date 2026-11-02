@@ -482,6 +482,28 @@ describe AuthProto::Metadata::ClientMetadata do
       described_class.new(@valid_metadata).should be_confidential
     end
 
+    it "should reject two different keys with the same kid" do
+      other = JOSE::JWK.generate_key([:ec, 'P-256']).to_public_map.to_h.merge('kid' => public_jwk['kid'])
+      @valid_metadata['jwks']['keys'] = [public_jwk, other]
+
+      expect {
+        described_class.new(@valid_metadata)
+      }.to raise_error(AuthProto::InvalidClientMetadata, /duplicate kid/)
+    end
+
+    it "should reject repeated entries with the same kid" do
+      @valid_metadata['jwks']['keys'] = [public_jwk, public_jwk.dup]
+
+      expect {
+        described_class.new(@valid_metadata)
+      }.to raise_error(AuthProto::InvalidClientMetadata, /duplicate kid/)
+    end
+
+    it "should compare key IDs case-sensitively" do
+      @valid_metadata['jwks']['keys'] = [public_jwk, public_jwk.merge('kid' => public_jwk['kid'].upcase)]
+      described_class.new(@valid_metadata).jwks['keys'].length.should == 2
+    end
+
     [nil, '', 123].each do |kid|
       it "should reject a non-string or empty kid #{kid.inspect}" do
         @valid_metadata['jwks']['keys'].first['kid'] = kid

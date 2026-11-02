@@ -475,6 +475,8 @@ module AuthProto
         raise InvalidClientMetadata, "jwks must have a 'keys' array" unless jwks['keys'].is_a?(Array)
         raise InvalidClientMetadata, "jwks must contain at least one public key" if jwks['keys'].empty?
 
+        key_ids = Set.new
+
         jwks['keys'].each_with_index do |key, index|
           path = "jwks.keys.#{index}"
 
@@ -483,6 +485,12 @@ module AuthProto
           unless key['kid'].is_a?(String) && !key['kid'].empty?
             raise InvalidClientMetadata, "#{path} must have a nonempty string kid"
           end
+
+          if key_ids.include?(key['kid'])
+            raise InvalidClientMetadata, "#{path} has a duplicate kid: #{key['kid']}"
+          end
+
+          key_ids << key['kid']
 
           if %w[d p q dp dq qi oth k].any? { |field| key.key?(field) }
             raise InvalidClientMetadata, "#{path} must contain only public key material"

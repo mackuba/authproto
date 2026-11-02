@@ -255,6 +255,7 @@ separately from metadata. It must have a nonempty `kid` and permit ES256 signing
 Metadata's `jwks` contains only public keys; the client checks that the matching
 public key and `kid` are advertised and active. A public key may declare
 `use: "sig"` or `key_ops: ["verify"]`.
+Each key in an inline `jwks` must have a distinct, case-sensitive `kid`.
 Other advertised public keys may serve other purposes, such as encryption;
 the matching authentication key must permit signature verification.
 
