@@ -10,8 +10,8 @@ module AuthProto
   module DPoP
 
     #
-    # Manages ES256 keypair generation and storage for DPoP proofs.
-    # Provides functionality to generate new keys and store them securely.
+    # Holds an ES256 signing keypair and imports/exports JWKs for DPoP proofs.
+    # Keys are held in memory; the session serializer handles encrypted persistence.
     # Uses JOSE for cryptographic operations and key format handling.
     #
 
@@ -94,7 +94,7 @@ module AuthProto
       # Imports an EC P-256 JWK and validates that it can sign and verify.
       #
       # @param jwk [Hash{String => Object}, JOSE::Map] JWK including private key material
-      # @return [KeySet] imported key manager
+      # @return [KeySet] imported and validated keypair wrapper
       # @raise [KeyError] if import or key validation fails
       #
       def self.from_jwk(jwk)

@@ -32,14 +32,13 @@ module AuthProto
       end
 
       # Creates and stores a session and its state-token lookup under a storage lock.
+      # The signing key thumbprint is taken from the configured key mapping.
       #
       # @param client_id [String] OAuth client ID
       # @param scope [String] requested space-separated scopes
       # @param auth_server [Metadata::AuthorizationServer, nil] pre-resolved authorization server
       # @param did [String, nil] pre-resolved account DID
       # @param signing_key_id [String, nil] client-authentication key ID selected before PAR
-      #
-      # The signing key thumbprint is taken from the configured key mapping.
       #
       # @return [Session] newly created session
       # @raise [ArgumentError] if the signing key ID is not configured
@@ -125,8 +124,7 @@ module AuthProto
       # Returns `nil` for missing, unreadable or malformed sessions and for expired
       # sessions that have no refresh token. Sessions with an unsupported signing key ID
       # or a missing/mismatching key thumbprint are unavailable but remain in storage.
-      # Public and legacy sessions without an ID
-      # are accepted. Read/deserialization errors are logged.
+      # Public and legacy sessions without an ID are accepted. Read/deserialization errors are logged.
       #
       # @param session_id [String] session identifier
       # @return [Session, nil] restored session, or `nil` if unavailable
@@ -168,7 +166,7 @@ module AuthProto
       #
       # Storage read errors are logged and treated as a missing session.
       #
-      # @param state [String, nil] callback state token
+      # @param state_token [String, nil] callback state token
       # @return [Session, nil] restored session, or `nil` if unavailable
       #
       def get_session_by_state_token(state_token)

@@ -41,7 +41,7 @@ module AuthProto
         # @return [String]
         attr_reader :scope
 
-        # Account handle to prefill at the authorization server.
+        # Account handle or DID to prefill at the authorization server.
         # @return [String, nil]
         attr_reader :login_hint
 
@@ -55,7 +55,7 @@ module AuthProto
       end
 
       #
-      # A draft PAR request with writable fields, configured inside the block passed to {Request.build}).
+      # A draft PAR request with writable fields, configured inside the block passed to {Request.build}.
       #
 
       class Configuration
@@ -73,7 +73,7 @@ module AuthProto
       # @yieldparam config [Configuration] mutable request settings
       # @yieldreturn [Object] ignored
       # @return [Request] validated pushed authorization request
-      # @raise [Error] if required parameters, PKCE, scope or client authentication are invalid
+      # @raise [Error] if required parameters are missing, `atproto` scope is absent or the signer has an invalid type
       #
       def self.build
         config = Configuration.new
@@ -84,7 +84,7 @@ module AuthProto
       # Copies and validates a PAR parameter configuration.
       #
       # @param config [Configuration] populated request settings
-      # @raise [Error] if required values are missing or authentication/PKCE/scope values are invalid
+      # @raise [Error] if required values are missing, `atproto` scope is absent or the signer has an invalid type
       #
       def initialize(config)
         Fields.instance_methods(false).each do |field|

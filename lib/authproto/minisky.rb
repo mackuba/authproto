@@ -43,6 +43,7 @@ class Minisky::OAuthClient
   # @param redirect_uri [String] registered callback URI
   # @param metadata [Hash{String => Object}, nil] preloaded metadata, or `nil` to fetch it
   # @param signing_key [Hash, JOSE::JWK, nil] private ES256 key for confidential-client authentication
+  # @param session_id [String, nil] stored session ID to resume; `nil` starts without an attached session
   #
   # @raise [AuthProto::InvalidClientMetadata] if metadata is invalid or unavailable
   # @raise [AuthProto::Error] if OAuth client or DPoP initialization fails
@@ -199,6 +200,7 @@ class Minisky::OAuthClient
   # @raise [AuthProto::Client::TokenError] if the session cannot be refreshed
   # @raise [AuthProto::Token::RefreshError] if refresh fails
   # @raise [AuthProto::Storage::StorageError] if token persistence fails
+  # @raise [AuthProto::DPoP::Client::Error] if a refresh response has a missing or invalid nonce
   #
   def perform_token_refresh
     oauth_client.refresh_token(session_id)

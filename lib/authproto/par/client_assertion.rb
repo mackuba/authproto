@@ -25,6 +25,8 @@ module AuthProto
       # @return [String]
       ALGORITHM = "ES256"
 
+      # Validated private EC P-256 key used by this reusable assertion signer.
+      # @return [JOSE::JWK]
       attr_reader :signing_key
 
       # Creates an ES256 client assertion signer.

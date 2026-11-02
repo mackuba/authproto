@@ -79,7 +79,7 @@ module AuthProto
       # @param signing_key_thumbprint [String, nil] RFC 7638 SHA-256 thumbprint of that key
       # @param dpop_key [DPoP::KeySet] session key; a fresh key is generated for new sessions by default
       # @param authorization_expires_at [Time, nil] deadline for completing pending authorization
-      # @raise [ArgumentError] if the signing key ID or DPoP key has an invalid type
+      # @raise [ArgumentError] if the signing key ID, thumbprint or DPoP key is invalid
       # @raise [DPoP::KeySet::KeyError] if DPoP key generation fails
       # @raise [PKCE::Error] if PKCE generation fails
       #

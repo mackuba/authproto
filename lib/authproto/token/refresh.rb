@@ -154,7 +154,8 @@ module AuthProto
       # @param dpop_client [DPoP::Client] proof signer and nonce tracker
       # @param auth_server [Metadata::AuthorizationServer] server with a token endpoint
       # @param client_metadata [Metadata::ClientMetadata] client ID and authentication key configuration
-      # @param client_assertion [PAR::ClientAssertion, nil] reusable validated signer for confidential clients
+      # @param client_assertion [PAR::ClientAssertion, nil] reusable validated signer; required for confidential clients
+      # @raise [ArgumentError] if confidential-client metadata is supplied without an assertion signer
       #
       def initialize(session:, dpop_client:, auth_server:, client_metadata:, client_assertion: nil)
         super() # Initialize MonitorMixin
@@ -173,8 +174,8 @@ module AuthProto
 
       # Exchanges a refresh token for a replacement token set.
       #
-      # Retries eligible failures up to {MAX_RETRIES} times with exponential backoff and
-      # jitter, and handles a DPoP nonce challenge during token exchange. Does not assign
+      # Makes up to {MAX_RETRIES} attempts for eligible failures, with exponential backoff
+      # and jitter. Each attempt can retry one DPoP nonce challenge. Does not assign
       # the returned tokens to the session or persist them; the caller must do so.
       # HTTP 400/401 OAuth errors preserve the server's error code and description in the exception message.
       #

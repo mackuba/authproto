@@ -37,7 +37,7 @@ module AuthProto
       # @return [NonceManager]
       attr_reader :nonce_manager
 
-      # Creates shared proof generation and per-server nonce helpers.
+      # Creates a shared proof generator and nonce storage scoped to sessions and server origins.
       #
       # @param nonce_ttl [Integer, nil] stored nonce lifetime in seconds; `nil` uses {Configuration#dpop_nonce_lifetime}
       # @raise [ArgumentError] if the encryption master key is not valid Base64
@@ -51,7 +51,7 @@ module AuthProto
       #
       # @param session [State::Session] session whose DPoP key signs the request
       # @param method [String] HTTP method, converted to uppercase
-      # @param uri [String] absolute HTTP(S) URL; callers should omit the query and fragment
+      # @param uri [String] absolute HTTP(S) request URL; query and fragment are omitted from the signed `htu`
       # @param access_token [String, nil] token to bind with an `ath` claim
       # @return [JOSE::SignedBinary] compact signed DPoP JWT
       # @raise [Error] if URI parsing, nonce lookup or signing fails
@@ -115,7 +115,7 @@ module AuthProto
       #
       # @param response [Hash{Symbol => Object}] HTTP response with status, headers and body
       # @return [Boolean] whether the response requests a retry with a server nonce
-      # @raise [Error] if the response or HTTP 401 headers have an invalid type
+      # @raise [Error] if the response or its headers have an invalid type
       #
       def has_nonce_error?(response)
         raise Error, "Expected a response hash" unless response.is_a?(Hash)

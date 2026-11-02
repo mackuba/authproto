@@ -12,6 +12,8 @@ module AuthProto
     # @return [String]
     ALGORITHM = "ES256"
 
+    # OAuth error value requesting a retry with a server-provided DPoP nonce.
+    # @return [String]
     ERROR_USE_NONCE = "use_dpop_nonce"
   end
 end
