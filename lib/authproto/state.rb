@@ -24,7 +24,7 @@ module AuthProto
   #    with support for lookup by session ID or state token.
   #
   # @example Creating and managing a session
-  #   manager = AuthProto::State::SessionManager.new
+  #   manager = AuthProto::State::SessionManager.new(client_id: 'https://myapp.com/oauth-client-metadata.json')
   #
   #   # Create a new session
   #   session = manager.create_session(

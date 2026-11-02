@@ -2,9 +2,10 @@ module AuthProto
   module State
     class SessionManager
       @serializer: Serialization::Session
+      @client_id: String
       @supported_signing_keys: Hash[String, String]
 
-      def initialize: (?supported_signing_keys: Hash[String, String]) -> void
+      def initialize: (client_id: String, ?supported_signing_keys: Hash[String, String]) -> void
       def create_session: (client_id: String, scope: String, ?auth_server: Metadata::AuthorizationServer?, ?did: String?, ?signing_key_id: String?) -> Session
       def update_session: (Session session) -> Session
       def complete_authorization: (Session session) -> Session
@@ -14,6 +15,7 @@ module AuthProto
       def cleanup_expired: () -> void
 
       private
+      def validate_client_id: (String client_id) -> void
       def session_ttl: (Session session) -> Integer?
     end
   end

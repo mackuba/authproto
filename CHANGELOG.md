@@ -7,6 +7,7 @@
 - fixed token refresh failing if some originally requested scopes were not granted (e.g. email access)
 - added `#granted_scope` and `#has_limited_scope?` to `Session`
 - require the `ATPROTO_MASTER_KEY` to be exactly 32 bytes long (or 44 Base64 characters)
+- when loading a session, verify that it has been created with the same `client_id`
 
 ## [0.3.0.beta3] - 2026-11-02
 

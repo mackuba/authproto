@@ -24,11 +24,77 @@ describe AuthProto::State::SessionManager do
     )
   end
   let(:did) { "did:example:1234" }
-  let(:session_manager) { AuthProto::State::SessionManager.new }
+  let(:session_manager) { AuthProto::State::SessionManager.new(client_id: client_id) }
   let(:storage) { AuthProto::Storage::Memory.new }
 
   before do
     AuthProto.stubs(:storage).returns(storage)
+  end
+
+  describe "client ID binding" do
+    [nil, '', 123, false].each do |invalid_id|
+      it "should reject an invalid manager client ID #{invalid_id.inspect}" do
+        expect { described_class.new(client_id: invalid_id) }.to raise_error(ArgumentError, /client_id/)
+      end
+    end
+
+    it "should retain its client ID independently of the supplied string" do
+      configured_id = String.new(client_id)
+      manager = described_class.new(client_id: configured_id)
+      configured_id.replace('other-client')
+      session = manager.create_session(client_id: client_id, scope: scope)
+
+      manager.get_session(session.session_id).client_id.should == client_id
+    end
+
+    it "should reject creation for a different client before writing anything" do
+      storage.expects(:set).never
+
+      expect {
+        session_manager.create_session(client_id: 'other-client', scope: scope)
+      }.to raise_error(AuthProto::State::SessionError, /client_id does not match/)
+    end
+
+    it "should reject updates and authorization completion without changing a foreign session" do
+      owner = described_class.new(client_id: 'other-client')
+      session = owner.create_session(client_id: 'other-client', scope: scope)
+      state = session.state_token
+      key = AuthProto::Storage::KeyBuilder.session_key(session.session_id)
+      serialized = storage.get(key)
+
+      expect {
+        session_manager.update_session(session)
+      }.to raise_error(AuthProto::State::SessionError, /client_id does not match/)
+      expect {
+        session_manager.complete_authorization(session)
+      }.to raise_error(AuthProto::State::SessionError, /client_id does not match/)
+
+      session.state_token.should == state
+      storage.get(key).should == serialized
+      owner.get_session_by_state_token(state).session_id.should == session.session_id
+    end
+
+    it "should reject a foreign client ID even when the signing key binding matches" do
+      keys = { 'key' => 'thumbprint' }
+      owner = described_class.new(client_id: 'other-client', supported_signing_keys: keys)
+      session = owner.create_session(client_id: 'other-client', scope: scope, signing_key_id: 'key')
+      reader = described_class.new(client_id: client_id, supported_signing_keys: keys)
+
+      reader.get_session(session.session_id).should be_nil
+      reader.get_session_by_state_token(session.state_token).should be_nil
+      owner.get_session(session.session_id).should_not be_nil
+    end
+
+    it "should reject a stored session without a client ID" do
+      session = session_manager.create_session(client_id: client_id, scope: scope)
+      key = AuthProto::Storage::KeyBuilder.session_key(session.session_id)
+      serialized = JSON.parse(storage.get(key))
+      serialized.fetch('data').delete('client_id')
+      storage.set(key, JSON.generate(serialized))
+
+      session_manager.get_session(session.session_id).should be_nil
+      session_manager.get_session_by_state_token(session.state_token).should be_nil
+    end
   end
 
   describe "#create_session" do
@@ -50,7 +116,7 @@ describe AuthProto::State::SessionManager do
   describe "supported signing keys" do
     let(:key_id) { 'original-key' }
     let(:bound_session) do
-      described_class.new(supported_signing_keys: { key_id => 'thumbprint' }).create_session(
+      described_class.new(client_id: client_id, supported_signing_keys: { key_id => 'thumbprint' }).create_session(
         client_id: client_id, scope: scope, signing_key_id: key_id
       )
     end
@@ -67,7 +133,9 @@ describe AuthProto::State::SessionManager do
 
     it "should accept sessions made with any supported key" do
       session_id = bound_session.session_id
-      reader = described_class.new(supported_signing_keys: { 'new-key' => 'new-thumbprint', key_id => 'thumbprint' })
+      reader = described_class.new(
+        client_id: client_id, supported_signing_keys: { 'new-key' => 'new-thumbprint', key_id => 'thumbprint' }
+      )
 
       reader.get_session(session_id).signing_key_id.should == key_id
       reader.get_session_by_state_token(bound_session.state_token).session_id.should == session_id
@@ -75,7 +143,7 @@ describe AuthProto::State::SessionManager do
 
     it "should hide unsupported sessions without deleting their stored data or state lookup" do
       session_id = bound_session.session_id
-      reader = described_class.new(supported_signing_keys: { 'new-key' => 'new-thumbprint' })
+      reader = described_class.new(client_id: client_id, supported_signing_keys: { 'new-key' => 'new-thumbprint' })
 
       reader.get_session(session_id).should be_nil
       reader.get_session_by_state_token(bound_session.state_token).should be_nil
@@ -83,15 +151,15 @@ describe AuthProto::State::SessionManager do
 
       storage.exists?(AuthProto::Storage::KeyBuilder.session_key(session_id)).should be_truthy
       storage.exists?(AuthProto::Storage::KeyBuilder.state_key(bound_session.state_token)).should be_truthy
-      original_reader = described_class.new(supported_signing_keys: { key_id => 'thumbprint' })
+      original_reader = described_class.new(client_id: client_id, supported_signing_keys: { key_id => 'thumbprint' })
       original_reader.get_session(session_id).signing_key_id.should == key_id
     end
 
     it "should reject a changed thumbprint under the same key ID without deleting the session" do
-      reader = described_class.new(supported_signing_keys: { key_id => 'different-thumbprint' })
+      reader = described_class.new(client_id: client_id, supported_signing_keys: { key_id => 'different-thumbprint' })
       reader.get_session(bound_session.session_id).should be_nil
       reader.get_session_by_state_token(bound_session.state_token).should be_nil
-      matching = described_class.new(supported_signing_keys: { key_id => 'thumbprint' })
+      matching = described_class.new(client_id: client_id, supported_signing_keys: { key_id => 'thumbprint' })
       matching.get_session(bound_session.session_id).should_not be_nil
     end
 
@@ -101,7 +169,7 @@ describe AuthProto::State::SessionManager do
       serialized = JSON.parse(storage.get(key))
       serialized.fetch('data').delete('signing_key_thumbprint')
       storage.set(key, JSON.generate(serialized))
-      reader = described_class.new(supported_signing_keys: { key_id => 'thumbprint' })
+      reader = described_class.new(client_id: client_id, supported_signing_keys: { key_id => 'thumbprint' })
       reader.get_session(stored.session_id).should be_nil
     end
 
@@ -111,7 +179,7 @@ describe AuthProto::State::SessionManager do
 
     it "should accept public and legacy sessions without a recorded key ID" do
       session = session_manager.create_session(client_id: client_id, scope: scope)
-      reader = described_class.new(supported_signing_keys: { 'new-key' => 'new-thumbprint' })
+      reader = described_class.new(client_id: client_id, supported_signing_keys: { 'new-key' => 'new-thumbprint' })
 
       reader.get_session(session.session_id).signing_key_id.should be_nil
       session_manager.get_session(session.session_id).should_not be_nil
@@ -120,7 +188,7 @@ describe AuthProto::State::SessionManager do
     [nil, [], 'key', { '' => 'thumb' }, { 'key' => '' }, { 'key' => 123 }].each do |ids|
       it "should reject invalid supported key IDs #{ids.inspect}" do
         expect {
-          described_class.new(supported_signing_keys: ids)
+          described_class.new(client_id: client_id, supported_signing_keys: ids)
         }.to raise_error(ArgumentError, /supported_signing_keys/)
       end
     end

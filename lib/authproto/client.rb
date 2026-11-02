@@ -110,7 +110,7 @@ module AuthProto
       initialize_client_assertion(signing_key)
 
       signing_keys = @client_assertion ? { @signing_key_kid => @signing_key_thumbprint } : {}
-      @session_manager = State::SessionManager.new(supported_signing_keys: signing_keys)
+      @session_manager = State::SessionManager.new(client_id: @client_id, supported_signing_keys: signing_keys)
 
       @dpop_client = DPoP::Client.new
     end

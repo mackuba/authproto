@@ -14,19 +14,25 @@ module AuthProto
 
     class SessionManager
 
-      # Creates a session manager and its encrypted session serializer.
+      # Creates a session manager bound to one client ID and its encrypted session serializer.
       #
+      # @param client_id [String] client ID that all managed sessions must match
       # @param supported_signing_keys [Hash{String => String}] key IDs mapped to RFC 7638 SHA-256 thumbprints
-      # @raise [ArgumentError] if key IDs or thumbprints are not nonempty strings
+      # @raise [ArgumentError] if the client ID, key IDs or thumbprints are not nonempty strings
       # @raise [ArgumentError] if `ATPROTO_MASTER_KEY` is not valid Base64
       #
-      def initialize(supported_signing_keys: {})
+      def initialize(client_id:, supported_signing_keys: {})
+        unless client_id.is_a?(String) && !client_id.empty?
+          raise ArgumentError, "client_id must be a nonempty string"
+        end
+
         keys = supported_signing_keys
 
         unless keys.is_a?(Hash) && keys.all? { |id, thumb| [id, thumb].all? { |x| x.is_a?(String) && !x.empty? }}
           raise ArgumentError, "supported_signing_keys must map nonempty key IDs to nonempty thumbprints"
         end
 
+        @client_id = client_id.dup.freeze
         @supported_signing_keys = keys.to_h { |id, thumb| [id.dup.freeze, thumb.dup.freeze] }.freeze
         @serializer = Serialization::Session.new
       end
@@ -43,6 +49,7 @@ module AuthProto
       #
       # @return [Session] newly created session
       # @raise [ArgumentError] if the signing key ID is not configured
+      # @raise [SessionError] if the client ID does not match this manager
       # @raise [DPoP::KeySet::KeyError] if session key generation fails
       # @raise [PKCE::Error] if session PKCE generation fails
       # @raise [Storage::StorageError] if writing or locking fails
@@ -50,6 +57,8 @@ module AuthProto
       # @raise [Encryption::EncryptionError] if sensitive fields cannot be encrypted
       #
       def create_session(client_id:, scope:, auth_server: nil, did: nil, pds: nil, signing_key_id: nil)
+        validate_client_id(client_id)
+
         if signing_key_id && !@supported_signing_keys.key?(signing_key_id)
           raise ArgumentError, "Unsupported signing_key_id: #{signing_key_id}"
         end
@@ -89,9 +98,11 @@ module AuthProto
       # @raise [Storage::StorageError] if writing or locking fails
       # @raise [Serialization::ValidationError] if the session cannot be serialized
       # @raise [Encryption::EncryptionError] if sensitive fields cannot be encrypted
-      # @raise [SessionError] if the pending deadline is missing or the session has expired
+      # @raise [SessionError] if the client ID differs, the pending deadline is missing or the session has expired
       #
       def update_session(session)
+        validate_client_id(session.client_id)
+
         session_key = Storage::KeyBuilder.session_key(session.session_id)
 
         AuthProto.storage.with_lock(session_key, ttl: 30) do
@@ -107,11 +118,14 @@ module AuthProto
       #
       # @param session [Session] session with successfully validated and assigned tokens
       # @return [Session] the supplied session, with its state token cleared
+      # @raise [SessionError] if the client ID does not match this manager
       # @raise [Storage::StorageError] if writing, deletion or locking fails
       # @raise [Serialization::ValidationError] if the session cannot be serialized
       # @raise [Encryption::EncryptionError] if sensitive fields cannot be encrypted
       #
       def complete_authorization(session)
+        validate_client_id(session.client_id)
+
         state_token = session.state_token
         session.clear_state_token
         update_session(session)
@@ -126,7 +140,8 @@ module AuthProto
       # Returns `nil` for missing, unreadable or malformed sessions and for expired
       # sessions that have no refresh token. Sessions with an unsupported signing key ID
       # or a missing/mismatching key thumbprint are unavailable but remain in storage.
-      # Public and legacy sessions without an ID are accepted. Read/deserialization errors are logged.
+      # Sessions with a different client ID are unavailable but remain in storage.
+      # Public and legacy sessions without a key ID are accepted. Read/deserialization errors are logged.
       #
       # @param session_id [String] session identifier
       # @return [Session, nil] restored session, or `nil` if unavailable
@@ -144,6 +159,7 @@ module AuthProto
 
         begin
           session = @serializer.deserialize(serialized)
+          return nil unless session.client_id == @client_id
 
           if session.signing_key_id
             thumbprint = @supported_signing_keys[session.signing_key_id]
@@ -217,6 +233,12 @@ module AuthProto
 
 
       private
+
+      def validate_client_id(client_id)
+        return if client_id == @client_id
+
+        raise SessionError, "Session client_id does not match manager client_id"
+      end
 
       def session_ttl(session)
         return nil if session.renewable?
