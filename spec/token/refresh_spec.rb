@@ -179,10 +179,21 @@ describe AuthProto::Token::Refresh do
 
   it "should retain the refresh token without revocation when identity lookup temporarily fails" do
     did = mock
-    did.expects(:document).raises(IOError, "Connection failed")
+    did.expects(:document).raises(DIDKit::APIError.new(Net::HTTPServiceUnavailable.new("1.1", "503", "Unavailable")))
     DIDKit::DID.stubs(:new).with(@refresher.session.did).returns(did)
 
-    expect { @refresher.perform_refresh }.to raise_error(IOError, "Connection failed")
+    expect { @refresher.perform_refresh }.to raise_error(AuthProto::Token::RefreshError, /Could not resolve token subject/)
+
+    assert_not_requested :post, 'https://example.com/token'
+    assert_not_requested :post, 'https://example.com/revoke'
+    @refresher.session.tokens.refresh_token.should == 'mock_refresh_token'
+  end
+
+  it "should preserve the refresh token when the DID document has no PDS endpoint" do
+    document = stub(pds_endpoint: nil)
+    DIDKit::DID.stubs(:new).with(@refresher.session.did).returns(stub(document: document))
+
+    expect { @refresher.perform_refresh }.to raise_error(AuthProto::Token::RefreshError, /no PDS endpoint/)
 
     assert_not_requested :post, 'https://example.com/token'
     assert_not_requested :post, 'https://example.com/revoke'

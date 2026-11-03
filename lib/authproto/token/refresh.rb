@@ -207,8 +207,10 @@ module AuthProto
 
       def validate_identity
         validate_subject_pds(session.did, session)
-      rescue IdentityError => e
+      rescue IdentityMismatchError => e
         revoke_rejected_refresh_token(session.tokens.refresh_token) if session.tokens.refresh_token
+        raise RefreshError.new(e.message, retry_possible: false)
+      rescue IdentityError => e
         raise RefreshError.new(e.message, retry_possible: false)
       end
 

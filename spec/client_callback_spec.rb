@@ -241,7 +241,7 @@ describe AuthProto::Client, '#handle_callback' do
       end
     end
 
-    ['https://other.example.com', 'https://pds.example.com:8443', 'http://pds.example.com', nil].each do |endpoint|
+    ['https://other.example.com', 'https://pds.example.com:8443', 'http://pds.example.com'].each do |endpoint|
       it "should reject a subject whose PDS is #{endpoint.inspect} without completing authorization" do
         document = stub(pds_endpoint: endpoint)
         DIDKit::DID.expects(:new).with(subject).returns(stub(document: document))
@@ -274,7 +274,7 @@ describe AuthProto::Client, '#handle_callback' do
 
       expect {
         client.handle_callback(**callback, expected_session_id: session.session_id)
-      }.to raise_error(IOError, "Connection failed")
+      }.to raise_error(AuthProto::Client::TokenError, /Connection failed; start authorization again/)
 
       client.session_manager.get_session_by_state_token(session.state_token).should be_pending
       assert_not_requested :post, 'https://auth.example.com/revoke'

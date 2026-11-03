@@ -550,12 +550,16 @@ module AuthProto
 
     def validate_token_identity(tokens, session)
       if session.did
-        raise Token::IdentityError, "Subject mismatch in token response" if session.did != tokens.sub
+        raise Token::IdentityMismatchError, "Subject mismatch in token response" if session.did != tokens.sub
       else
         validate_subject_pds(tokens.sub, session)
       end
-    rescue Token::IdentityError => e
+    rescue Token::IdentityMismatchError => e
       revoke_rejected_refresh_token(tokens.refresh_token, session) if tokens.refresh_token
+      raise TokenError, e.message
+    rescue Token::IdentityLookupError => e
+      raise TokenError, "#{e.message}; start authorization again"
+    rescue Token::IdentityError => e
       raise TokenError, e.message
     end
 
