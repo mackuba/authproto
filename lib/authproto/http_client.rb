@@ -23,10 +23,14 @@ module AuthProto
     FORBIDDEN_IP_RANGES = [
       IPAddr.new("0.0.0.0/8"),      # Current network
       IPAddr.new("10.0.0.0/8"),     # Private network
+      IPAddr.new('100.64.0.0/10'),  # Shared address space (CGNAT)
       IPAddr.new("127.0.0.0/8"),    # Loopback
       IPAddr.new("169.254.0.0/16"), # Link-local
       IPAddr.new("172.16.0.0/12"),  # Private network
       IPAddr.new("192.168.0.0/16"), # Private network
+      IPAddr.new('198.18.0.0/15'),  # Benchmarking
+      IPAddr.new('224.0.0.0/4'),    # Multicast
+      IPAddr.new('240.0.0.0/4'),    # Reserved, including limited broadcast
       IPAddr.new("::/128"),         # Unspecified IPv6 address
       IPAddr.new("::1/128"),        # IPv6 loopback
       IPAddr.new("fc00::/7"),       # Unique local address

@@ -54,6 +54,25 @@ describe AuthProto::HTTPClient do
       expect { client.get(sample_url) }.to raise_error(AuthProto::HTTPClient::SSRFError)
     end
 
+    %w[100.64.0.0 100.127.255.255 198.18.0.0 198.19.255.255
+       224.0.0.0 239.255.255.255 240.0.0.0 255.255.255.255].each do |address|
+      it "should reject literal and IPv4-mapped destinations in the blocked range at #{address}" do
+        [address, "[::ffff:#{address}]"].each do |host|
+          expect { client.get("https://#{host}/") }.to raise_error(AuthProto::HTTPClient::SSRFError)
+          expect { client.post("https://#{host}/") }.to raise_error(AuthProto::HTTPClient::SSRFError)
+        end
+      end
+
+      it "should reject a DNS result containing #{address} alongside a public address" do
+        Resolv::DNS.any_instance.stubs(:getaddresses).returns([
+          Resolv::IPv4.create('93.184.216.34'), Resolv::IPv4.create(address)
+        ])
+
+        expect { client.get(sample_url) }.to raise_error(AuthProto::HTTPClient::SSRFError)
+        expect { client.post(sample_url) }.to raise_error(AuthProto::HTTPClient::SSRFError)
+      end
+    end
+
     it "should reject hostnames without resolved addresses" do
       Resolv::DNS.any_instance.stubs(:getaddresses).returns([])
       expect { client.get(sample_url) }.to raise_error(AuthProto::HTTPClient::SSRFError)
