@@ -251,12 +251,12 @@ module AuthProto
     # @raise [Encryption::EncryptionError] if replacement tokens cannot be stored
     #
     def refresh_token(session_id)
-      session = session_manager.get_session(session_id)
+      AuthProto.storage.with_lock(Storage::KeyBuilder.lock_key('session', session_id), ttl: 30) do
+        session = session_manager.get_session(session_id)
 
-      raise TokenError, "Invalid session" unless session
-      raise TokenError, "Session not authorized" unless session.renewable?
+        raise TokenError, "Invalid session" unless session
+        raise TokenError, "Session not authorized" unless session.renewable?
 
-      AuthProto.storage.with_lock(Storage::KeyBuilder.lock_key("session", session.session_id), ttl: 30) do
         refresher = Token::Refresh.new(
           session: session,
           dpop_client: @dpop_client,
@@ -318,14 +318,47 @@ module AuthProto
       }
     end
 
-    # Removes a stored session and its state-token lookup.
+    # Removes a stored session and its state-token lookup, optionally revoking its tokens first.
+    # Refresh-token revocation must succeed when a refresh token is present; access-token revocation
+    # is then best effort. Without a refresh token, access-token revocation must succeed.
+    # Required revocation failures leave the local session intact so the caller can retry or delete locally.
+    # A missing session is a no-op; pending sessions have no tokens to revoke.
+    # Servers without a revocation endpoint are skipped and the session is deleted locally.
     #
     # @param session_id [String] session identifier
+    # @param revoke [Boolean] revoke the refresh token, if present, and access token before deletion
     # @return [void]
+    # @raise [Token::Revocation::Error] if a required revocation request is rejected
+    # @raise [DPoP::Client::Error, HTTPClient::HTTPError] if revocation proof or transport handling fails
     # @raise [Storage::StorageError] if deletion or locking fails
     #
-    def delete_session(session_id)
-      session_manager.delete_session(session_id)
+    def delete_session(session_id, revoke: false)
+      AuthProto.storage.with_lock(Storage::KeyBuilder.lock_key('session', session_id), ttl: 30) do
+        session = session_manager.get_session(session_id)
+        return unless session
+
+        if revoke && session.tokens && session.can_be_revoked?
+          revocation = Token::Revocation.new(
+            session: session,
+            dpop_client: @dpop_client,
+            client_metadata: @client_metadata,
+            client_assertion: @client_assertion
+          )
+
+          if session.tokens.refresh_token
+            revocation.revoke_token(session.tokens.refresh_token, :token_type => :refresh_token)
+            refresh_revoked = true
+          end
+
+          begin
+            revocation.revoke_token(session.tokens.access_token, :token_type => :access_token)
+          rescue StandardError
+            raise unless refresh_revoked
+          end
+        end
+
+        session_manager.delete_session(session_id)
+      end
     end
 
     # Invokes the session manager's expiry cleanup hook.
@@ -522,6 +555,13 @@ module AuthProto
         validate_subject_pds(tokens.sub, session)
       end
     rescue Token::IdentityError => e
+      revoke_rejected_refresh_token(tokens.refresh_token, session) if tokens.refresh_token
+      raise TokenError, e.message
+    end
+
+    def revoke_rejected_refresh_token(token, session)
+      return unless session.can_be_revoked?
+
       revocation = Token::Revocation.new(
         session: session,
         dpop_client: @dpop_client,
@@ -529,9 +569,10 @@ module AuthProto
         client_assertion: @client_assertion
       )
 
-      revocation.revoke_refresh_token(tokens.refresh_token)
-
-      raise TokenError, e.message
+      revocation.revoke_token(token, token_type: 'refresh_token')
+    rescue StandardError
+      # Cleanup failures must not replace the original identity error.
+      nil
     end
   end
 end

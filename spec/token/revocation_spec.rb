@@ -37,7 +37,7 @@ describe AuthProto::Token::Revocation do
       { status: 200, headers: { 'DPoP-Nonce' => 'success' } }
     )
 
-    revoker.revoke_refresh_token('refresh')
+    revoker.revoke_token('refresh', token_type: 'refresh_token')
 
     proofs.length.should == 2
     proofs.map { |proof| proof['jti'] }.uniq.length.should == 2
@@ -60,30 +60,69 @@ describe AuthProto::Token::Revocation do
       header['kid'].should == 'client-key'
     end.to_return(status: 200, headers: { 'DPoP-Nonce' => 'nonce' })
 
-    revoker.revoke_refresh_token('refresh')
+    revoker.revoke_token('refresh', token_type: 'refresh_token')
 
     assert_requested :post, endpoint, times: 1
   end
 
-  it "should skip revocation when the server has no revocation endpoint" do
+  it "should report when the server has no revocation endpoint" do
     server.stubs(:revocation_endpoint).returns(nil)
 
-    revoker.revoke_refresh_token('refresh')
+    expect {
+      revoker.revoke_token('refresh', token_type: 'refresh_token')
+    }.to raise_error(described_class::Error, /revocation endpoint/)
 
     assert_not_requested :post, endpoint
   end
 
   [nil, '', false].each do |token|
-    it "should skip revocation for an absent or invalid refresh token #{token.inspect}" do
-      revoker.revoke_refresh_token(token)
+    it "should reject an invalid refresh token #{token.inspect}" do
+      expect { revoker.revoke_token(token, token_type: 'refresh_token') }.to raise_error(ArgumentError)
+      assert_not_requested :post, endpoint
+    end
+  end
+
+  it "should propagate transport failures" do
+    stub_request(:post, endpoint).to_raise(IOError)
+
+    expect {
+      revoker.revoke_token('refresh', token_type: 'refresh_token')
+    }.to raise_error(AuthProto::HTTPClient::HTTPError)
+  end
+
+  [400, 401, 503].each do |status|
+    it "should report HTTP #{status} rather than treating revocation as successful" do
+      stub_request(:post, endpoint).to_return(status: status, headers: { 'DPoP-Nonce' => 'nonce' })
+
+      expect {
+        revoker.revoke_token('refresh', token_type: 'refresh_token')
+      }.to raise_error(described_class::Error, /HTTP #{status}/)
+    end
+  end
+
+  ['access_token', :access_token, 'refresh_token', :refresh_token].each do |type|
+    it "should accept #{type.inspect} and send a string hint while ignoring the successful response body" do
+      stub_request(:post, endpoint).with(body: {
+        token: 'token', token_type_hint: type.to_s, client_id: metadata.client_id
+      }).to_return(status: 200, headers: { 'DPoP-Nonce' => 'nonce' }, body: 'not JSON')
+
+      revoker.revoke_token('token', token_type: type).should be_nil
+    end
+  end
+
+  [nil, false, 123, 'invalid', :invalid].each do |type|
+    it "should reject invalid token type #{type.inspect} before making a request" do
+      expect { revoker.revoke_token('token', token_type: type) }.to raise_error(ArgumentError, /Invalid token_type/)
 
       assert_not_requested :post, endpoint
     end
   end
 
-  it "should ignore transport failures" do
-    stub_request(:post, endpoint).to_raise(IOError)
+  it "should propagate a missing nonce error" do
+    stub_request(:post, endpoint).to_return(status: 200)
 
-    revoker.revoke_refresh_token('refresh').should be_nil
+    expect {
+      revoker.revoke_token('refresh', token_type: 'refresh_token')
+    }.to raise_error(AuthProto::DPoP::Client::Error)
   end
 end

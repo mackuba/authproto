@@ -22,7 +22,7 @@ module AuthProto
     def refresh_token: (String session_id) -> refreshed_tokens
     def authorized?: (String session_id) -> bool
     def auth_headers: (session_id: String, method: String, url: String) -> Hash[String, String]
-    def delete_session: (String session_id) -> void
+    def delete_session: (String session_id, ?revoke: bool) -> void
     def cleanup_expired_sessions: () -> void
 
     private
@@ -37,5 +37,6 @@ module AuthProto
     def exchange_code: (code: String, session: State::Session) -> State::TokenSet
     def make_token_request: (String code, State::Session session) -> http_response
     def validate_token_identity: (State::TokenSet tokens, State::Session session) -> void
+    def revoke_rejected_refresh_token: (String token, State::Session session) -> void
   end
 end

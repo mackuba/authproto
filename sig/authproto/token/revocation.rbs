@@ -1,0 +1,14 @@
+module AuthProto
+  module Token
+    class Revocation
+      class Error < AuthProto::Error
+      end
+
+      def initialize: (session: State::Session, dpop_client: DPoP::Client, client_metadata: Metadata::ClientMetadata, ?client_assertion: PAR::ClientAssertion?) -> void
+      def revoke_token: (String token, token_type: String | Symbol) -> void
+
+      private
+      def make_request: (String token, String endpoint, String token_type) -> http_response
+    end
+  end
+end

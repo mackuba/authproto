@@ -31,6 +31,7 @@ module AuthProto
       def perform_refresh: () -> State::TokenSet
 
       private
+      def revoke_rejected_refresh_token: (String token) -> void
       def with_retries: [T] () { () -> T } -> T
       def calculate_delay: () -> Float
       def request_token_refresh: () -> State::TokenSet

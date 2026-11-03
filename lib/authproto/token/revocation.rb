@@ -1,16 +1,20 @@
 # frozen_string_literal: true
 
 require_relative '../configuration'
+require_relative '../errors'
 require_relative '../par'
 
 module AuthProto
   module Token
 
     #
-    # Best-effort revocation of refresh tokens rejected during identity validation.
+    # Revokes tokens using the issuing server and the session's authentication keys.
     #
 
     class Revocation
+
+      # Error raised when revocation is unavailable or rejected by the server.
+      class Error < AuthProto::Error; end
 
       # Creates a revoker using the original session's server and authentication keys.
       #
@@ -26,34 +30,42 @@ module AuthProto
         @client_assertion = client_assertion
       end
 
-      # Attempts revocation when a refresh token and advertised endpoint are available.
-      # Failures are ignored so they cannot replace the original identity error.
+      # Revokes an access or refresh token and requires a successful response.
+      # The response body is ignored, including for tokens already revoked.
       #
-      # @param token [String, nil] refresh token to revoke
+      # @param token [String] nonempty token to revoke
+      # @param token_type [String, Symbol] `access_token` or `refresh_token`
       # @return [void]
+      # @raise [ArgumentError] if the token or hint is invalid
+      # @raise [Error] if the endpoint is absent or the server rejects revocation
+      # @raise [DPoP::Client::Error, HTTPClient::HTTPError] if proof or transport handling fails
       #
-      def revoke_refresh_token(token)
-        return unless token.is_a?(String) && !token.empty?
+      def revoke_token(token, token_type:)
+        raise ArgumentError, "Token must be a nonempty string" unless token.is_a?(String) && !token.empty?
 
-        endpoint = @session.auth_server&.revocation_endpoint
-        return unless endpoint
+        token_type = token_type.to_s if token_type.is_a?(Symbol)
 
-        @dpop_client.with_nonce_handling(@session, endpoint) do
-          make_request(token, endpoint)
+        unless %w[access_token refresh_token].include?(token_type)
+          raise ArgumentError, "Invalid token_type"
         end
 
-        nil
-      rescue StandardError
-        nil
+        endpoint = @session.auth_server&.revocation_endpoint
+        raise Error, "Authorization server does not advertise a revocation endpoint" unless endpoint
+
+        response = @dpop_client.with_nonce_handling(@session, endpoint) do
+          make_request(token, endpoint, token_type)
+        end
+
+        raise Error, "Token revocation failed: HTTP #{response[:status]}" unless response[:status] == 200
       end
 
 
       private
 
-      def make_request(token, endpoint)
+      def make_request(token, endpoint, token_type)
         body = {
           token: token,
-          token_type_hint: 'refresh_token',
+          token_type_hint: token_type,
           client_id: @client_metadata.client_id
         }
 

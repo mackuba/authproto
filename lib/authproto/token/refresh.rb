@@ -207,11 +207,13 @@ module AuthProto
       def validate_identity
         validate_subject_pds(session.did, session)
       rescue IdentityError => e
-        revoke_refresh_token(session.tokens.refresh_token)
+        revoke_rejected_refresh_token(session.tokens.refresh_token) if session.tokens.refresh_token
         raise RefreshError.new(e.message, retry_possible: false)
       end
 
-      def revoke_refresh_token(token)
+      def revoke_rejected_refresh_token(token)
+        return unless session.can_be_revoked?
+
         revocation = Revocation.new(
           session: session,
           dpop_client: dpop_client,
@@ -219,7 +221,10 @@ module AuthProto
           client_assertion: @client_assertion
         )
 
-        revocation.revoke_refresh_token(token)
+        revocation.revoke_token(token, :token_type => :refresh_token)
+      rescue StandardError
+        # Cleanup failures must not replace the original identity error.
+        nil
       end
 
       def with_retries
@@ -346,7 +351,7 @@ module AuthProto
 
       def validate_refresh_identity(tokens)
         if tokens.sub != session.tokens.sub
-          revoke_refresh_token(tokens.refresh_token)
+          revoke_rejected_refresh_token(tokens.refresh_token) if tokens.refresh_token
           raise RefreshError.new("Subject mismatch in response", retry_possible: false)
         end
       end

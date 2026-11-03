@@ -19,6 +19,26 @@ describe AuthProto::State::Session do
     AuthProto::State::Session.new(client_id: client_id, scope: scope, auth_server: auth_server, did: did)
   end
 
+  describe '#can_be_revoked?' do
+    it "should return false when there is no authorization server" do
+      session.can_be_revoked?.should be false
+    end
+
+    context "with an authorization server" do
+      let(:auth_server) { stub(revocation_endpoint: nil) }
+
+      it "should return false when no revocation endpoint is advertised" do
+        session.can_be_revoked?.should be false
+      end
+
+      it "should return true when a revocation endpoint is advertised" do
+        auth_server.stubs(:revocation_endpoint).returns('https://auth.example.com/revoke')
+
+        session.can_be_revoked?.should be true
+      end
+    end
+  end
+
   describe "#initialize" do
     let(:auth_server) { mock("AuthorizationServer") }
 

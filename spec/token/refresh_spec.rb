@@ -441,5 +441,23 @@ describe AuthProto::Token::Refresh do
         error.retry_possible.should be false
       }
     end
+
+  it "should preserve a subject mismatch error when revocation fails" do
+    stub_request(:post, 'https://example.com/token').to_return(
+      status: 200, headers: { 'Content-Type' => 'application/json', 'DPoP-Nonce' => 'nonce' },
+      body: successful_response.merge(sub: 'did:plc:someone-else').to_json
+    )
+    stub_request(:post, 'https://example.com/revoke').to_return(
+      status: 503, headers: { 'DPoP-Nonce' => 'nonce' }
+    )
+
+    expect {
+      @refresher.perform_refresh
+    }.to raise_error(AuthProto::Token::RefreshError, /Subject mismatch/) { |error|
+      error.retry_possible.should be false
+    }
+
+    assert_requested :post, 'https://example.com/revoke', times: 1
+  end
   end
 end

@@ -231,6 +231,13 @@ module AuthProto
         end
       end
 
+      # Whether the authorization server advertises a token revocation endpoint.
+      # @return [Boolean]
+      #
+      def can_be_revoked?
+        !auth_server&.revocation_endpoint.nil?
+      end
+
       # Whether this session has valid access tokens
       # @return [Boolean]
       def tokens_valid?

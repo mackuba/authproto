@@ -26,6 +26,7 @@ module AuthProto
       def has_limited_scope?: () -> bool
       def session_data: () -> AuthProto::session_data?
       def pending?: () -> bool
+      def can_be_revoked?: () -> bool
       def tokens_valid?: () -> bool
       alias authorized? tokens_valid?
       def renewable?: () -> bool
