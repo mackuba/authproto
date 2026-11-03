@@ -32,7 +32,7 @@ module AuthProto
       #
       # @param key_set [KeySet] key belonging to the session making this request
       # @param method [String] nonempty HTTP method, converted to uppercase
-      # @param uri [String] absolute HTTP(S) request URL
+      # @param uri [String] absolute HTTPS request URL
       # @param nonce [String, nil] server-provided nonce to include
       # @param access_token [String, nil] access token to bind to the proof
       # @return [JOSE::SignedBinary] compact signed DPoP JWT
@@ -62,7 +62,8 @@ module AuthProto
         raise ProofError, "method is required" if method.nil? || method.empty?
         raise ProofError, "uri is required" if uri.nil? || uri.empty?
 
-        ValidatedURI.new(uri)
+        parsed_uri = ValidatedURI.new(uri)
+        raise ProofError, "uri must use HTTPS" unless parsed_uri.scheme == 'https'
       rescue URI::InvalidURIError => e
         raise ProofError, "invalid uri: #{e.message}"
       end
@@ -96,7 +97,7 @@ module AuthProto
         uri = URI(uri)
 
         # Remove default ports
-        uri.port = nil if (uri.scheme == 'https' && uri.port == 443) || (uri.scheme == 'http' && uri.port == 80)
+        uri.port = nil if uri.scheme == 'https' && uri.port == 443
 
         uri.query = nil
         uri.fragment = nil

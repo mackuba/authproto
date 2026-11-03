@@ -41,7 +41,7 @@ module AuthProto
       # Fetches `/.well-known/oauth-protected-resource` using the configured transport.
       # Requires HTTP 200 without redirects, a JSON object served as application/json,
       # and a resource identifier that exactly matches the requested URL.
-      # URL scheme restrictions are enforced by the configured transport.
+      # Requires HTTPS even when the configured transport permits HTTP.
       # The PDS URL must have no userinfo, path prefix, query or fragment.
       #
       # @param url [String] resource server/PDS base URL
@@ -88,9 +88,9 @@ module AuthProto
         def validate_source_url(url)
           uri = ValidatedURI.new(url)
 
-          unless uri.path.empty? && !uri.userinfo && !uri.query && !uri.fragment
+          unless uri.scheme == 'https' && uri.path.empty? && !uri.userinfo && !uri.query && !uri.fragment
             raise InvalidAuthorizationServer,
-              "Resource server URL must be an HTTP(S) origin without userinfo, a path prefix, query or fragment"
+              "Resource server URL must be an HTTPS origin without userinfo, a path prefix, query or fragment"
           end
         rescue URI::InvalidURIError => e
           raise InvalidAuthorizationServer, "Invalid resource server URL: #{e.message}"

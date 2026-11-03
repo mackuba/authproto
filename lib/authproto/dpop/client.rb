@@ -51,7 +51,7 @@ module AuthProto
       #
       # @param session [State::Session] session whose DPoP key signs the request
       # @param method [String] HTTP method, converted to uppercase
-      # @param uri [String] absolute HTTP(S) request URL; query and fragment are omitted from the signed `htu`
+      # @param uri [String] absolute HTTPS request URL; query and fragment are omitted from the signed `htu`
       # @param access_token [String, nil] token to bind with an `ath` claim
       # @return [JOSE::SignedBinary] compact signed DPoP JWT
       # @raise [Error] if URI parsing, nonce lookup or signing fails

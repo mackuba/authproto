@@ -140,24 +140,16 @@ describe AuthProto::Metadata::ResourceServer do
       end
     end
 
-    context "when the resource uses HTTP" do
-      let(:valid_url) { "http://localhost:9292" }
+    [AuthProto::HTTPClient, AuthProto::InsecureHTTPClient].each do |transport_class|
+      ['http://localhost:9292', 'http://127.0.0.1:9292', 'http://example.com'].each do |url|
+        it "should reject resource URL #{url} before fetching with #{transport_class}" do
+          transport = transport_class.new
+          AuthProto.configuration.stubs(:http_client).returns(transport)
+          transport.expects(:get).never
 
-      it "allows HTTP metadata when InsecureHTTPClient is configured" do
-        AuthProto.configuration.stubs(:http_client).returns(AuthProto::InsecureHTTPClient.new)
-        stub_request(:get, "#{valid_url}/.well-known/oauth-protected-resource")
-          .to_return(status: 200, headers: { "Content-Type" => "application/json" }, body: valid_metadata.to_json)
-
-        described_class.from_url(valid_url).authorization_server.should == valid_metadata["authorization_servers"].first
-      end
-
-      it "lets the standard HTTPClient reject HTTP before making a request" do
-        AuthProto.configuration.stubs(:http_client).returns(AuthProto::HTTPClient.new)
-        request = stub_request(:get, "#{valid_url}/.well-known/oauth-protected-resource")
-
-        expect { described_class.from_url(valid_url) }
-          .to raise_error(AuthProto::HTTPClient::SSRFError, /URL scheme/)
-        expect(request).not_to have_been_requested
+          expect { described_class.from_url(url) }
+            .to raise_error(AuthProto::InvalidAuthorizationServer, /HTTPS origin/)
+        end
       end
     end
 

@@ -40,7 +40,7 @@ module AuthProto
       #
       # @param nonce [String] server-provided nonce using RFC 9449's `1*NQCHAR` syntax
       # @param session_id [String] nonempty OAuth session identifier
-      # @param server_url [String] HTTPS URL, or HTTP URL with host `localhost`
+      # @param server_url [String] HTTPS server URL
       # @return [void]
       # @raise [NonceError] if inputs are invalid or storage reports failure
       # @raise [Storage::StorageError] if backend validation or storage fails
@@ -62,7 +62,7 @@ module AuthProto
       # Retrieves the current nonce for a session and URL's origin.
       #
       # @param session_id [String] nonempty OAuth session identifier
-      # @param server_url [String] HTTPS URL, or HTTP URL with host `localhost`
+      # @param server_url [String] HTTPS server URL
       # @return [String, nil] stored nonce, or `nil` when missing/expired according to storage TTL
       # @raise [NonceError] if the session ID or URL is invalid, or serialized data cannot be read
       # @raise [Storage::StorageError] if storage retrieval fails
@@ -87,7 +87,7 @@ module AuthProto
       # Removes the stored nonce for a session and URL's origin.
       #
       # @param session_id [String] nonempty OAuth session identifier
-      # @param server_url [String] HTTPS URL, or HTTP URL with host `localhost`
+      # @param server_url [String] HTTPS server URL
       # @return [Boolean] backend deletion status
       # @raise [NonceError] if the session ID or URL is invalid
       # @raise [Storage::StorageError] if deletion fails
@@ -111,8 +111,7 @@ module AuthProto
       def normalize_server_url(url)
         uri = URI(url)
         port = uri.port
-        port = nil if (uri.scheme == 'https' && port == 443) ||
-                      (uri.scheme == 'http' && port == 80)
+        port = nil if uri.scheme == 'https' && port == 443
 
         origin = "#{uri.scheme}://#{uri.host}"
         origin = "#{origin}:#{port}" if port
@@ -132,10 +131,7 @@ module AuthProto
 
         uri = ValidatedURI.new(server_url)
 
-        # Allow HTTP for localhost only
-        if uri.host != 'localhost' && uri.scheme != 'https'
-          raise NonceError, "server_url must be HTTPS (except for localhost)"
-        end
+        raise NonceError, "server_url must be HTTPS" unless uri.scheme == 'https'
       rescue URI::InvalidURIError => e
         raise NonceError, "invalid server_url: #{e.message}"
       end

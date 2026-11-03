@@ -6,10 +6,11 @@
 - fixed decryption code accepting encrypted data with truncated tags
 - fixed token refresh failing if some originally requested scopes were not granted (e.g. email access)
 - fixed token refresh losing the old refresh token if it wasn't actually replaced
-- improved validation of token exchange & token refresh response and client metadata
+- improved validation of token exchange & token refresh response, client and resource metadata
 - added `#granted_scope`, `#has_limited_scope?` and `#can_be_revoked?` to `Session`
 - added option to explicitly revoke access/refresh tokens on the server when deleting a session, with `delete_session(id, revoke: true)`
 - require the `ATPROTO_MASTER_KEY` to be exactly 32 bytes long (or 44 Base64 characters)
+- require https:// URLs in DPoP client and nonce manager (since resource servers / PDSes and authorization servers need to be on HTTPS)
 - reject token responses with the OpenID `id_token` field
 - when loading a session, verify that it has been created with the same `client_id`
 - ignore the redirect URI's port when testing if the redirect URI passed for authentication for a localhost client is included on the metadata list (as the spec says)

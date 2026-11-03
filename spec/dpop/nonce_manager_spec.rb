@@ -86,10 +86,25 @@ describe AuthProto::DPoP::NonceManager do
       nonce_manager.get(server_url: server_url, session_id: session_id).should == "new_nonce"
     end
 
-    it "should store nonce for non-HTTPS localhost server" do
-      nonce_manager.update(session_id: session_id, nonce: nonce, server_url: "http://localhost:3000")
-      stored = nonce_manager.get(server_url: "http://localhost:3000", session_id: session_id)
-      stored.should == nonce
+    ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://example.com'].each do |url|
+      it "should reject HTTP server URL #{url} for nonce storage, retrieval and deletion" do
+        expect {
+          nonce_manager.update(session_id: session_id, nonce: nonce, server_url: url)
+        }.to raise_error(described_class::NonceError, /HTTPS/)
+        expect {
+          nonce_manager.get(server_url: url, session_id: session_id)
+        }.to raise_error(described_class::NonceError, /HTTPS/)
+        expect {
+          nonce_manager.clear(server_url: url, session_id: session_id)
+        }.to raise_error(described_class::NonceError, /HTTPS/)
+      end
+    end
+
+    it "should accept HTTPS localhost server URLs" do
+      url = 'https://localhost:3000'
+      nonce_manager.update(session_id: session_id, nonce: nonce, server_url: url)
+
+      nonce_manager.get(server_url: url, session_id: session_id).should == nonce
     end
 
     it "should raise an error if nonce is invalid" do

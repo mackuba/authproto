@@ -111,7 +111,22 @@ describe AuthProto::DPoP::ProofGenerator do
       }.to raise_error(AuthProto::DPoP::ProofGenerator::ProofError)
     end
 
-    it "should require https or http uri" do
+    ['http://localhost:3000/token', 'http://127.0.0.1/token', 'http://example.com/token'].each do |url|
+      it "should reject HTTP proof targets #{url}" do
+        expect {
+          generator.generate(key_set: key_set, method: method, uri: url)
+        }.to raise_error(described_class::ProofError, /HTTPS/)
+      end
+    end
+
+    it "should accept HTTPS localhost proof targets" do
+      url = 'https://localhost:3000/token'
+      proof = generator.generate(key_set: key_set, method: method, uri: url)
+
+      extract_payload(proof)['htu'].should == url
+    end
+
+    it "should reject other URI schemes" do
       expect {
         generator.generate(key_set: key_set, method: method, uri: "ftp://example.com")
       }.to raise_error(AuthProto::DPoP::ProofGenerator::ProofError)
