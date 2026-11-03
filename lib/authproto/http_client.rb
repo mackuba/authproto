@@ -228,6 +228,8 @@ module AuthProto
       )
     rescue Net::OpenTimeout, Net::ReadTimeout => e
       raise HTTPError.new("Request timeout: #{e.message}", nil)
+    rescue AuthProto::Error
+      raise
     rescue StandardError => e
       raise HTTPError.new("Request failed: #{e.message}", nil)
     end
@@ -243,6 +245,8 @@ module AuthProto
       http.request(request)
     rescue Net::OpenTimeout, Net::ReadTimeout => e
       raise HTTPError.new("Request timeout: #{e.message}", nil)
+    rescue AuthProto::Error
+      raise
     rescue StandardError => e
       raise HTTPError.new("Request failed: #{e.message}", nil)
     end

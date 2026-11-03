@@ -154,7 +154,29 @@ describe AuthProto::HTTPClient do
 
       expect {
         client.get(sample_url, follow_redirects: true)
-      }.to raise_error(AuthProto::HTTPClient::HTTPError)
+      }.to raise_error(AuthProto::HTTPClient::HTTPError, "Too many redirects") { |error|
+        error.response.should be_a(Net::HTTPRedirection)
+        error.response['location'].should == sample_url
+      }
+    end
+
+    it "should preserve SSRF errors raised while validating redirect destinations" do
+      stub_request(:get, sample_url).to_return(status: 302, headers: { 'Location' => 'https://127.0.0.1/' })
+
+      expect {
+        client.get(sample_url, follow_redirects: true)
+      }.to raise_error(AuthProto::HTTPClient::SSRFError, "Request to forbidden IP address")
+
+      WebMock.should_not have_requested(:get, 'https://127.0.0.1/')
+    end
+
+    it "should preserve the timeout message from a redirected request without wrapping it again" do
+      stub_request(:get, sample_url).to_return(status: 302, headers: { 'Location' => '/next' })
+      stub_request(:get, 'https://example.com/next').to_timeout
+
+      expect {
+        client.get(sample_url, follow_redirects: true)
+      }.to raise_error(AuthProto::HTTPClient::HTTPError, /\ARequest timeout:/)
     end
 
     it "should reject oversized responses" do
@@ -218,6 +240,25 @@ describe AuthProto::HTTPClient do
 
       client.post(sample_url)
       WebMock.should have_requested(:post, sample_url).with(headers: { "Cache-Control" => "no-store" })
+    end
+  end
+
+  [:get, :post].each do |method|
+    it "should preserve an existing library error instance during #{method.to_s.upcase}" do
+      error = AuthProto::HTTPClient::HTTPError.new("Transport rejected request", nil)
+      Net::HTTP.any_instance.stubs(:request).raises(error)
+
+      expect { client.public_send(method, sample_url) }.to raise_error(AuthProto::HTTPClient::HTTPError) { |raised|
+        raised.should equal(error)
+      }
+    end
+
+    it "should still wrap external transport failures during #{method.to_s.upcase}" do
+      Net::HTTP.any_instance.stubs(:request).raises(IOError, "Connection closed")
+
+      expect {
+        client.public_send(method, sample_url)
+      }.to raise_error(AuthProto::HTTPClient::HTTPError, "Request failed: Connection closed")
     end
   end
 
