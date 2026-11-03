@@ -294,14 +294,7 @@ module AuthProto
     end
 
     def validate_response(response)
-      # check_success_status(response)
       check_content_length(response)
-    end
-
-    def check_success_status(response)
-      return if response.is_a?(Net::HTTPSuccess)
-
-      raise HTTPError.new("HTTP request failed: #{response.code} #{response.message}", response)
     end
 
     def check_content_length(response)

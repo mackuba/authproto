@@ -39,7 +39,6 @@ module AuthProto
     def add_security_headers: (Net::HTTPRequest request, Hash[String, String] headers) -> void
     def handle_redirect: (original_uri: URI::HTTP, response: Net::HTTPResponse, headers: Hash[String, String], redirect_count: Integer) -> Net::HTTPResponse
     def validate_response: (Net::HTTPResponse response) -> void
-    def check_success_status: (Net::HTTPResponse response) -> void
     def check_content_length: (Net::HTTPResponse response) -> void
   end
 end
