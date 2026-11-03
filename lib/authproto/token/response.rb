@@ -55,7 +55,7 @@ module AuthProto
 
         tokens = State::TokenSet.new(
           access_token: data['access_token'],
-          refresh_token: data['refresh_token'] || current_tokens&.refresh_token,
+          refresh_token: data.fetch('refresh_token', current_tokens&.refresh_token),
           token_type: data['token_type'],
           expires_in: data['expires_in'],
           scope: data['scope'],
