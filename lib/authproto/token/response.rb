@@ -21,6 +21,7 @@ module AuthProto
 
       # Validates the response representation and constructs its token set.
       # Identity checks remain the responsibility of the calling authorization flow.
+      # Rejects OpenID Connect `id_token` fields, matching the ATProto reference client.
       #
       # @param response [Hash] successful HTTP response from the token endpoint
       # @return [State::TokenSet] validated tokens
@@ -37,6 +38,7 @@ module AuthProto
 
         data = JSON.parse(response[:body])
         raise Error, "Token response must be a JSON object" unless data.is_a?(Hash)
+        raise Error, "Token response must not include id_token" if data.key?('id_token')
 
         ['access_token', 'token_type', 'expires_in', 'scope', 'sub'].each do |field|
           raise Error, "Missing #{field} in token response" if data[field].nil?

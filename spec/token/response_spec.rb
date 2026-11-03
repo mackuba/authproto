@@ -40,6 +40,19 @@ describe AuthProto::Token::Response do
     end
   end
 
+  [nil, '', 'header.payload.signature', false, 123, [], {}].each do |value|
+    it "should reject a present id_token with value #{value.inspect}" do
+      data['id_token'] = value
+
+      expect { described_class.parse(response) }.to raise_error(described_class::Error, /must not include id_token/)
+    end
+  end
+
+  it "should continue to ignore unrelated extension fields" do
+    data['extension_field'] = 'value'
+    described_class.parse(response).access_token.should == 'access'
+  end
+
   [nil, '', 'text/html', 'application/problem+json'].each do |type|
     it "should reject content type #{type.inspect}" do
       response[:headers] = type.nil? ? {} : { 'Content-Type' => type }

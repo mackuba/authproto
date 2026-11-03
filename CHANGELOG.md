@@ -9,6 +9,7 @@
 - added `#granted_scope`, `#has_limited_scope?` and `#can_be_revoked?` to `Session`
 - added option to explicitly revoke access/refresh tokens on the server when deleting a session, with `delete_session(id, revoke: true)`
 - require the `ATPROTO_MASTER_KEY` to be exactly 32 bytes long (or 44 Base64 characters)
+- reject token responses with the OpenID `id_token` field
 - when loading a session, verify that it has been created with the same `client_id`
 - ignore the redirect URI's port when testing if the redirect URI passed for authentication for a localhost client is included on the metadata list (as the spec says)
 
