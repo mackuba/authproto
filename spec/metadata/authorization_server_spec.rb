@@ -30,6 +30,34 @@ describe AuthProto::Metadata::AuthorizationServer do
   end
 
   describe "#initialize" do
+    %w[authorization_endpoint token_endpoint pushed_authorization_request_endpoint revocation_endpoint].each do |field|
+      ['https://user:password@auth.example.com/token', 'https://user@auth.example.com/token',
+       'https://@auth.example.com/token'].each do |url|
+        it "should reject userinfo in #{field}: #{url}" do
+          expect {
+            described_class.new(valid_metadata.merge(field => url))
+          }.to raise_error(AuthProto::InvalidAuthorizationServer, /must not contain userinfo/)
+        end
+      end
+
+      [0, 65_536].each do |port|
+        it "should reject out-of-range port #{port} in #{field}" do
+          expect {
+            described_class.new(valid_metadata.merge(field => "https://auth.example.com:#{port}/token"))
+          }.to raise_error(AuthProto::InvalidAuthorizationServer, /valid port/)
+        end
+      end
+
+      [1, 443, 8443, 65_535].each do |port|
+        it "should accept port #{port} with a path and query in #{field}" do
+          url = "https://other.example.com:#{port}/oauth/endpoint?tenant=example"
+          server = described_class.new(valid_metadata.merge(field => url))
+
+          server.public_send(field).should == url
+        end
+      end
+    end
+
     it "should preserve the optional revocation endpoint when serialized and restored" do
       server = described_class.new(valid_metadata.merge('revocation_endpoint' => 'https://auth.example.com/revoke'))
       restored = described_class.new(JSON.parse(server.to_h.to_json))

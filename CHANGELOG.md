@@ -6,7 +6,7 @@
 - fixed decryption code accepting encrypted data with truncated tags
 - fixed token refresh failing if some originally requested scopes were not granted (e.g. email access)
 - fixed token refresh losing the old refresh token if it wasn't actually replaced
-- improved validation of token exchange & token refresh response, client and resource metadata
+- improved validation of token exchange & token refresh response, and client & resource/authorization server metadata
 - added `#granted_scope`, `#has_limited_scope?` and `#can_be_revoked?` to `Session`
 - added option to explicitly revoke access/refresh tokens on the server when deleting a session, with `delete_session(id, revoke: true)`
 - require the `ATPROTO_MASTER_KEY` to be exactly 32 bytes long (or 44 Base64 characters)

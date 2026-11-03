@@ -226,7 +226,12 @@ module AuthProto
       def validate_https_url(url)
         uri = ValidatedURI.new(url)
         raise InvalidAuthorizationServer, "URL must use HTTPS" unless uri.scheme == 'https'
+        raise InvalidAuthorizationServer, "Endpoint URL must not contain userinfo" if uri.userinfo
         raise InvalidAuthorizationServer, "Endpoint URL must not contain a fragment" if uri.fragment
+
+        unless uri.effective_port.between?(1, 65_535)
+          raise InvalidAuthorizationServer, "Endpoint URL must have a valid port"
+        end
 
         url
       end
