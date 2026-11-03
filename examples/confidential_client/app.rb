@@ -291,7 +291,7 @@ class ExampleApp < Sinatra::Base
   get "/signout" do
     if session[:oauth_session_id]
       # Clean up stored session
-      settings.oauth_client.delete_session(session[:oauth_session_id])
+      settings.oauth_client.delete_session(session[:oauth_session_id], revoke: true)
     end
 
     session.clear
