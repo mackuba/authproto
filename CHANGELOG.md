@@ -1,4 +1,4 @@
-## Unreleased
+## [0.3.0.beta4] – 2026-11-03
 
 - at the end of authentication that started with a PDS URL, verify that the received DID belongs to that PDS
 - revoke received tokens if after authentication the DID or PDS doesn't match the previously known value
@@ -15,7 +15,7 @@
 - when loading a session, verify that it has been created with the same `client_id`
 - ignore the redirect URI's port when testing if the redirect URI passed for authentication for a localhost client is included on the metadata list (as the spec says)
 
-## [0.3.0.beta3] - 2026-11-02
+## [0.3.0.beta3] – 2026-11-02
 
 - session's state token is deleted on successfully completed authentication (i.e. `handle_callback`)
 - pending sessions (that haven't completed authentication) are stored with a TTL of 15 minutes by default, and expire after that; this can be changed through `pending_session_ttl` in the global configuration
