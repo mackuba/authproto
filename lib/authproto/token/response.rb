@@ -24,10 +24,11 @@ module AuthProto
       # Rejects OpenID Connect `id_token` fields, matching the ATProto reference client.
       #
       # @param response [Hash] successful HTTP response from the token endpoint
+      # @param current_tokens [State::TokenSet, nil] current tokens whose refresh token is retained if omitted
       # @return [State::TokenSet] validated tokens
       # @raise [Error] if the response has an invalid content type, body or token fields
       #
-      def self.parse(response)
+      def self.parse(response, current_tokens: nil)
         content_type = response_header(response, 'Content-Type', strip_parameters: true)
 
         unless content_type&.casecmp?('application/json')
@@ -54,7 +55,7 @@ module AuthProto
 
         tokens = State::TokenSet.new(
           access_token: data['access_token'],
-          refresh_token: data['refresh_token'],
+          refresh_token: data['refresh_token'] || current_tokens&.refresh_token,
           token_type: data['token_type'],
           expires_in: data['expires_in'],
           scope: data['scope'],

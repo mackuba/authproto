@@ -182,6 +182,7 @@ module AuthProto
       # and jitter. Each attempt can retry one DPoP nonce challenge. Does not assign
       # the returned tokens to the session or persist them; the caller must do so.
       # HTTP 400/401 OAuth errors preserve the server's error code and description in the exception message.
+      # Retains the existing refresh token when the response omits a replacement.
       # Verifies the subject's current PDS before the exchange and attempts revocation on identity mismatch.
       #
       # @return [State::TokenSet] validated replacement tokens
@@ -307,7 +308,7 @@ module AuthProto
       end
 
       def process_successful_response(response)
-        tokens = Response.parse(response)
+        tokens = Response.parse(response, current_tokens: session.tokens)
         validate_refresh_identity(tokens)
         tokens
       rescue Response::Error => e

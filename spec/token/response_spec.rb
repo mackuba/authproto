@@ -1,6 +1,12 @@
 # frozen_string_literal: true
 
 describe AuthProto::Token::Response do
+  let(:current_tokens) do
+    AuthProto::State::TokenSet.new(
+      access_token: 'existing-access', refresh_token: 'existing', token_type: 'DPoP',
+      expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
+    )
+  end
   let(:data) do
     {
       'access_token' => 'access', 'token_type' => 'DPoP', 'expires_in' => 3600,
@@ -31,6 +37,22 @@ describe AuthProto::Token::Response do
   it "should accept an omitted refresh token" do
     data.delete('refresh_token')
     described_class.parse(response).refresh_token.should be_nil
+  end
+
+  it "should prefer an issued refresh token over the fallback" do
+    described_class.parse(response, current_tokens: current_tokens).refresh_token.should == 'refresh'
+  end
+
+  it "should use the fallback refresh token when the field is omitted" do
+    data.delete('refresh_token')
+    described_class.parse(response, current_tokens: current_tokens).refresh_token.should == 'existing'
+  end
+
+  it "should reject an explicit null refresh token even when a fallback is supplied" do
+    data['refresh_token'] = nil
+
+    expect { described_class.parse(response, current_tokens: current_tokens) }
+      .to raise_error(described_class::Error, /refresh_token/)
   end
 
   %w[dpop DPOP dPoP].each do |type|

@@ -6,7 +6,7 @@ module AuthProto
       class Error < AuthProto::Error
       end
 
-      def self.parse: (http_response response) -> State::TokenSet
+      def self.parse: (http_response response, ?current_tokens: State::TokenSet?) -> State::TokenSet
     end
   end
 end

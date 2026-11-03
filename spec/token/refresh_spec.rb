@@ -108,6 +108,25 @@ describe AuthProto::Token::Refresh do
     token_set.refresh_token.should == "rotated_refresh_token"
   end
 
+  it "should retain and reuse the existing refresh token when no replacement is issued" do
+    stub_request(:post, 'https://example.com/token').to_return(
+      status: 200,
+      headers: { 'Content-Type' => 'application/json', 'DPoP-Nonce' => 'nonce' },
+      body: successful_response.except(:refresh_token).to_json
+    )
+    tokens = @refresher.perform_refresh
+
+    tokens.access_token.should == 'new_token'
+    tokens.refresh_token.should == 'mock_refresh_token'
+    tokens.should be_renewable
+    @refresher.session.tokens = tokens
+    @refresher.perform_refresh.refresh_token.should == 'mock_refresh_token'
+
+    assert_requested(:post, 'https://example.com/token', times: 2) do |request|
+      URI.decode_www_form(request.body).to_h['refresh_token'] == 'mock_refresh_token'
+    end
+  end
+
   describe "with a partially approved grant" do
     let(:requested_scope) { 'atproto transition:email' }
 
@@ -395,7 +414,8 @@ describe AuthProto::Token::Refresh do
   end
 
   [{ headers: {} }, { headers: { 'Content-Type' => 'text/html' } }, { expires_in: 0 },
-   { expires_in: -1 }, { refresh_token: '' }].each do |invalid_response|
+   { expires_in: -1 }, { refresh_token: '' }, { refresh_token: nil },
+   { id_token: 'header.payload.signature' }, { id_token: nil }].each do |invalid_response|
     it "should reject malformed refresh responses #{invalid_response.inspect} without retrying or replacing tokens" do
       previous_tokens = @refresher.session.tokens
       data = successful_response.merge(invalid_response.except(:headers))
