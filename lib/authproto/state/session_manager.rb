@@ -17,7 +17,8 @@ module AuthProto
       # Creates a session manager bound to one client ID and its encrypted session serializer.
       #
       # @param client_id [String] client ID that all managed sessions must match
-      # @param supported_signing_keys [Hash{String => String}] key IDs mapped to RFC 7638 SHA-256 thumbprints
+      # @param supported_signing_keys [Hash{String => String}] key IDs mapped to RFC 7638 SHA-256 thumbprints;
+      #   empty for public clients
       # @raise [ArgumentError] if the client ID, key IDs or thumbprints are not nonempty strings
       # @raise [ArgumentError] if `ATPROTO_MASTER_KEY` is not valid Base64
       #
@@ -141,7 +142,8 @@ module AuthProto
       # sessions that have no refresh token. Sessions with an unsupported signing key ID
       # or a missing/mismatching key thumbprint are unavailable but remain in storage.
       # Sessions with a different client ID are unavailable but remain in storage.
-      # Public and legacy sessions without a key ID are accepted. Read/deserialization errors are logged.
+      # Public clients require both signing key fields to be absent. Confidential clients require a matching binding.
+      # Read/deserialization errors are logged.
       #
       # @param session_id [String] session identifier
       # @return [Session, nil] restored session, or `nil` if unavailable
@@ -161,10 +163,7 @@ module AuthProto
           session = @serializer.deserialize(serialized)
           return nil unless session.client_id == @client_id
 
-          if session.signing_key_id
-            thumbprint = @supported_signing_keys[session.signing_key_id]
-            return nil unless thumbprint && thumbprint == session.signing_key_thumbprint
-          end
+          return nil unless signing_key_matches?(session)
 
           if session.pending?
             deadline = session.authorization_expires_at
@@ -233,6 +232,17 @@ module AuthProto
 
 
       private
+
+      def signing_key_matches?(session)
+        if @supported_signing_keys.empty?
+          # for public clients, require no signing key in the session
+          return session.signing_key_id.nil? && session.signing_key_thumbprint.nil?
+        else
+          # for confidential clients, require a signing key assigned
+          thumbprint = @supported_signing_keys[session.signing_key_id]
+          thumbprint && thumbprint == session.signing_key_thumbprint
+        end
+      end
 
       def validate_client_id(client_id)
         return if client_id == @client_id

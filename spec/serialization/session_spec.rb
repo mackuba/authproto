@@ -82,7 +82,7 @@ describe AuthProto::Serialization::Session do
     serializer.deserialize(serialized).signing_key_id.should == 'client-key'
   end
 
-  it "should restore older sessions without a signing key ID" do
+  it "should restore public sessions without a signing key ID" do
     serialized = serializer.serialize(session)
     JSON.parse(serialized).fetch('data').should_not have_key('signing_key_id')
     serializer.deserialize(serialized).signing_key_id.should be_nil

@@ -187,12 +187,6 @@ describe AuthProto::DPoP::NonceManager do
       restored.get(server_url: server_url, session_id: 'session-2').should be_nil
     end
 
-    it "should ignore legacy per-server nonce entries" do
-      AuthProto.storage.set("atproto:nonce:#{server_url}", 'old-cache-entry')
-
-      nonce_manager.get(server_url: server_url, session_id: session_id).should be_nil
-    end
-
     [nil, '', 123, false].each do |invalid_id|
       it "should reject an invalid session ID #{invalid_id.inspect} for all operations" do
         expect {

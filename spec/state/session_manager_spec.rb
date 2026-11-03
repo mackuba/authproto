@@ -177,11 +177,11 @@ describe AuthProto::State::SessionManager do
       session_manager.get_session(bound_session.session_id).should be_nil
     end
 
-    it "should accept public and legacy sessions without a recorded key ID" do
+    it "should only load a session without signing key fields for a public client" do
       session = session_manager.create_session(client_id: client_id, scope: scope)
       reader = described_class.new(client_id: client_id, supported_signing_keys: { 'new-key' => 'new-thumbprint' })
 
-      reader.get_session(session.session_id).signing_key_id.should be_nil
+      reader.get_session(session.session_id).should be_nil
       session_manager.get_session(session.session_id).should_not be_nil
     end
 

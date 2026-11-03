@@ -356,28 +356,20 @@ describe Minisky::OAuthClient do
       original.signing_key_thumbprint.should == JOSE::JWK.from_map(@signing_key).thumbprint('SHA256')
     end
 
-    it "should accept an older serialized session without a signing key ID" do
-      state_token = pending_session.state_token
+    it "should reject an older confidential session without a signing key binding" do
       session_key = AuthProto::Storage::KeyBuilder.session_key(pending_session.session_id)
       serialized = JSON.parse(AuthProto.storage.get(session_key))
       serialized.fetch('data').delete('signing_key_id')
+      serialized.fetch('data').delete('signing_key_thumbprint')
       AuthProto.storage.set(session_key, JSON.generate(serialized))
       restored = restore_client(@signing_key)
-      stub_request(:post, auth_server.token_endpoint).to_return(
-        headers: { 'Content-Type' => 'application/json', 'DPoP-Nonce' => 'fixture-nonce' },
-        status: 200, body: {
-        access_token: 'access', refresh_token: 'refresh', token_type: 'DPoP',
-        expires_in: 3600, scope: 'atproto', sub: 'did:plc:ewvi7nxzyoun6zhxrhs64oiz'
-      }.to_json)
 
-      restored.handle_callback(
-        code: 'code', state: state_token, iss: auth_server.issuer, expected_session_id: pending_session.session_id
-      )[:access_token].should == 'access'
-      restored.perform_token_refresh[:refresh_token].should == 'refresh'
+      expect {
+        restored.handle_callback(code: 'code', state: pending_session.state_token, iss: auth_server.issuer,
+                                 expected_session_id: pending_session.session_id)
+      }.to raise_error(AuthProto::Client::CallbackError, "Invalid state parameter")
 
-      stored = restored.oauth_client.session_manager.get_session(pending_session.session_id)
-      stored.signing_key_id.should be_nil
-      assert_requested :post, auth_server.token_endpoint, times: 2
+      assert_not_requested :post, auth_server.token_endpoint
     end
   end
 

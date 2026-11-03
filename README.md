@@ -278,13 +278,11 @@ client-authentication key. The session manager returns `nil` if the key ID is
 unsupported or its thumbprint no longer matches, leaving stored data intact.
 `Client` supplies a key-ID-to-thumbprint mapping derived from its configured
 private signing key, rather than the public keys advertised in metadata.
-Sessions with a recorded key ID but no thumbprint must authorize again.
+Confidential-client sessions missing either signing key field must authorize again.
 Clients still accept one `signing_key:`; automatic key selection and rotation
 are not implemented.
 
-Public-client sessions have no signing key ID. Older serialized sessions without
-this field remain readable and use the configured signing key without an ID check;
-their original key ID cannot be inferred from the stored session.
+Public-client sessions have neither a signing key ID nor a thumbprint.
 
 ```ruby
 # Initialize client with metadata
