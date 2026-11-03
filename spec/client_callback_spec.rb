@@ -40,10 +40,31 @@ describe AuthProto::Client, '#handle_callback' do
     )
   end
 
+  [{ headers: {} }, { headers: { 'Content-Type' => 'text/html' } }, { body: '[]' },
+   { expires_in: 0 }, { access_token: 123 }, { refresh_token: '' }].each do |invalid_response|
+    it "should reject malformed code exchange responses #{invalid_response.inspect} without completing authorization" do
+      data = {
+        access_token: 'access', refresh_token: 'refresh', token_type: 'DPoP',
+        expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
+      }.merge(invalid_response.except(:headers, :body))
+      response = {
+        status: 200, headers: { 'Content-Type' => 'application/json' }, body: data.to_json
+      }.merge(invalid_response.slice(:headers, :body))
+      response[:headers]['DPoP-Nonce'] = 'nonce'
+      client.stubs(:make_token_request).returns(response)
+
+      expect {
+        client.handle_callback(**callback, expected_session_id: session.session_id)
+      }.to raise_error(AuthProto::Client::TokenError)
+
+      client.session_manager.get_session_by_state_token(session.state_token).should be_pending
+    end
+  end
+
   ['dpop', 'DPOP', 'dPoP'].each do |type|
     it "should accept token_type #{type} from code exchange and persist its canonical spelling" do
       client.expects(:make_token_request).with('code', anything).returns(
-        status: 200, headers: { 'DPoP-Nonce' => 'nonce' }, body: {
+        status: 200, headers: { 'Content-Type' => 'application/json', 'DPoP-Nonce' => 'nonce' }, body: {
           access_token: 'access', refresh_token: 'refresh', token_type: type,
           expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
         }.to_json
@@ -109,10 +130,10 @@ describe AuthProto::Client, '#handle_callback' do
   end
 
   it "should complete authorization and consume state when the expected session matches" do
-    client.expects(:exchange_code).returns(
-      'access_token' => 'access', 'refresh_token' => 'refresh', 'token_type' => 'DPoP',
-      'expires_in' => 3600, 'scope' => 'atproto', 'sub' => 'did:plc:alice'
-    )
+    client.expects(:exchange_code).returns(AuthProto::State::TokenSet.new(
+      access_token: 'access', refresh_token: 'refresh', token_type: 'DPoP',
+      expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
+    ))
     state = session.state_token
 
     result = client.handle_callback(**callback, expected_session_id: session.session_id)
@@ -125,7 +146,7 @@ describe AuthProto::Client, '#handle_callback' do
 
   it "should revoke the received refresh token when the subject differs from the expected DID" do
     client.stubs(:make_token_request).returns(
-      status: 200, headers: { 'DPoP-Nonce' => 'nonce' }, body: {
+      status: 200, headers: { 'Content-Type' => 'application/json', 'DPoP-Nonce' => 'nonce' }, body: {
         access_token: 'access', refresh_token: 'rejected-refresh', token_type: 'DPoP',
         expires_in: 3600, scope: 'atproto', sub: 'did:plc:someone-else'
       }.to_json
@@ -147,7 +168,7 @@ describe AuthProto::Client, '#handle_callback' do
       auth_server: auth_server, did: 'did:plc:alice'
     )
     client.stubs(:make_token_request).returns(
-      status: 200, headers: { 'DPoP-Nonce' => 'nonce' }, body: {
+      status: 200, headers: { 'Content-Type' => 'application/json', 'DPoP-Nonce' => 'nonce' }, body: {
         access_token: 'access', refresh_token: 'refresh', token_type: 'DPoP',
         expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
       }.to_json
@@ -165,7 +186,7 @@ describe AuthProto::Client, '#handle_callback' do
 
   it "should preserve the subject mismatch error if revocation fails" do
     client.stubs(:make_token_request).returns(
-      status: 200, headers: { 'DPoP-Nonce' => 'nonce' }, body: {
+      status: 200, headers: { 'Content-Type' => 'application/json', 'DPoP-Nonce' => 'nonce' }, body: {
         access_token: 'access', refresh_token: 'rejected-refresh', token_type: 'DPoP',
         expires_in: 3600, scope: 'atproto', sub: 'did:plc:someone-else'
       }.to_json
@@ -188,7 +209,7 @@ describe AuthProto::Client, '#handle_callback' do
 
     before do
       client.stubs(:make_token_request).returns(
-        status: 200, headers: { 'DPoP-Nonce' => 'nonce' }, body: {
+        status: 200, headers: { 'Content-Type' => 'application/json', 'DPoP-Nonce' => 'nonce' }, body: {
           access_token: 'access', refresh_token: 'refresh', token_type: 'DPoP',
           expires_in: 3600, scope: 'atproto', sub: subject
         }.to_json

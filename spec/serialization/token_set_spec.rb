@@ -34,6 +34,19 @@ describe AuthProto::Serialization::TokenSet do
     serialized.dig("data", "refresh_token").should be_encrypted
   end
 
+  it "should preserve an absent refresh token and an expired access token" do
+    tokens = AuthProto::State::TokenSet.new(
+      access_token: 'access', token_type: 'DPoP', expires_in: -10, scope: 'atproto', sub: 'did:plc:alice'
+    )
+    serialized = serializer.serialize(tokens)
+    JSON.parse(serialized).fetch('data').should_not have_key('refresh_token')
+    restored = serializer.deserialize(serialized)
+
+    restored.refresh_token.should be_nil
+    restored.should_not be_renewable
+    restored.should be_expired
+  end
+
   it "should validate object type" do
     expect {
       serializer.serialize(Object.new)

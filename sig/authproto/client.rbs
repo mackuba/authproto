@@ -34,8 +34,8 @@ module AuthProto
     def validate_auth_params: (String? handle, String? pds, String scope) -> void
     def resolve_auth_server_info: (String pds) -> Metadata::AuthorizationServer
     def submit_authorization_par: (Metadata::AuthorizationServer authorization_server, State::Session session, ?login_hint: String?) -> String
-    def exchange_code: (code: String, session: State::Session) -> json_object
+    def exchange_code: (code: String, session: State::Session) -> State::TokenSet
     def make_token_request: (String code, State::Session session) -> http_response
-    def validate_token_response: (json_object response, State::Session session) -> void
+    def validate_token_identity: (State::TokenSet tokens, State::Session session) -> void
   end
 end

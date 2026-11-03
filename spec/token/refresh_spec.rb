@@ -125,7 +125,8 @@ describe AuthProto::Token::Refresh do
   it "should accept an updated effective scope and retain it in the replacement tokens" do
     successful_response[:scope] = 'atproto repo:app.bsky.feed.post'
     stub_request(:post, 'https://example.com/token').to_return(
-      status: 200, headers: { 'DPoP-Nonce' => 'nonce' }, body: successful_response.to_json
+      status: 200, headers: { 'Content-Type' => 'application/json', 'DPoP-Nonce' => 'nonce' },
+      body: successful_response.to_json
     )
 
     @refresher.perform_refresh.scope.should == successful_response[:scope]
@@ -171,7 +172,7 @@ describe AuthProto::Token::Refresh do
 
   it "should revoke the replacement refresh token when a refresh response changes the DID" do
     stub_request(:post, 'https://example.com/token').to_return(
-      status: 200, headers: { 'DPoP-Nonce' => 'nonce' },
+      status: 200, headers: { 'Content-Type' => 'application/json', 'DPoP-Nonce' => 'nonce' },
       body: successful_response.merge(sub: 'did:plc:someone-else').to_json
     )
 
@@ -187,7 +188,7 @@ describe AuthProto::Token::Refresh do
   ['dpop', 'DPOP', 'dPoP'].each do |type|
     it "should accept refreshed token_type #{type} and return its canonical spelling" do
       stub_request(:post, 'https://example.com/token').to_return(
-        status: 200, headers: { 'DPoP-Nonce' => 'nonce' },
+        status: 200, headers: { 'Content-Type' => 'application/json', 'DPoP-Nonce' => 'nonce' },
         body: successful_response.merge(token_type: type).to_json
       )
 
@@ -215,7 +216,8 @@ describe AuthProto::Token::Refresh do
     http_client = AuthProto.configuration.http_client
     http_client.expects(:post).twice
                .raises(AuthProto::HTTPClient::HTTPError.new("Connection lost", nil)).then
-               .returns(status: 200, body: successful_response.to_json, headers: { "DPoP-Nonce" => "fixture-nonce"})
+               .returns(status: 200, body: successful_response.to_json,
+                        headers: { 'Content-Type' => 'application/json', 'DPoP-Nonce' => 'fixture-nonce' })
     @refresher.perform_refresh.access_token.should == "new_token"
   end
 
@@ -232,7 +234,8 @@ describe AuthProto::Token::Refresh do
       URI.decode_www_form(request.body).to_h["refresh_token"] == "mock_refresh_token"
     end.to_return(
       { status: 400, body: { error: "use_dpop_nonce" }.to_json, headers: { "DPoP-Nonce" => "new-nonce" } },
-      { headers: { "DPoP-Nonce" => "fixture-nonce" }, status: 200, body: successful_response.to_json }
+      { headers: { "Content-Type" => "application/json", "DPoP-Nonce" => "fixture-nonce" },
+        status: 200, body: successful_response.to_json }
     )
 
     @refresher.perform_refresh.access_token.should == "new_token"
@@ -338,7 +341,8 @@ describe AuthProto::Token::Refresh do
   it "should retry a rate limited response" do
     stub_request(:post, "https://example.com/token").to_return(
       { status: 429, headers: { "DPoP-Nonce" => "fixture-nonce", "Retry-After" => "1" } },
-      { headers: { "DPoP-Nonce" => "fixture-nonce" }, status: 200, body: successful_response.to_json }
+      { headers: { "Content-Type" => "application/json", "DPoP-Nonce" => "fixture-nonce" },
+        status: 200, body: successful_response.to_json }
     )
     @refresher.perform_refresh.access_token.should == "new_token"
     assert_requested :post, "https://example.com/token", times: 2
@@ -347,7 +351,8 @@ describe AuthProto::Token::Refresh do
   [200, 400, 401].each do |status|
     ["invalid json", "[]", "null", '"string"'].each do |body|
       it "should report a malformed HTTP #{status} response #{body.inspect} without retrying" do
-        stub_request(:post, "https://example.com/token").to_return(headers: { "DPoP-Nonce" => "fixture-nonce" },
+        stub_request(:post, "https://example.com/token").to_return(
+          headers: { "Content-Type" => "application/json", "DPoP-Nonce" => "fixture-nonce" },
           status: status, body: body)
         expect { @refresher.perform_refresh }.to raise_error(AuthProto::Token::RefreshError) { |error|
           error.retry_possible.should be false
@@ -361,7 +366,8 @@ describe AuthProto::Token::Refresh do
   %i[access_token token_type expires_in scope sub].each do |field|
     it "should report a missing #{field} without retrying" do
       successful_response.delete(field)
-      stub_request(:post, "https://example.com/token").to_return(headers: { "DPoP-Nonce" => "fixture-nonce" },
+      stub_request(:post, "https://example.com/token").to_return(
+        headers: { "Content-Type" => "application/json", "DPoP-Nonce" => "fixture-nonce" },
         status: 200, body: successful_response.to_json)
       expect { @refresher.perform_refresh }.to raise_error(AuthProto::Token::RefreshError, /Missing #{field}/)
       assert_requested :post, "https://example.com/token", times: 1
@@ -371,7 +377,8 @@ describe AuthProto::Token::Refresh do
   { access_token: 123, token_type: "Bearer", expires_in: "3600", scope: [], sub: "someone_else", refresh_token: false }.each do |field, value|
     it "should reject invalid #{field} #{value.inspect} without retrying" do
       successful_response[field] = value
-      stub_request(:post, "https://example.com/token").to_return(headers: { "DPoP-Nonce" => "fixture-nonce" },
+      stub_request(:post, "https://example.com/token").to_return(
+        headers: { "Content-Type" => "application/json", "DPoP-Nonce" => "fixture-nonce" },
         status: 200, body: successful_response.to_json)
       expect { @refresher.perform_refresh }.to raise_error(AuthProto::Token::RefreshError)
       assert_requested :post, "https://example.com/token", times: 1
@@ -380,10 +387,31 @@ describe AuthProto::Token::Refresh do
 
   it "should reject a response without the atproto scope" do
     successful_response[:scope] = "other"
-    stub_request(:post, "https://example.com/token").to_return(headers: { "DPoP-Nonce" => "fixture-nonce" },
+    stub_request(:post, "https://example.com/token").to_return(
+      headers: { "Content-Type" => "application/json", "DPoP-Nonce" => "fixture-nonce" },
       status: 200, body: successful_response.to_json)
     expect { @refresher.perform_refresh }.to raise_error(AuthProto::Token::RefreshError, /Invalid scope/)
     assert_requested :post, "https://example.com/token", times: 1
+  end
+
+  [{ headers: {} }, { headers: { 'Content-Type' => 'text/html' } }, { expires_in: 0 },
+   { expires_in: -1 }, { refresh_token: '' }].each do |invalid_response|
+    it "should reject malformed refresh responses #{invalid_response.inspect} without retrying or replacing tokens" do
+      previous_tokens = @refresher.session.tokens
+      data = successful_response.merge(invalid_response.except(:headers))
+      response = {
+        status: 200, headers: { 'Content-Type' => 'application/json' }, body: data.to_json
+      }.merge(invalid_response.slice(:headers))
+      response[:headers]['DPoP-Nonce'] = 'nonce'
+      stub_request(:post, 'https://example.com/token').to_return(response)
+
+      expect { @refresher.perform_refresh }.to raise_error(AuthProto::Token::RefreshError) { |error|
+        error.retry_possible.should be false
+      }
+
+      @refresher.session.tokens.should equal(previous_tokens)
+      assert_requested :post, 'https://example.com/token', times: 1
+    end
   end
 
   it "should refresh a restored expired session after a nonce challenge" do
@@ -396,7 +424,8 @@ describe AuthProto::Token::Refresh do
                                     auth_server: restored.auth_server, client_metadata: @refresher.client_metadata)
     stub_request(:post, "https://example.com/token").to_return(
       { status: 400, body: { error: "use_dpop_nonce" }.to_json, headers: { "DPoP-Nonce" => "restored-nonce" } },
-      { headers: { "DPoP-Nonce" => "fixture-nonce" }, status: 200, body: successful_response.to_json }
+      { headers: { "Content-Type" => "application/json", "DPoP-Nonce" => "fixture-nonce" },
+        status: 200, body: successful_response.to_json }
     )
     tokens = refresher.perform_refresh
     tokens.refresh_token.should == "rotated_refresh_token"

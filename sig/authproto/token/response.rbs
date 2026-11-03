@@ -1,0 +1,12 @@
+module AuthProto
+  module Token
+    class Response
+      extend HTTPHelpers
+
+      class Error < AuthProto::Error
+      end
+
+      def self.parse: (http_response response) -> State::TokenSet
+    end
+  end
+end

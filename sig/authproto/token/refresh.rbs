@@ -40,7 +40,7 @@ module AuthProto
       def process_successful_response: (http_response response) -> State::TokenSet
       def handle_error_response: (http_response response) -> bot
       def handle_rate_limit_response: (http_response response) -> bot
-      def validate_refresh_response: (json_object data) -> void
+      def validate_refresh_identity: (State::TokenSet tokens) -> void
     end
   end
 end

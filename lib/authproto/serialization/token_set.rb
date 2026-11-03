@@ -20,6 +20,7 @@ module AuthProto
         "TokenSet"
       end
 
+
       private
 
       def validate_object(obj)
@@ -29,13 +30,15 @@ module AuthProto
       end
 
       def serialize_data(obj)
-        {
+        data = {
           access_token: obj.access_token,
-          refresh_token: obj.refresh_token,
           expires_at: obj.expires_at.utc.iso8601,
           scope: obj.scope,
           sub: obj.sub
         }
+
+        data[:refresh_token] = obj.refresh_token if obj.refresh_token
+        data
       end
 
       def deserialize_data(data)

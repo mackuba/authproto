@@ -12,6 +12,7 @@ require_relative '../par'
 require_relative '../par/client_assertion'
 require_relative '../state/token_set'
 require_relative 'identity'
+require_relative 'response'
 require_relative 'revocation'
 
 module AuthProto
@@ -301,21 +302,11 @@ module AuthProto
       end
 
       def process_successful_response(response)
-        raise RefreshError.new("Missing response body", retry_possible: false) if response[:body].nil?
-
-        data = JSON.parse(response[:body])
-        validate_refresh_response(data)
-
-        AuthProto::State::TokenSet.new(
-          access_token: data['access_token'],
-          token_type: data['token_type'],
-          expires_in: data['expires_in'],
-          refresh_token: data['refresh_token'],
-          scope: data['scope'],
-          sub: data['sub']
-        )
-      rescue JSON::ParserError => e
-        raise RefreshError.new("Invalid response format: #{e.message}", retry_possible: false)
+        tokens = Response.parse(response)
+        validate_refresh_identity(tokens)
+        tokens
+      rescue Response::Error => e
+        raise RefreshError.new(e.message, retry_possible: false)
       end
 
       def handle_error_response(response)
@@ -353,43 +344,11 @@ module AuthProto
         raise RefreshError, "Rate limited - retry after #{retry_after} seconds"
       end
 
-      def validate_refresh_response(data)
-        unless data.is_a?(Hash)
-          raise RefreshError.new("Token response must be a JSON object", retry_possible: false)
+      def validate_refresh_identity(tokens)
+        if tokens.sub != session.tokens.sub
+          revoke_refresh_token(tokens.refresh_token)
+          raise RefreshError.new("Subject mismatch in response", retry_possible: false)
         end
-
-        %w[access_token token_type expires_in scope sub].each do |field|
-          raise RefreshError.new("Missing #{field} in response", retry_possible: false) unless data[field]
-        end
-
-        %w[access_token token_type scope sub].each do |field|
-          unless data[field].is_a?(String) && !data[field].empty?
-            raise RefreshError.new("Invalid #{field} in response", retry_possible: false)
-          end
-        end
-
-        unless data['expires_in'].is_a?(Integer)
-          raise RefreshError.new("Invalid expires_in in response", retry_possible: false)
-        end
-
-        unless data['refresh_token'].nil? || data['refresh_token'].is_a?(String)
-          raise RefreshError.new("Invalid refresh_token in response", retry_possible: false)
-        end
-
-        unless data['token_type'].casecmp?('DPoP')
-          raise RefreshError.new("Invalid token_type: #{data['token_type']}", retry_possible: false)
-        end
-
-        response_scopes = data['scope'].split
-
-        unless response_scopes.include?('atproto')
-          raise RefreshError.new("Invalid scope in response", retry_possible: false)
-        end
-
-        return if data['sub'] == session.tokens.sub
-
-        revoke_refresh_token(data['refresh_token'])
-        raise RefreshError.new("Subject mismatch in response", retry_possible: false)
       end
     end
   end

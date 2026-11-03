@@ -5,6 +5,7 @@
 - check if the known PDS matches before doing a token refresh
 - fixed decryption code accepting encrypted data with truncated tags
 - fixed token refresh failing if some originally requested scopes were not granted (e.g. email access)
+- improved token exchange & token refresh response validation
 - added `#granted_scope` and `#has_limited_scope?` to `Session`
 - require the `ATPROTO_MASTER_KEY` to be exactly 32 bytes long (or 44 Base64 characters)
 - when loading a session, verify that it has been created with the same `client_id`

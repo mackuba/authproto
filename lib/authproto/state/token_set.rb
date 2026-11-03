@@ -36,8 +36,8 @@ module AuthProto
       # @param expires_in [Integer] lifetime of the access token in seconds; negative value means it's already expired
       # @param scope [String] nonempty space-separated granted scopes
       # @param sub [String] nonempty account DID
-      # @param refresh_token [String, nil] refresh token, if issued
-      # @raise [ArgumentError] if required strings are missing, the token type is wrong, or expiry is not an integer
+      # @param refresh_token [String, nil] nonempty refresh token, if issued
+      # @raise [ArgumentError] if token fields have invalid types or values
       #
       def initialize(access_token:, token_type:, expires_in:, scope:, sub:, refresh_token: nil)
         validate_token_type(token_type)
@@ -45,6 +45,7 @@ module AuthProto
         validate_required('access_token', access_token)
         validate_required('scope', scope)
         validate_required('sub', sub)
+        validate_required('refresh_token', refresh_token) unless refresh_token.nil?
 
         validate_expires_in(expires_in)
 
@@ -88,7 +89,9 @@ module AuthProto
       end
 
       def validate_required(name, value)
-        raise ArgumentError, "#{name} is required" if value.nil? || value.empty?
+        unless value.is_a?(String) && !value.empty?
+          raise ArgumentError, "#{name} must be a nonempty string"
+        end
       end
 
       def validate_expires_in(expires_in)

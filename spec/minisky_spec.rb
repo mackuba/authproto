@@ -187,7 +187,7 @@ describe Minisky::OAuthClient do
         end
       stub_request(:post, auth_server.token_endpoint).with(&validate_assertion).to_return(
         { status: 400, headers: { 'DPoP-Nonce' => 'token-challenge' }, body: '{"error":"use_dpop_nonce"}' },
-        { status: 200, headers: { 'DPoP-Nonce' => 'token-success' }, body: {
+        { status: 200, headers: { 'Content-Type' => 'application/json', 'DPoP-Nonce' => 'token-success' }, body: {
           access_token: 'new-access', refresh_token: 'new-refresh', token_type: 'DPoP',
           expires_in: 3600, scope: 'atproto', sub: 'did:plc:ewvi7nxzyoun6zhxrhs64oiz'
         }.to_json }
@@ -243,7 +243,7 @@ describe Minisky::OAuthClient do
     stub_request(:post, auth_server.token_endpoint).to_return do |request|
       session_id = URI.decode_www_form(request.body).to_h.fetch('code')
       original_keys.fetch(session_id).key.verify(request.headers.fetch('Dpop')).first.should be_truthy
-      { headers: { "DPoP-Nonce" => "fixture-nonce" }, status: 200, body: {
+      { headers: { "Content-Type" => "application/json", "DPoP-Nonce" => "fixture-nonce" }, status: 200, body: {
         access_token: "access-#{session_id}", refresh_token: 'refresh', token_type: 'DPoP',
         expires_in: 3600, scope: 'atproto', sub: 'did:plc:ewvi7nxzyoun6zhxrhs64oiz'
       }.to_json }
@@ -363,7 +363,8 @@ describe Minisky::OAuthClient do
       serialized.fetch('data').delete('signing_key_id')
       AuthProto.storage.set(session_key, JSON.generate(serialized))
       restored = restore_client(@signing_key)
-      stub_request(:post, auth_server.token_endpoint).to_return(headers: { "DPoP-Nonce" => "fixture-nonce" },
+      stub_request(:post, auth_server.token_endpoint).to_return(
+        headers: { 'Content-Type' => 'application/json', 'DPoP-Nonce' => 'fixture-nonce' },
         status: 200, body: {
         access_token: 'access', refresh_token: 'refresh', token_type: 'DPoP',
         expires_in: 3600, scope: 'atproto', sub: 'did:plc:ewvi7nxzyoun6zhxrhs64oiz'
@@ -607,7 +608,8 @@ describe Minisky::OAuthClient do
     stub_refresh
     stub_request(:post, "https://auth.example.com/token").with do |request|
       JWT.decode(request.headers["Dpop"], nil, false).last["jwk"] == original_public_key
-    end.to_return(headers: { "DPoP-Nonce" => "fixture-nonce" }, status: 200, body: {
+    end.to_return(
+      headers: { "Content-Type" => "application/json", "DPoP-Nonce" => "fixture-nonce" }, status: 200, body: {
       access_token: "restored-access", refresh_token: "restored-refresh", token_type: "DPoP",
       expires_in: 3600, scope: "atproto", sub: "did:plc:ewvi7nxzyoun6zhxrhs64oiz"
     }.to_json)

@@ -2,7 +2,6 @@
 
 require 'didkit/did'
 require 'jose'
-require 'json'
 require 'uri'
 
 require_relative 'configuration'
@@ -20,6 +19,7 @@ require_relative 'state/token_set'
 require_relative 'storage/key_builder'
 require_relative 'token/identity'
 require_relative 'token/refresh'
+require_relative 'token/response'
 require_relative 'token/revocation'
 
 module AuthProto
@@ -206,16 +206,7 @@ module AuthProto
       raise CallbackError, "Issuer mismatch" unless session.auth_server && session.auth_server.issuer == iss
 
       AuthProto.storage.with_lock(Storage::KeyBuilder.lock_key("session", session.session_id), ttl: 30) do
-        response = exchange_code(code: code, session: session)
-
-        token_set = State::TokenSet.new(
-          access_token: response['access_token'],
-          token_type: response['token_type'],
-          expires_in: response['expires_in'],
-          refresh_token: response['refresh_token'],
-          scope: response['scope'],
-          sub: response['sub']
-        )
+        token_set = exchange_code(code: code, session: session)
 
         session.tokens = token_set
         session_manager.complete_authorization(session)
@@ -484,15 +475,12 @@ module AuthProto
 
       raise TokenError, "Token request failed: #{response[:status]}" unless response[:status] == 200
 
-      begin
-        data = JSON.parse(response[:body])
-      rescue JSON::ParserError => e
-        raise TokenError, "Invalid token response: #{e.message}"
-      end
+      tokens = Token::Response.parse(response)
+      validate_token_identity(tokens, session)
 
-      validate_token_response(data, session)
-
-      data
+      tokens
+    rescue Token::Response::Error => e
+      raise TokenError, e.message
     end
 
     def make_token_request(code, session)
@@ -527,21 +515,11 @@ module AuthProto
       )
     end
 
-    def validate_token_response(response, session)
-      ['access_token', 'token_type', 'expires_in', 'scope', 'sub'].each do |field|
-        raise TokenError, "Missing #{field} in token response" unless response[field]
-      end
-
-      unless response['token_type'].is_a?(String) && response['token_type'].casecmp?('DPoP')
-        raise TokenError, "Invalid token_type: #{response['token_type']}"
-      end
-
-      raise TokenError, "Missing atproto scope in token response" unless response['scope'].split.include?('atproto')
-
+    def validate_token_identity(tokens, session)
       if session.did
-        raise Token::IdentityError, "Subject mismatch in token response" if session.did != response['sub']
+        raise Token::IdentityError, "Subject mismatch in token response" if session.did != tokens.sub
       else
-        validate_subject_pds(response['sub'], session)
+        validate_subject_pds(tokens.sub, session)
       end
     rescue Token::IdentityError => e
       revocation = Token::Revocation.new(
@@ -551,7 +529,7 @@ module AuthProto
         client_assertion: @client_assertion
       )
 
-      revocation.revoke_refresh_token(response['refresh_token'])
+      revocation.revoke_refresh_token(tokens.refresh_token)
 
       raise TokenError, e.message
     end
