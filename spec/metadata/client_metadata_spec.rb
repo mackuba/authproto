@@ -102,6 +102,33 @@ describe AuthProto::Metadata::ClientMetadata do
   end
 
   describe "client ID validation" do
+    ['127.0.0.1', '192.0.2.1', '[::1]', '[2001:db8::1]', '[::ffff:192.0.2.1]',
+     '127.1', 'localhost', 'app', 'app.local', 'app.localhost', 'app.test', 'app.invalid',
+     'app.example', 'APP.LOCAL'].each do |host|
+      it "should reject an IP literal, single-label or reserved hostname #{host}" do
+        @valid_metadata['client_id'] = "https://#{host}/metadata.json"
+
+        expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /client_id/)
+      end
+    end
+
+    ['', '/', '/clients/', '/clients/?version=2', '?version=2'].each do |path|
+      it "should reject an empty, root or trailing-slash client ID path #{path.inspect}" do
+        @valid_metadata['client_id'] = "https://example.com#{path}"
+
+        expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /client_id/)
+      end
+    end
+
+    ['https://APP.EXAMPLE.COM/clients/mobile.json?version=2',
+     'https://app.example.com/clients/mobile.json', 'https://example.com/a/../metadata.json'].each do |client_id|
+      it "should accept a public domain and non-root file path without adding normalization checks #{client_id}" do
+        @valid_metadata['client_id'] = client_id
+
+        described_class.new(@valid_metadata).client_id.should == client_id
+      end
+    end
+
     ["https://example.com/metadata.json", "https://example.com/metadata.json?version=2"].each do |client_id|
       it "should accept an allowed HTTPS client ID #{client_id}" do
         @valid_metadata["client_id"] = client_id
@@ -140,6 +167,16 @@ describe AuthProto::Metadata::ClientMetadata do
 
   describe "redirect URI validation" do
     describe "web clients" do
+      ['localhost', 'LOCALHOST', '127.0.0.1', '[::1]'].each do |host|
+        it "should reject an HTTPS callback using loopback host #{host}" do
+          @valid_metadata['redirect_uris'] = ["https://#{host}/callback"]
+
+          expect { described_class.new(@valid_metadata) }.to raise_error(
+            AuthProto::InvalidClientMetadata, /loopback host/
+          )
+        end
+      end
+
       ["https://example.com/callback", "https://login.example.net/callback",
        "https://login.example.net:8443/callback", "https://example.com/callback?flow=login"].each do |redirect_uri|
         it "should accept HTTPS callback #{redirect_uri}" do
@@ -311,9 +348,10 @@ describe AuthProto::Metadata::ClientMetadata do
     end
 
     ["atproto atproto", "atproto transition:generic transition:generic"].each do |scope|
-      it "should accept and preserve duplicate scopes #{scope.inspect}" do
+      it "should reject duplicate scopes #{scope.inspect}" do
         @valid_metadata["scope"] = scope
-        described_class.new(@valid_metadata).scope.should == scope
+
+        expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /duplicate/)
       end
     end
 
@@ -323,9 +361,10 @@ describe AuthProto::Metadata::ClientMetadata do
     end
 
     [["authorization_code", "authorization_code"], ["authorization_code", "refresh_token", "refresh_token"]].each do |grants|
-      it "should accept and preserve duplicate grant types #{grants.inspect}" do
+      it "should reject duplicate grant types #{grants.inspect}" do
         @valid_metadata["grant_types"] = grants
-        described_class.new(@valid_metadata).grant_types.should == grants
+
+        expect { described_class.new(@valid_metadata) }.to raise_error(AuthProto::InvalidClientMetadata, /duplicates/)
       end
     end
 

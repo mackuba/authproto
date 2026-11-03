@@ -67,6 +67,7 @@ module AuthProto
       def validate_client_id: (String client_id) -> String
 
       def valid_https_client_id?: (String client_id) -> bool
+      def valid_client_id_hostname?: (String hostname) -> bool
 
       def valid_localhost_client_id?: (String client_id) -> bool
 

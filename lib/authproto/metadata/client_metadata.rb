@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'ipaddr'
 require 'jose'
 require 'json'
 require 'uri'
@@ -272,9 +273,21 @@ module AuthProto
 
       def valid_https_client_id?(client_id)
         uri = ValidatedURI.new(client_id)
-        uri.scheme == 'https' && !uri.port && !uri.userinfo && !uri.fragment
+        uri.scheme == 'https' && !uri.port && !uri.userinfo && !uri.fragment &&
+          valid_client_id_hostname?(uri.hostname) && !uri.path.empty? && !uri.path.end_with?('/')
       rescue URI::InvalidURIError
         false
+      end
+
+      def valid_client_id_hostname?(hostname)
+        labels = hostname.downcase.split('.')
+        return false if labels.length < 2 || %w[local localhost test invalid example].include?(labels.last)
+        return false if hostname.match?(/\A[0-9.]+\z/)
+
+        IPAddr.new(hostname)
+        false
+      rescue IPAddr::InvalidAddressError
+        true
       end
 
       def valid_localhost_client_id?(client_id)
@@ -288,6 +301,10 @@ module AuthProto
       def validate_grant_types(grant_types)
         raise InvalidClientMetadata, "grant_types is required" unless grant_types
         raise InvalidClientMetadata, "grant_types must be an array" unless grant_types.is_a?(Array)
+
+        unless grant_types.uniq.length == grant_types.length
+          raise InvalidClientMetadata, "grant_types must not contain duplicates"
+        end
 
         unless grant_types.include?('authorization_code')
           raise InvalidClientMetadata, "grant_types must include authorization_code"
@@ -345,6 +362,10 @@ module AuthProto
 
         raise InvalidClientMetadata, "redirect URI must not contain credentials" if uri.userinfo
         raise InvalidClientMetadata, "redirect URI must not contain a fragment" if uri.fragment
+
+        if ['localhost', '127.0.0.1', '[::1]'].include?(uri.host.downcase)
+          raise InvalidClientMetadata, "HTTPS redirect URI must not use a loopback host"
+        end
 
         if uri.specified_port && uri.effective_port == 443
           raise InvalidClientMetadata, "HTTPS redirect URI must not specify the default port"
@@ -412,6 +433,10 @@ module AuthProto
 
         scope_values = scope.split(' ')
         raise InvalidClientMetadata, "atproto scope is required" unless scope_values.include?('atproto')
+
+        unless scope_values.uniq.length == scope_values.length
+          raise InvalidClientMetadata, "scope must not contain duplicate tokens"
+        end
 
         scope
       end
