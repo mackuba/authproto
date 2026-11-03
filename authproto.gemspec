@@ -8,8 +8,19 @@ Gem::Specification.new do |spec|
   spec.authors = ["Josh Huckabee", "Kuba Suder"]
   spec.email = ["jakub.suder@gmail.com"]
 
-  spec.summary = "Ruby implementation of the AT Protocol OAuth specification"
-  spec.description = "A Ruby library for implementing AT Protocol OAuth flows, including DPoP, PAR, and dynamic client registration. Supports both client and server-side implementations with comprehensive security features."
+  spec.summary = "Ruby implementation of an AT Protocol specific OAuth client"
+  spec.description = %(
+    A Ruby gem implementing an OAuth 2.1 client specifically targeted for use in AT Protocol context. Supports both
+    public and confidential clients, handles DPoP, nonce management, client and server metadata JSON, PAR, PKCE,
+    client assertions for confidential clients, storage of session state, and at rest encryption of stored tokens.
+    Includes SQLite, Redis and in-memory storage backends, and an adapter for using the Minisky gem with OAuth
+    login support.
+
+    This gem deliberately does not support any features, profiles and configurations of OAuth that are not currently
+    used in ATProto, and does not support turning off any additional requirements and restrictions that ATProto
+    introduces on top of standard OAuth specifications.
+  )
+
   spec.homepage = "https://tangled.org/mackuba.eu/authproto"
 
   spec.license = "MIT"
