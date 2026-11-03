@@ -543,6 +543,8 @@ module AuthProto
         @token_endpoint_auth_method = metadata['token_endpoint_auth_method']
         @token_endpoint_auth_signing_alg = metadata['token_endpoint_auth_signing_alg']
 
+        # Not technically required, but if the field is not set, the reference PDS sets it
+        # to (unsupported) `client_secret_basic`.
         raise InvalidClientMetadata, "token_endpoint_auth_method is required" if @token_endpoint_auth_method.nil?
 
         @jwks = metadata['jwks']
