@@ -94,7 +94,7 @@ module AuthProto
       def submit(request, session:)
         raise Error, "Expected a PAR::Request" unless request.is_a?(PAR::Request)
 
-        response = dpop_client.with_nonce_handling(session, @par_endpoint) do
+        response = dpop_client.with_nonce_handling(session.session_id, @par_endpoint) do
           make_request(request, session: session)
         end
 

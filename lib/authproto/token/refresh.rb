@@ -261,7 +261,7 @@ module AuthProto
       end
 
       def request_token_refresh
-        response = dpop_client.with_nonce_handling(session, auth_server.token_endpoint) do
+        response = dpop_client.with_nonce_handling(session.session_id, auth_server.token_endpoint) do
           make_token_request(session)
         end
 

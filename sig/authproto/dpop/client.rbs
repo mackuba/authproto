@@ -13,7 +13,7 @@ module AuthProto
       def has_nonce_error?: (http_response response) -> bool
       def process_response: (http_response response, server_url: String, session_id: String) -> void
 
-      def with_nonce_handling: (State::Session session, String url) { () -> http_response } -> http_response
+      def with_nonce_handling: (String session_id, String url) { () -> http_response } -> http_response
 
       private
 

@@ -52,7 +52,7 @@ module AuthProto
         endpoint = @session.auth_server&.revocation_endpoint
         raise Error, "Authorization server does not advertise a revocation endpoint" unless endpoint
 
-        response = @dpop_client.with_nonce_handling(@session, endpoint) do
+        response = @dpop_client.with_nonce_handling(@session.session_id, endpoint) do
           make_request(token, endpoint, token_type)
         end
 

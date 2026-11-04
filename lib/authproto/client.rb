@@ -509,7 +509,7 @@ module AuthProto
     end
 
     def exchange_code(code:, session:)
-      response = dpop_client.with_nonce_handling(session, session.auth_server.token_endpoint) do
+      response = dpop_client.with_nonce_handling(session.session_id, session.auth_server.token_endpoint) do
         make_token_request(code, session)
       end
 

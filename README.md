@@ -364,7 +364,7 @@ post_record = {
   }
 }
 
-response = client.dpop_client.with_nonce_handling(oauth_session, endpoint) do
+response = client.dpop_client.with_nonce_handling(session_id, endpoint) do
   headers = client.auth_headers(
     session_id: session_id,
     method: 'POST',

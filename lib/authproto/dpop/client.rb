@@ -140,22 +140,22 @@ module AuthProto
       # The block must build a fresh proof and send the request on each invocation;
       # the initial proof may already include a cached nonce.
       #
-      # @param session [State::Session] session making the request
+      # @param session_id [String] ID of the session making the request
       # @param url [String] request URL whose origin owns the nonce
       # @yield sends one HTTP request using a fresh DPoP proof
       # @yieldreturn [Hash{Symbol => Object}] HTTP response with status, headers and body
       # @return [Hash{Symbol => Object}] final response, including any remaining error
       # @raise [Error] if a response lacks a valid nonce or nonce persistence fails
       #
-      def with_nonce_handling(session, url)
+      def with_nonce_handling(session_id, url)
         response = yield
 
-        process_response(response, server_url: url, session_id: session.session_id)
+        process_response(response, server_url: url, session_id: session_id)
 
         if has_nonce_error?(response)
           response = yield
 
-          process_response(response, server_url: url, session_id: session.session_id)
+          process_response(response, server_url: url, session_id: session_id)
         end
 
         response

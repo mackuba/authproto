@@ -151,7 +151,7 @@ describe AuthProto::DPoP::Client do
   describe "#with_nonce_handling" do
     it "should return the original response and store its nonce without retrying" do
       calls = 0
-      result = client.with_nonce_handling(session, uri) do
+      result = client.with_nonce_handling(session.session_id, uri) do
         calls += 1
         response
       end
@@ -168,7 +168,7 @@ describe AuthProto::DPoP::Client do
         responses = [challenge, response]
         proofs = []
 
-        result = client.with_nonce_handling(session, uri) do
+        result = client.with_nonce_handling(session.session_id, uri) do
           proof = client.generate_proof(session: session, method: method, uri: uri)
           proofs << JSON.parse(session.dpop_key.key.verify(proof)[1])
           responses.shift
@@ -186,7 +186,7 @@ describe AuthProto::DPoP::Client do
     it "should return a second challenge without making a third request" do
       calls = 0
       challenges = []
-      result = client.with_nonce_handling(session, uri) do
+      result = client.with_nonce_handling(session.session_id, uri) do
         calls += 1
         challenges << response.merge(status: 400, headers: { 'DPoP-Nonce' => "nonce-#{calls}" },
                                      body: '{"error":"use_dpop_nonce"}')
@@ -201,7 +201,7 @@ describe AuthProto::DPoP::Client do
     it "should return other errors without retrying" do
       calls = 0
       failure = response.merge(status: 400, body: '{"error":"invalid_grant"}')
-      result = client.with_nonce_handling(session, uri) do
+      result = client.with_nonce_handling(session.session_id, uri) do
         calls += 1
         failure
       end
@@ -215,7 +215,7 @@ describe AuthProto::DPoP::Client do
       it "should reject a missing nonce on attempt #{invalid_attempt} without further requests" do
         calls = 0
         expect {
-          client.with_nonce_handling(session, uri) do
+          client.with_nonce_handling(session.session_id, uri) do
             calls += 1
             headers = calls == invalid_attempt ? {} : response_headers
             response.merge(status: 400, headers: headers, body: '{"error":"use_dpop_nonce"}')
@@ -229,7 +229,7 @@ describe AuthProto::DPoP::Client do
       calls = 0
       failure = IOError.new("Connection lost")
       expect {
-        client.with_nonce_handling(session, uri) do
+        client.with_nonce_handling(session.session_id, uri) do
           calls += 1
           raise failure
         end
