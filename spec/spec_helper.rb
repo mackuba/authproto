@@ -1,5 +1,14 @@
 # frozen_string_literal: true
 
+unless ENV["GITHUB_ACTIONS"] == "true"
+  require 'simplecov'
+
+  SimpleCov.start do
+    enable_coverage :branch
+    formatter SimpleCov::Formatter::HTMLFormatter.new(silent: true)
+  end
+end
+
 require 'base64'
 require 'rspec'
 require 'webmock/rspec'

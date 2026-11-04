@@ -12,6 +12,7 @@ gem 'rbs', '~> 3.6'
 gem 'rspec', '~> 3.13'
 gem 'mocha', '~> 2.6'
 gem 'webmock', '~> 3.24'
+gem 'simplecov', require: false
 
 gem 'rdoc'
 gem 'yard'
