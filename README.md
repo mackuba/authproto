@@ -296,7 +296,7 @@ This part is… a bit complicated, because this API is designed to allow working
 
 ```rb
 endpoint = "https://#{pds_host}/xrpc/com.atproto.repo.createRecord"
-oauth_session = client.session_manager.get_session(session_id)
+tokens = client.get_tokens(session_id)
 
 headers = client.auth_headers(
   session_id: session_id,
@@ -312,7 +312,7 @@ res = connection.post(endpoint) do |req|
   headers.each { |key, value| req.headers[key] = value }
 
   req.body = {
-    repo: oauth_session.did,
+    repo: tokens.fetch(:did),
     collection: "app.bsky.feed.post",
     record: {
       text: "Hello world!",
@@ -325,21 +325,21 @@ end
 
 One additional complication is **DPoP** and its changing *nonces*. The server gives you a "nonce" that you need to use to generate the "proof" header, which changes after at most 5 minutes, so the requests will often fail with a header indicating a new nonce to use.
 
-You handle this by passing the response headers to `client.dpop_client` like this to let it update the nonce. The method expects the response as a hash of `{ headers, body, status }` (since different HTTP libraries will return it in a different format):
+You handle this by passing the response to `client.process_dpop` like this to let it update the nonce. The method expects the response as a hash of `{ headers, body, status }` (since different HTTP libraries will return it in a different format):
 
 ```rb
 response = { headers: res.headers, body: res.body, status: res.status }
 
-client.dpop_client.process_response(response,
+client.process_dpop(response,
   server_url: endpoint,
   session_id: session_id
 )
 ```
 
-Then, ask the `dpop_client` to check if the response contains a nonce error, and if so, you'll need to retry the whole request once again (with new headers):
+Then, ask the client to check if the response contains a nonce error, and if so, you'll need to retry the whole request once again (with new headers):
 
 ```rb
-if client.dpop_client.has_nonce_error?(response)
+if client.has_nonce_error?(response)
   make_request(...)
 end
 ```
@@ -348,14 +348,14 @@ You can also use the `with_nonce_handling` helper, passing it a block which make
 
 ```rb
 endpoint = "https://#{pds_host}/xrpc/com.atproto.repo.createRecord"
-oauth_session = client.session_manager.get_session(session_id)
+tokens = client.get_tokens(session_id)
 
 connection = Faraday.new do |f|
   f.request :json
 end
 
 post_record = {
-  repo: oauth_session.did,
+  repo: tokens.fetch(:did),
   collection: "app.bsky.feed.post",
   record: {
     text: "Hello world!",
@@ -364,7 +364,7 @@ post_record = {
   }
 }
 
-response = client.dpop_client.with_nonce_handling(session_id, endpoint) do
+response = client.with_nonce_handling(session_id, endpoint) do
   headers = client.auth_headers(
     session_id: session_id,
     method: 'POST',

@@ -249,9 +249,9 @@ class Minisky::OAuthClient
       response = make_request(request)
       response_hash = { status: response.code.to_i, headers: response.each_header.to_h, body: response.body }
 
-      oauth_client.dpop_client.process_response(response_hash, server_url: url.to_s, session_id: session_id)
+      oauth_client.process_dpop(response_hash, server_url: url.to_s, session_id: session_id)
 
-      if oauth_client.dpop_client.has_nonce_error?(response_hash)
+      if oauth_client.has_nonce_error?(response_hash)
         return response if nonce_retries >= MAX_NONCE_RETRIES
         nonce_retries += 1
       else

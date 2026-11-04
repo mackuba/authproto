@@ -294,7 +294,7 @@ module AuthProto
     # Builds authorization headers and a fresh DPoP proof for one HTTP request.
     #
     # The caller sends the request. This method does not refresh tokens, send HTTP,
-    # or retry nonce challenges. Feed each full HTTP response to {DPoP::Client#process_response}
+    # or retry nonce challenges. Feed each full HTTP response to {#process_dpop}
     # and call {#refresh_token} explicitly when needed. Generate new headers for each retry.
     #
     # @param session_id [String] authorized session ID
@@ -323,6 +323,41 @@ module AuthProto
         "Authorization" => "DPoP #{session.tokens.access_token}",
         "DPoP" => dpop_proof
       }
+    end
+
+    # Stores the DPoP nonce from an HTTP response for the session and server origin.
+    #
+    # @param response [Hash{Symbol => Object}] HTTP response with `:status`, `:headers`, and `:body`
+    # @param server_url [String] URL of the request that produced the response
+    # @param session_id [String] ID of the session that made the request
+    # @return [void]
+    # @raise [DPoP::Client::Error] if the response or nonce is invalid or storage fails
+    #
+    def process_dpop(response, server_url:, session_id:)
+      dpop_client.process_response(response, server_url: server_url, session_id: session_id)
+    end
+
+    # Checks whether an HTTP response requests a retry with a new DPoP nonce.
+    #
+    # @param response [Hash{Symbol => Object}] HTTP response with `:status`, `:headers`, and `:body`
+    # @return [Boolean]
+    # @raise [DPoP::Client::Error] if the response hash is invalid
+    #
+    def has_nonce_error?(response)
+      dpop_client.has_nonce_error?(response)
+    end
+
+    # Processes DPoP responses and retries a nonce challenge once.
+    #
+    # @param session_id [String] ID of the session making the request
+    # @param url [String] request URL whose origin owns the nonce
+    # @yield generate fresh authorization headers and send the request on each attempt
+    # @yieldreturn [Hash{Symbol => Object}] HTTP response with `:status`, `:headers`, and `:body`
+    # @return [Hash{Symbol => Object}] final response
+    # @raise [DPoP::Client::Error] if the response or nonce is invalid or storage fails
+    #
+    def with_nonce_handling(session_id, url, &block)
+      dpop_client.with_nonce_handling(session_id, url, &block)
     end
 
     # Removes a stored session and its state-token lookup, optionally revoking its tokens first.

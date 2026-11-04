@@ -1,3 +1,8 @@
+## Unreleased
+
+- `Client` now rejects a `metadata` hash passed in argument for localhost clients (since you need to put the values into the `client_id` query params anyway for the server to read them)
+- added `process_dpop`, `has_nonce_error?` and `with_nonce_handling` helpers to `Client`, proxying the calls to `dpop_client` for easier access
+
 ## [0.3.0.beta4] – 2026-11-03
 
 - at the end of authentication that started with a PDS URL, verify that the received DID belongs to that PDS
