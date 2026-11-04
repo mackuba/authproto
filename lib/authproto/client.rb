@@ -299,7 +299,7 @@ module AuthProto
     #
     # @param session_id [String] authorized session ID
     # @param method [String] HTTP method for the proof
-    # @param url [String] absolute request URL without a query string or fragment
+    # @param url [String] absolute HTTPS request URL; the query string and fragment are ignored
     #
     # @return [Hash{String => String}] `Authorization: DPoP ...` and `DPoP` proof headers
     # @raise [TokenError] if the session is missing or its access token is expired

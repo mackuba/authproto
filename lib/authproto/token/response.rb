@@ -39,6 +39,8 @@ module AuthProto
 
         data = JSON.parse(response[:body])
         raise Error, "Token response must be a JSON object" unless data.is_a?(Hash)
+
+        # OpenID Connect is explicitly not supported
         raise Error, "Token response must not include id_token" if data.key?('id_token')
 
         ['access_token', 'token_type', 'expires_in', 'scope', 'sub'].each do |field|

@@ -303,6 +303,7 @@ module AuthProto
         raise InvalidClientMetadata, "grant_types must be an array" unless grant_types.is_a?(Array)
 
         unless grant_types.uniq.length == grant_types.length
+          # follows the reference implementation
           raise InvalidClientMetadata, "grant_types must not contain duplicates"
         end
 
@@ -364,6 +365,7 @@ module AuthProto
         raise InvalidClientMetadata, "redirect URI must not contain a fragment" if uri.fragment
 
         if ['localhost', '127.0.0.1', '[::1]'].include?(uri.host.downcase)
+          # follows the reference implementation
           raise InvalidClientMetadata, "HTTPS redirect URI must not use a loopback host"
         end
 
@@ -435,6 +437,7 @@ module AuthProto
         raise InvalidClientMetadata, "atproto scope is required" unless scope_values.include?('atproto')
 
         unless scope_values.uniq.length == scope_values.length
+          # follows the reference implementation
           raise InvalidClientMetadata, "scope must not contain duplicate tokens"
         end
 
