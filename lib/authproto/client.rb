@@ -86,7 +86,7 @@ module AuthProto
     #
     # @param client_id [String] OAuth client ID URL
     # @param redirect_uri [String] callback URI listed in `redirect_uris`
-    # @param metadata [Hash{String => Object}, nil] preloaded metadata, or `nil` to fetch `client_id`
+    # @param metadata [Hash{String => Object}, nil] preloaded metadata for an HTTPS client ID
     # @param signing_key [Hash, JOSE::JWK, nil] private ES256 client-authentication key, separate from public metadata
     #
     # @raise [InvalidClientMetadata] if metadata is invalid, unavailable, has a different client ID,
@@ -98,6 +98,13 @@ module AuthProto
     def initialize(client_id:, redirect_uri:, metadata: nil, signing_key: nil)
       @client_id = client_id
       @redirect_uri = redirect_uri
+
+      if metadata && client_id.is_a?(String) && client_id =~ %r{^http://localhost(/|$)}i
+        raise InvalidClientMetadata.new(
+          "For localhost clients, do not include metadata as a hash, " +
+          "but configure scope and redirect_uri through the client ID query params"
+        )
+      end
 
       if metadata && metadata['client_id'] != @client_id
         raise InvalidClientMetadata, "client_id mismatch: #{metadata['client_id']} != #{@client_id}"

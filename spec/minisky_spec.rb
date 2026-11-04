@@ -107,15 +107,14 @@ describe Minisky::OAuthClient do
   end
 
   it "should authorize a localhost public client using PKCE and DPoP without a client assertion" do
-    client_metadata["client_id"] = "http://localhost/"
-    client_metadata["application_type"] = "native"
-    client_metadata["redirect_uris"] = ["http://127.0.0.1:9292/callback"]
-    client_metadata["token_endpoint_auth_method"] = "none"
+    redirect_uri = 'http://127.0.0.1:9292/callback'
+    client_id = "http://localhost/?#{URI.encode_www_form(redirect_uri: redirect_uri)}"
+    client = described_class.new(host, client_id: client_id, redirect_uri: redirect_uri)
     stub_authorization_metadata
     AuthProto::PAR::ClientAssertion.expects(:new).never
     stub_request(:post, "#{auth_server.issuer}/par").with do |request|
       form = URI.decode_www_form(request.body).to_h
-      form["client_id"] == "http://localhost/" && form["code_challenge_method"] == "S256" &&
+      form["client_id"] == client_id && form["code_challenge_method"] == "S256" &&
         !form.key?("client_assertion") && !form.key?("client_assertion_type") && request.headers.key?("Dpop")
     end.to_return(
       status: 201, headers: { "DPoP-Nonce" => "fixture-nonce", "Content-Type" => "application/json" },

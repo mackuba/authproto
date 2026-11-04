@@ -1,6 +1,25 @@
 # frozen_string_literal: true
 
 describe AuthProto::Client, 'redirect URI matching' do
+  ['http://localhost', 'http://localhost/?scope=atproto'].each do |client_id|
+    it "should reject preloaded metadata for #{client_id}" do
+      metadata = {
+        'client_id' => client_id,
+        'application_type' => 'native',
+        'redirect_uris' => ['http://127.0.0.1/'],
+        'grant_types' => ['authorization_code'],
+        'response_types' => ['code'],
+        'scope' => 'atproto',
+        'token_endpoint_auth_method' => 'none',
+        'dpop_bound_access_tokens' => true
+      }
+
+      expect {
+        described_class.new(client_id: client_id, redirect_uri: 'http://127.0.0.1/', metadata: metadata)
+      }.to raise_error(AuthProto::InvalidClientMetadata, /For localhost clients/)
+    end
+  end
+
   ['127.0.0.1', '[::1]'].each do |host|
     it "should accept a dynamic port for the default #{host} development callback" do
       redirect_uri = "http://#{host}:54321/"
