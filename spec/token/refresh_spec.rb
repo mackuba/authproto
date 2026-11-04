@@ -359,7 +359,7 @@ describe AuthProto::Token::Refresh do
   ['retry-after', 'Retry-After', 'rEtRy-AfTeR'].each do |header_name|
     it "should read the #{header_name} response header when rate limited" do
       AuthProto.configuration.http_client.expects(:post).times(3).returns(
-        status: 429, headers: { 'DPoP-Nonce' => 'fixture-nonce', header_name => '37' }
+        status: 429, headers: { 'DPoP-Nonce' => 'fixture-nonce', header_name => '37' }, body: nil
       )
 
       expect {

@@ -17,6 +17,7 @@ module AuthProto
 
       private
 
+      def validate_response_fields: (http_response response) -> void
       def nonce_challenge?: (String? challenge) -> bool
     end
   end

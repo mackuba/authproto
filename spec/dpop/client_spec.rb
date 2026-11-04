@@ -19,6 +19,20 @@ describe AuthProto::DPoP::Client do
   let(:response_headers) { { "DPoP-Nonce" => nonce } }
   let(:response) { { status: 200, headers: response_headers, body: '{}' } }
 
+  %i[status headers body].each do |key|
+    it "should reject responses missing :#{key} before storing a nonce or detecting a challenge" do
+      incomplete_response = response.except(key)
+      client.nonce_manager.expects(:update).never
+
+      expect {
+        client.process_response(incomplete_response, server_url: server_url, session_id: session.session_id)
+      }.to raise_error(described_class::Error, /Missing response keys: #{key}/)
+      expect {
+        client.has_nonce_error?(incomplete_response)
+      }.to raise_error(described_class::Error, /Missing response keys: #{key}/)
+    end
+  end
+
   describe "#initialize" do
     it "should initialize with a custom nonce_ttl" do
       client.nonce_manager.instance_variable_get(:@ttl).should == 400

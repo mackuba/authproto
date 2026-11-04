@@ -86,12 +86,9 @@ module AuthProto
       # @raise [Error] if nonce validation or persistence fails
       #
       def process_response(response, server_url:, session_id:)
-        raise Error, "Expected a response hash" unless response.is_a?(Hash)
+        validate_response_fields(response)
 
-        response_headers = response[:headers]
-        raise Error, "Missing or invalid response headers" unless response_headers.is_a?(Hash)
-
-        if response_headers.keys.count { |name| name.casecmp?('DPoP-Nonce') } > 1
+        if response[:headers].keys.count { |name| name.casecmp?('DPoP-Nonce') } > 1
           raise Error, "Multiple DPoP-Nonce headers"
         end
 
@@ -118,10 +115,7 @@ module AuthProto
       # @raise [Error] if the response or its headers have an invalid type
       #
       def has_nonce_error?(response)
-        raise Error, "Expected a response hash" unless response.is_a?(Hash)
-
-        headers = response[:headers]
-        raise Error, "Missing or invalid response headers" unless headers.is_a?(Hash)
+        validate_response_fields(response)
 
         case response[:status]
         when 400
@@ -169,6 +163,18 @@ module AuthProto
 
 
       private
+
+      def validate_response_fields(response)
+        raise Error, "Expected a response hash" unless response.is_a?(Hash)
+
+        missing_keys = %i[status headers body].reject { |key| response.key?(key) }
+
+        unless missing_keys.empty?
+          raise Error, "Missing response keys: #{missing_keys.join(', ')}"
+        end
+
+        raise Error, "Missing or invalid response headers" unless response[:headers].is_a?(Hash)
+      end
 
       def nonce_challenge?(challenge)
         authentication_challenge(challenge, scheme: 'DPoP')&.fetch('error', nil) == DPoP::ERROR_USE_NONCE
