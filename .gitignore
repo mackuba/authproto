@@ -2,4 +2,4 @@
 .yardoc
 /coverage
 /doc
-Gemfile.lock
+/Gemfile.lock
