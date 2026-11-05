@@ -45,7 +45,7 @@ describe AuthProto::Client, 'redirect URI matching' do
     it "should reject an unregistered or invalid development callback #{uri.inspect}" do
       expect {
         described_class.new(client_id: 'http://localhost', redirect_uri: uri)
-      }.to raise_error(AuthProto::Error, /redirect_uri not found/)
+      }.to raise_error(AuthProto::InvalidClientMetadata, /redirect_uri not found/)
     end
   end
 
@@ -57,7 +57,7 @@ describe AuthProto::Client, 'redirect URI matching' do
 
       expect {
         described_class.new(client_id: client_id, redirect_uri: uri)
-      }.to raise_error(AuthProto::Error, /redirect_uri not found/)
+      }.to raise_error(AuthProto::InvalidClientMetadata, /redirect_uri not found/)
     end
   end
 
@@ -82,7 +82,7 @@ describe AuthProto::Client, 'redirect URI matching' do
       expect {
         described_class.new(client_id: metadata['client_id'], metadata: metadata,
                             redirect_uri: registered_uri.sub(':12345/', ':54321/'))
-      }.to raise_error(AuthProto::Error, /redirect_uri not found/)
+      }.to raise_error(AuthProto::InvalidClientMetadata, /redirect_uri not found/)
     end
   end
 end

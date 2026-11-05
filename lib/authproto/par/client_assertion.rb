@@ -6,6 +6,7 @@ require 'securerandom'
 
 require_relative '../configuration'
 require_relative '../errors'
+require_relative '../par'
 
 module AuthProto
   module PAR
@@ -19,7 +20,7 @@ module AuthProto
     class ClientAssertion
 
       # Raised when client assertion key import or JWT signing fails.
-      class Error < AuthProto::Error; end
+      class Error < PAR::Error; end
 
       # JWS signing algorithm used for client assertions.
       # @return [String]

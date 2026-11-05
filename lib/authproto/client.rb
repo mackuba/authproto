@@ -149,10 +149,10 @@ module AuthProto
 
       if !pds
         did = DIDKit::DID.resolve_handle(handle)
-        raise Error, "Could not resolve or verify identity #{handle}" unless did
+        raise AuthorizationError, "Could not resolve or verify identity #{handle}" unless did
 
         pds = did.document.pds_endpoint
-        raise Error, "No HTTPS PDS location found for #{did}" unless pds && URI(pds).is_a?(URI::HTTPS)
+        raise AuthorizationError, "No HTTPS PDS location found for #{did}" unless pds && URI(pds).is_a?(URI::HTTPS)
       end
 
       authorization_server = resolve_auth_server_info(pds)
@@ -436,7 +436,7 @@ module AuthProto
         end
       end
 
-      raise Error, "redirect_uri not found in client metadata"
+      raise InvalidClientMetadata, "redirect_uri not found in client metadata"
     end
 
     def loopback_redirect_components(url)
@@ -493,20 +493,20 @@ module AuthProto
 
     def validate_auth_params(handle, pds, scope)
       unless scope.is_a?(String) && scope.valid_encoding? && Metadata::ClientMetadata::SCOPE_PATTERN.match?(scope)
-        raise Error, "scope must contain valid tokens separated by single spaces"
+        raise AuthorizationError, "scope must contain valid tokens separated by single spaces"
       end
 
       requested_scopes = scope.split(' ')
-      raise Error, "scope must include 'atproto'" unless requested_scopes.include?('atproto')
+      raise AuthorizationError, "scope must include 'atproto'" unless requested_scopes.include?('atproto')
 
-      undeclared_scopes = requested_scopes - @client_metadata.scope.split(' ')
+      undeclared = requested_scopes - @client_metadata.scope.split(' ')
 
-      unless undeclared_scopes.empty?
-        raise Error, "scope contains values not declared in client metadata: #{undeclared_scopes.join(' ')}"
+      unless undeclared.empty?
+        raise AuthorizationError, "scope contains values not declared in client metadata: #{undeclared.join(' ')}"
       end
 
-      raise Error, "handle or pds must be provided" if handle.nil? && pds.nil?
-      raise Error, "cannot provide both handle and pds" if handle && pds
+      raise AuthorizationError, "handle or pds must be provided" if handle.nil? && pds.nil?
+      raise AuthorizationError, "cannot provide both handle and pds" if handle && pds
     end
 
     def resolve_auth_server_info(pds)
