@@ -54,13 +54,13 @@ module AuthProto
     MAX_RESPONSE_SIZE = 10 * 1024 * 1024 # 10MB
 
     # Error raised when a request is blocked due to SSRF protection
-    class SSRFError < Error; end
+    class SSRFError < AuthProto::Error; end
 
     #
     # Error raised when an HTTP request fails
     #
 
-    class HTTPError < Error
+    class HTTPError < AuthProto::Error
 
       # Response associated with the failure, when retained by the transport.
       # @return [Net::HTTPResponse, nil]

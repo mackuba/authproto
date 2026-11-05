@@ -63,7 +63,7 @@ module AuthProto
   end
 
   # Raised when global configuration settings are invalid.
-  class ConfigurationError < Error; end
+  class ConfigurationError < AuthProto::Error; end
 
   #
   # Configuration class for global AuthProto settings

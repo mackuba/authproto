@@ -17,7 +17,7 @@ module AuthProto
   class Error < StandardError
   end
 
-  class OAuthError < Error
+  class OAuthError < AuthProto::Error
     attr_reader error_code: String
     def initialize: (String message, String error_code) -> void
   end
@@ -30,7 +30,7 @@ module AuthProto
     def initialize: (String message) -> void
   end
 
-  class ConfigurationError < Error
+  class ConfigurationError < AuthProto::Error
   end
 
   class Configuration

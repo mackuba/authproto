@@ -33,16 +33,16 @@ module AuthProto
     include Token::Identity
 
     # Error raised when authorization callback fails
-    class CallbackError < Error; end
+    class CallbackError < AuthProto::Error; end
 
     # Error raised when token operations fail
-    class TokenError < Error; end
+    class TokenError < AuthProto::Error; end
 
     #
     # Error raised when session operations fail
     #
 
-    class SessionError < Error
+    class SessionError < AuthProto::Error
 
       # Identifier of the session associated with the failure, if known.
       # @return [String, nil]
