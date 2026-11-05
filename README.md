@@ -308,18 +308,19 @@ connection = Faraday.new do |f|
   f.request :json
 end
 
-res = connection.post(endpoint) do |req|
-  headers.each { |key, value| req.headers[key] = value }
-
-  req.body = {
-    repo: tokens.fetch(:did),
-    collection: "app.bsky.feed.post",
-    record: {
-      text: "Hello world!",
-      langs: ["en"],
-      createdAt: Time.now.utc.iso8601(3)
-    }
+post_record = {
+  repo: tokens.fetch(:did),
+  collection: "app.bsky.feed.post",
+  record: {
+    text: "Hello world!",
+    langs: ["en"],
+    createdAt: Time.now.utc.iso8601(3)
   }
+}
+
+res = connection.post(endpoint) do |req|
+  req.headers.merge!(headers)
+  req.body = post_record
 end
 ```
 
@@ -372,7 +373,7 @@ response = client.with_nonce_handling(session_id, endpoint) do
   )
 
   res = connection.post(endpoint) do |req|
-    headers.each { |key, value| req.headers[key] = value }
+    req.headers.merge!(headers)
     req.body = post_record
   end
 

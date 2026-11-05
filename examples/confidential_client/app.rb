@@ -214,7 +214,7 @@ class ExampleApp < Sinatra::Base
 
       # Make authenticated request
       response = conn.get("/xrpc/com.atproto.identity.resolveHandle") do |req|
-        headers.each { |k, v| req.headers[k] = v }
+        req.headers.merge!(headers)
         req.params[:handle] = "bsky.app"
       end
 
@@ -262,8 +262,9 @@ class ExampleApp < Sinatra::Base
       f.request :json
       f.response :json
     end
+
     response = conn.post(endpoint) do |req|
-      headers.each { |key, value| req.headers[key] = value }
+      req.headers.merge!(headers)
       req.body = {
         repo: oauth_session.did,
         collection: "app.bsky.feed.post",
