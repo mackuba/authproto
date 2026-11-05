@@ -25,21 +25,73 @@ require_relative 'token/revocation'
 module AuthProto
 
   #
-  # Main client class for AT Protocol OAuth implementation. Handles the complete
-  # OAuth flow including authorization, token management, and identity verification.
+  # The main client class of AuthProto for authorizing and managing user sessions and making required OAuth requests.
+  #
+  # This class is the main entry point to the library, and a wrapper for most of the functionality in the other
+  # classes. It handles or manages:
+  #
+  # - loading and validating client metadata and resource and authorization server metadata
+  # - initial session authorization and generating an authorization URL
+  # - executing PAR requests
+  # - completing an authorization on an OAuth callback
+  # - refreshing sessions
+  # - generating authorization headers for data requests to the resource server (PDS)
+  # - handling DPoP and nonces
+  # - generating client assertions
+  # - deleting and revoking sessions
+  #
+  # A {Client} is configured for a specific Client ID and a specific redirect URI as a callback, but is not bound
+  # to any single user session. Session IDs are passed in the arguments to specific method calls.
+  #
+  # @example
+  #   client = AuthProto::Client.new(
+  #     client_id: "https://site.example.com/oauth-client-metadata.json",
+  #     redirect_uri: "https://site.example.com/callback"
+  #   )
+  #   
+  #   auth = client.authorize(
+  #     pds: 'https://pds.example.com',
+  #     scope: 'atproto rpc:app.bsky.feed.getTimeline?aud=*'
+  #   )
+  #   
+  #   p auth[:url]
+  #   # ...
+  #   
+  #   client.handle_callback(
+  #     code: params[:code],
+  #     state: params[:state],
+  #     iss: params[:iss],
+  #     expected_session_id: auth[:session_id]
+  #   )
+  #   
+  #   url = "https://pds.example.com/xrpc/app.bsky.feed.getTimeline"
+  #   
+  #   response = client.with_nonce_handling(auth[:session_id], url) do
+  #     headers = client.auth_headers(session_id: auth[:session_id], method: 'GET', url: url)
+  #     response = Net::HTTP.get_response(URI(url), headers)
+  #   
+  #     {
+  #       status: response.code.to_i,
+  #       headers: response.to_hash.transform_values { |values| values.join(', ') },
+  #       body: response.body
+  #     }
+  #   end
   #
 
   class Client
     include Token::Identity
 
-    # Error raised when authorization callback fails
+    # An error raised when initial authorization fails.
+    class AuthorizationError < AuthProto::Error; end
+
+    # An error raised when authorization callback fails.
     class CallbackError < AuthProto::Error; end
 
-    # Error raised when token operations fail
+    # An error raised when token operations fail.
     class TokenError < AuthProto::Error; end
 
     #
-    # Error raised when session operations fail
+    # An error raised when session operations fail.
     #
 
     class SessionError < AuthProto::Error
@@ -59,40 +111,47 @@ module AuthProto
       end
     end
 
-    # OAuth client ID URL.
+    # OAuth client ID URL
     # @return [String]
     attr_reader :client_id
 
-    # Callback URI registered in the client metadata.
+    # The callback URL to which the user is redirected to complete authorization
     # @return [String]
     attr_reader :redirect_uri
 
-    # Validated client metadata.
+    # Parsed and validated metadata about the client
     # @return [Metadata::ClientMetadata]
     attr_reader :client_metadata
 
-    # Manager for stored OAuth sessions.
+    # A helper object managing stored OAuth sessions
     # @return [State::SessionManager]
     attr_reader :session_manager
 
-    # Shared DPoP proof generator and per-server nonce manager.
+    # A helper object generating DPoP proofs and handling DPoP nonces for the Client
     # @return [DPoP::Client]
     attr_reader :dpop_client
 
-    # Creates an OAuth client with shared DPoP helpers and a session manager.
+
+    # Creates an OAuth client with specified configuration.
     #
-    # Configure {AuthProto.configure} with an HTTP transport before fetching metadata
-    # or starting authorization. Session storage restores the DPoP key bound to each session.
+    # The initializer validates all passed arguments, fetches and validates the remote metadata JSON if not provided
+    # inline, and prepares helper objects necessary later.
     #
-    # @param client_id [String] OAuth client ID URL
-    # @param redirect_uri [String] callback URI listed in `redirect_uris`
-    # @param metadata [Hash{String => Object}, nil] preloaded metadata for an HTTPS client ID
-    # @param signing_key [Hash, JOSE::JWK, nil] private ES256 client-authentication key, separate from public metadata
+    # For localhost development:
+    # - pass `client_id` of `http://localhost/` with `redirect_uri` and `scope` encoded as query parameters
+    # - pass `redirect_uri` on `127.0.0.1` or `[::1]` hostname (optionally with port)
+    # - do not pass `metadata` or `signing_key`
     #
-    # @raise [InvalidClientMetadata] if metadata is invalid, unavailable, has a different client ID,
-    #   or the supplied signing key is missing, unexpected or does not match inline public metadata
-    # @raise [PAR::ClientAssertion::Error] if the private assertion key is invalid or unusable
-    # @raise [Error] if the redirect URI is not registered
+    # @param client_id [String] the OAuth client ID URL
+    # @param redirect_uri [String] the callback URL to which the user is redirected to complete authorization;
+    #   must be included on the `redirect_uris` list in the metadata
+    # @param metadata [Hash{String => Object}, nil] optionally, the client metadata JSON located at the client ID URL;
+    #   if not included, it will be fetched from that URL during initialization
+    # @param signing_key [Hash, JOSE::JWK, nil] a private ES256 key for client authentication (client assertions)
+    #   for confidential clients
+    #
+    # @raise [InvalidClientMetadata] if the metadata or some other parameters are invalid or don't match each other
+    # @raise [PAR::ClientAssertion::Error] if the signing key is invalid or not usable
     # @raise [HTTPClient::HTTPError, HTTPClient::SSRFError] if fetching client metadata fails
     #
     def initialize(client_id:, redirect_uri:, metadata: nil, signing_key: nil)
@@ -122,27 +181,35 @@ module AuthProto
       @dpop_client = DPoP::Client.new
     end
 
-    # Starts authorization, stores a pending session, and submits a PAR request.
+
+    # Starts the authorization process, creates a pending session, and submits a PAR request, then generates an
+    # authorization URL that the user should log in on.
     #
-    # Supply exactly one of `handle` or `pds`. Open the returned `:url` in a browser
-    # and pass the eventual callback parameters to {#handle_callback}. Retain `:session_id`
-    # in the initiating browser session or native login context for callback verification.
+    # Requires either a `handle` or a `pds` argument, but not both at the same time. If `handle` is passed, the user's
+    # PDS is looked up from the DID document and the user is directed there with a "login hint"; otherwise, the
+    # authorization begins on the given PDS, but without a pre-selected account.
     #
-    # @param handle [String, nil] account handle (optionally prefixed with `@`) or DID
-    # @param pds [String, nil] PDS URL when no handle is supplied
-    # @param scope [String] space-separated scopes, which must all be declared in client metadata, including `atproto`
+    # Returns a hash containing a `:url` and a `:session_id`. Direct the user to the returned authorization URL,
+    # and store the session ID in a local context or a browser session, since it will be needed to complete
+    # authorization at the callback endpoint.
     #
-    # @return [Hash{Symbol => String}] `:url` is the browser URL; `:session_id` identifies the pending session
-    # @raise [Error] if identity arguments or scope are invalid, the handle cannot be verified, or no HTTPS PDS is found
+    # @param handle [String, nil] account handle (may be prefixed with a `@`) or a DID string
+    # @param pds [String, nil] full URL of the PDS to authorize the user on
+    # @param scope [String] space-separated list of scopes to request authorization for; the scopes must all be
+    #   declared in the client metadata, and must include `atproto`
+    #
+    # @return [Hash{Symbol => String}] `:url` to direct the user to, `:session_id` of the created session
+    #
+    # @raise [AuthorizationError] if identity arguments or scope are invalid or identity can't be resolved
     # @raise [DIDKit::DIDError, DIDKit::FormatError, DIDKit::APIError] if DID validation or document fetching fails
-    # @raise [InvalidAuthorizationServer] if server discovery or metadata validation fails
-    # @raise [PAR::Error] if the pushed authorization request fails
-    # @raise [PAR::ClientAssertion::Error] if confidential-client signing fails
-    # @raise [DPoP::Client::Error] if generating the PAR proof fails
-    # @raise [HTTPClient::SSRFError] if server discovery rejects a destination
-    # @raise [DPoP::KeySet::KeyError] if generating the session key fails
-    # @raise [Storage::StorageError] if session storage or locking fails
     # @raise [Encryption::EncryptionError] if session serialization cannot encrypt secrets
+    # @raise [HTTPClient::SSRFError] if server discovery rejects a destination
+    # @raise [InvalidAuthorizationServer] if server discovery or metadata validation fails
+    # @raise [DPoP::Client::Error] if generating the PAR proof fails
+    # @raise [DPoP::KeySet::KeyError] if generating the session key fails
+    # @raise [PAR::ClientAssertion::Error] if client assertion signing fails
+    # @raise [PAR::Error] if the pushed authorization request fails
+    # @raise [Storage::StorageError] if session storage or locking fails
     #
     def authorize(handle: nil, pds: nil, scope: 'atproto')
       validate_auth_params(handle, pds, scope)
@@ -174,32 +241,45 @@ module AuthProto
       }
     end
 
-    # Validates a callback, exchanges its code, and stores the authenticated session.
+
+    # Validates received callback parameters, exchanges the code for access tokens, and stores the
+    # authenticated session.
     #
-    # The result contains `:access_token` (String), `:token_type` (String, `DPoP`),
-    # `:expires_in` (Integer seconds remaining), `:refresh_token` (String or nil),
-    # and `:scope` / `:granted_scope` (String, the granted permissions).
-    # It also contains `:session_id` (String) and `:did` (String).
+    # Call this method from the callback endpoint to which the user is redirected after authorizing access for your
+    # app on their PDS. The callback should include `:code`, `:state` and `:iss` params, which you need to pass here
+    # (unless the authorization was denied or otherwise failed, in which case it will include an `:error` param).
     #
-    # Supply the session ID retained when starting authorization as `expected_session_id`.
-    # For web apps, read it from the initiating browser's session, never from callback parameters
-    # or the state-token lookup. It is checked before exchanging the authorization code.
-    # Remove the browser's pending-session association after this method succeeds.
+    # Additionally, you need to provide the `session_id` of the pending session, received earlier in the response
+    # from the {#authorize} method. Make sure to confirm that this is the same session that has started the process
+    # earlier: take the session ID either from a local context for scripts, or from the initiating browser session for
+    # web apps, do not infer it from the received callback parameters.
+    #
+    # Returns a hash with session data, containing:
+    #
+    # - `:session_id` (String)
+    # - `:did` (String)
+    # - `:access_token` (String)
+    # - `:refresh_token` (String or nil)
+    # - `:expires_in` (Integer) – number of seconds remaining until the access token expires
+    # - `:requested_scope` (String) – space-separated list of requested permissions
+    # - `:granted_scope` (String) – space-separated list of actually granted permissions
     #
     # @param code [String] authorization code from the callback
     # @param state [String] state token from the callback
     # @param iss [String] issuer URL from the callback
-    # @param expected_session_id [String] pending session ID retained by the caller when authorization started
+    # @param expected_session_id [String] pending session ID previously received from {#authorize}
     #
-    # @return [Hash{Symbol => String, Integer, nil}] tokens and authenticated session details
-    # @raise [CallbackError] if the expected session ID is invalid, state is unknown, or session/issuer validation fails
-    # @raise [TokenError] if token exchange or response validation fails; identity failures attempt token revocation
-    # @raise [DPoP::Client::Error, PAR::ClientAssertion::Error] if proof/assertion generation fails
-    # @raise [HTTPClient::HTTPError, HTTPClient::SSRFError] if token transport fails
-    # @raise [State::SessionError] if token subject conflicts with the session DID
+    # @return [Hash{Symbol => String, Integer, nil}] tokens and session data
+    #
     # @raise [ArgumentError] if returned token fields fail token-set validation
-    # @raise [Storage::StorageError] if session storage or locking fails
+    # @raise [CallbackError] if the expected session ID is invalid, state is unknown, or session/issuer validation fails
+    # @raise [DPoP::Client::Error] if proof/assertion generation fails
     # @raise [Encryption::EncryptionError] if tokens cannot be encrypted for storage
+    # @raise [HTTPClient::HTTPError, HTTPClient::SSRFError] if token transport fails
+    # @raise [PAR::ClientAssertion::Error] if proof/assertion generation fails
+    # @raise [State::SessionError] if token subject conflicts with the session DID
+    # @raise [Storage::StorageError] if session storage or locking fails
+    # @raise [TokenError] if token exchange or response validation fails; identity failures attempt token revocation
     #
     def handle_callback(code:, state:, iss:, expected_session_id:)
       unless expected_session_id.is_a?(String) && !expected_session_id.empty?
@@ -222,16 +302,23 @@ module AuthProto
       end
     end
 
-    # Reads tokens for a session with a currently valid access token.
+
+    # Looks up a session using given ID and returns its tokens and session info.
     #
-    # The result contains `:access_token` (String),
-    # `:expires_in` (Integer seconds remaining), `:refresh_token` (String or nil),
-    # and `:requested_scope` (String, requested permissions) and `:granted_scope` (String, granted permissions).
-    # It also contains `:session_id` (String) and `:did` (String).
-    # This method does not refresh expired tokens.
+    # Returns a hash with session data, containing:
+    #
+    # - `:session_id` (String)
+    # - `:did` (String)
+    # - `:access_token` (String)
+    # - `:refresh_token` (String or nil)
+    # - `:expires_in` (Integer) – number of seconds remaining until the access token expires
+    # - `:requested_scope` (String) – space-separated list of requested permissions
+    # - `:granted_scope` (String) – space-separated list of actually granted permissions
+    #
+    # Returns nil if a session is not found or its access token is expired.
     #
     # @param session_id [String] session identifier
-    # @return [Hash{Symbol => String, Integer, nil}, nil] token details, or `nil` for missing/unauthorized sessions
+    # @return [Hash{Symbol => String, Integer, nil}, nil] tokens and session data, or `nil` if not found or expired
     #
     def get_tokens(session_id)
       session = session_manager.get_session(session_id)
@@ -240,22 +327,28 @@ module AuthProto
       session.session_data
     end
 
-    # Refreshes a renewable session and persists the replacement tokens.
+
+    # Looks up a session using given ID and refreshes its set of tokens.
     #
-    # The result contains `:access_token` (String),
-    # `:expires_in` (Integer seconds remaining), `:refresh_token` (String or nil),
-    # and `:requested_scope` (String, requested permissions) and `:granted_scope` (String, granted permissions).
-    # The result also contains `:session_id` (String) and `:did` (String). An expired access token can
-    # still be refreshed when the stored session has a refresh token.
+    # Returns a hash with session data, containing:
+    #
+    # - `:session_id` (String)
+    # - `:did` (String)
+    # - `:access_token` (String)
+    # - `:refresh_token` (String or nil)
+    # - `:expires_in` (Integer) – number of seconds remaining until the access token expires
+    # - `:requested_scope` (String) – space-separated list of requested permissions
+    # - `:granted_scope` (String) – space-separated list of actually granted permissions
     #
     # @param session_id [String] session to refresh
-    # @return [Hash{Symbol => String, Integer, nil}] replacement tokens and session identifiers
-    # @raise [TokenError] if the session is missing or has no refresh token
-    # @raise [Token::RefreshError] if the current PDS differs, token refresh fails or retries are exhausted
+    # @return [Hash{Symbol => String, Integer, nil}] updated tokens and session data
+    #
     # @raise [DPoP::Client::Error] if a refresh response lacks a valid nonce
+    # @raise [Encryption::EncryptionError] if replacement tokens cannot be stored
     # @raise [State::SessionError] if replacement tokens have a different subject
     # @raise [Storage::StorageError] if session storage or locking fails
-    # @raise [Encryption::EncryptionError] if replacement tokens cannot be stored
+    # @raise [TokenError] if the session is missing or has no refresh token
+    # @raise [Token::RefreshError] if the current PDS differs or token refresh fails
     #
     def refresh_token(session_id)
       AuthProto.storage.with_lock(Storage::KeyBuilder.lock_key('session', session_id), ttl: 30) do
@@ -281,27 +374,36 @@ module AuthProto
       end
     end
 
-    # Checks if a session has valid tokens
+
+    # Checks if a session with given ID exists and has valid and not expired tokens.
     #
-    # @param session_id [String] ID of session to check
-    # @return [Boolean] true if session exists and has valid tokens
+    # @param session_id [String] ID of a session to look up
+    # @return [Boolean] true if the session exists, is authenticated, and its access token is not expired
     #
     def authorized?(session_id)
       session = session_manager.get_session(session_id)
       session ? session.tokens_valid? : false
     end
 
-    # Builds authorization headers and a fresh DPoP proof for one HTTP request.
+
+    # Generates required authorization headers for a new HTTP request to user's resource server (PDS).
     #
-    # The caller sends the request. This method does not refresh tokens, send HTTP,
-    # or retry nonce challenges. Feed each full HTTP response to {#process_dpop}
-    # and call {#refresh_token} explicitly when needed. Generate new headers for each retry.
+    # The {Client} does not send the request itself; the headers are returned to the caller so you can add them
+    # to a request made using an HTTP client library of your choice.
     #
-    # @param session_id [String] authorized session ID
+    # Returns two headers:
+    # - `Authorization: DPoP <access_token>`
+    # - `DPoP: <dpop_proof>`
+    #
+    # New set of headers are needed for each new HTTP request, including repeated requests with an updated DPoP nonce
+    # or refreshed access token. After the request, the response should be passed to {#process_dpop} so the DPoP
+    # handling code can update the stored nonce.
+    #
+    # @param session_id [String] session ID of an authorized session
     # @param method [String] HTTP method for the proof
-    # @param url [String] absolute HTTPS request URL; the query string and fragment are ignored
+    # @param url [String] absolute HTTPS URL of the request; the query string and fragment are ignored
     #
-    # @return [Hash{String => String}] `Authorization: DPoP ...` and `DPoP` proof headers
+    # @return [Hash{String => String}] headers to attach to an outgoing request
     # @raise [TokenError] if the session is missing or its access token is expired
     # @raise [DPoP::Client::Error] if proof generation or nonce lookup fails
     #
@@ -325,10 +427,21 @@ module AuthProto
       }
     end
 
-    # Stores the DPoP nonce from an HTTP response for the session and server origin.
+
+    # Updates the stored DPoP server nonce from the `DPoP-Nonce` header returned in the given response.
     #
-    # @param response [Hash{Symbol => Object}] HTTP response with `:status`, `:headers`, and `:body`
-    # @param url [String] URL of the request that produced the response
+    # The response is expected to be in a hash format:
+    #
+    # ```rb
+    # {
+    #   status: 200,
+    #   headers: { ... },  # string keys and values
+    #   body: "..."        # string, not parsed JSON
+    # }
+    # ```
+    #
+    # @param response [Hash{Symbol => Object}] HTTP response hash with `:status`, `:headers`, and `:body`
+    # @param url [String] URL of the request that produced the response (only the origin is used)
     # @param session_id [String] ID of the session that made the request
     # @return [void]
     # @raise [DPoP::Client::Error] if the response or nonce is invalid or storage fails
@@ -337,42 +450,89 @@ module AuthProto
       dpop_client.process_response(response, url: url, session_id: session_id)
     end
 
-    # Checks whether an HTTP response requests a retry with a new DPoP nonce.
+
+    # Checks whether an HTTP response indicates that the server has rejected the request, requiring a retry
+    # with a new DPoP nonce.
     #
-    # @param response [Hash{Symbol => Object}] HTTP response with `:status`, `:headers`, and `:body`
-    # @return [Boolean]
+    # The response is expected to be in a hash format:
+    #
+    # ```rb
+    # {
+    #   status: 200,
+    #   headers: { ... },  # string keys and values
+    #   body: "..."        # string, not parsed JSON
+    # }
+    # ```
+    #
+    # @param response [Hash{Symbol => Object}] HTTP response hash with `:status`, `:headers`, and `:body`
+    # @return [Boolean] if the response is a `use_dpop_nonce` error
     # @raise [DPoP::Client::Error] if the response hash is invalid
     #
     def has_nonce_error?(response)
       dpop_client.has_nonce_error?(response)
     end
 
-    # Processes DPoP responses and retries a nonce challenge once.
+
+    # A helper for making a request with a possible retry with an updated DPoP nonce.
+    #
+    # Pass a block to this method, which makes a request to the resource or authorization server and returns the
+    # received response in a hash format:
+    #
+    # ```rb
+    # {
+    #   status: 200,
+    #   headers: { ... },  # string keys and values
+    #   body: "..."        # string, not parsed JSON
+    # }
+    # ```
+    #
+    # The method will run that block, process the headers from the received response, store the returned DPoP nonce,
+    # and if the response indicates a `use_dpop_nonce` error, it will call the block again to let you repeat the
+    # request with a new nonce. Returns the response from the final request, including if the second attempt returns
+    # an error response.
+    #
+    # @example
+    #   uri = URI.join(pds_url, '/xrpc/app.bsky.feed.getTimeline')
+    #   
+    #   response = client.with_nonce_handling(session_id, uri.to_s) do
+    #     headers = client.auth_headers(session_id: session_id, method: 'GET', url: uri.to_s)
+    #     response = Net::HTTP.get_response(uri, headers)
+    #   
+    #     {
+    #       status: response.code.to_i,
+    #       headers: response.to_hash.transform_values { |values| values.join(', ') },
+    #       body: response.body
+    #     }
+    #   end
     #
     # @param session_id [String] ID of the session making the request
-    # @param url [String] request URL whose origin owns the nonce
-    # @yield generate fresh authorization headers and send the request on each attempt
+    # @param url [String] URL of the request (only origin is used)
+    # @yield a block that generates fresh authorization headers and send a request with them
     # @yieldreturn [Hash{Symbol => Object}] HTTP response with `:status`, `:headers`, and `:body`
-    # @return [Hash{Symbol => Object}] final response
+    #
+    # @return [Hash{Symbol => Object}] the final response
     # @raise [DPoP::Client::Error] if the response or nonce is invalid or storage fails
     #
     def with_nonce_handling(session_id, url, &block)
       dpop_client.with_nonce_handling(session_id, url, &block)
     end
 
-    # Removes a stored session and its state-token lookup, optionally revoking its tokens first.
-    # Refresh-token revocation must succeed when a refresh token is present; access-token revocation
-    # is then best effort. Without a refresh token, access-token revocation must succeed.
-    # Required revocation failures leave the local session intact so the caller can retry or delete locally.
-    # A missing session is a no-op; pending sessions have no tokens to revoke.
-    # Servers without a revocation endpoint are skipped and the session is deleted locally.
+
+    # Removes the session's data from the session storage. If `revoke: true` is passed, additionally attempts to
+    # revoke the access & refresh tokens on the authorization server first, if a revoke endpoint is available.
+    #
+    # Does nothing if the session is not found. If the server has no revoke endpoint or the session is not
+    # authorized yet, session is only removed from the app's storage. If token revocation is attempted but fails,
+    # an error is raised and the session is *not* removed locally (if refresh token is successfully revoked,
+    # subsequent access token revocation is allowed to fail).
     #
     # @param session_id [String] session identifier
-    # @param revoke [Boolean] revoke the refresh token, if present, and access token before deletion
+    # @param revoke [Boolean] revoke the refresh token (if present) and access token before local deletion
     # @return [void]
-    # @raise [Token::Revocation::Error] if a required revocation request is rejected
+    #
     # @raise [DPoP::Client::Error, HTTPClient::HTTPError] if revocation proof or transport handling fails
     # @raise [Storage::StorageError] if deletion or locking fails
+    # @raise [Token::Revocation::Error] if a required revocation request is rejected
     #
     def delete_session(session_id, revoke: false)
       AuthProto.storage.with_lock(Storage::KeyBuilder.lock_key('session', session_id), ttl: 30) do
@@ -403,6 +563,7 @@ module AuthProto
       end
     end
 
+
     # Invokes the session manager's expiry cleanup hook.
     #
     # Currently a no-op; expiry is checked during retrieval and by storage TTLs.
@@ -415,6 +576,8 @@ module AuthProto
 
 
     private
+
+    # --- used in initialize ---
 
     def load_client_metadata(metadata)
       if metadata
@@ -491,6 +654,9 @@ module AuthProto
       %w[kid kty crv x y].all? { |field| candidate[field] == public_key[field] }
     end
 
+
+    # --- used in authorize ---
+
     def validate_auth_params(handle, pds, scope)
       unless scope.is_a?(String) && scope.valid_encoding? && Metadata::ClientMetadata::SCOPE_PATTERN.match?(scope)
         raise AuthorizationError, "scope must contain valid tokens separated by single spaces"
@@ -542,6 +708,9 @@ module AuthProto
         client_id: @client_id
       )
     end
+
+
+    # --- used in handle_callback ---
 
     def exchange_code(code:, session:)
       response = dpop_client.with_nonce_handling(session.session_id, session.auth_server.token_endpoint) do
