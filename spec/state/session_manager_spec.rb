@@ -99,7 +99,8 @@ describe AuthProto::State::SessionManager do
 
   describe "#create_session" do
     it "should create and store a new session" do
-      session = session_manager.create_session(client_id: client_id, scope: scope, auth_server: auth_server, did: did)
+      session = session_manager.create_session(client_id: client_id, scope: scope,
+                                                auth_server: auth_server, did: did)
 
       # Verify session was stored
       session_key = AuthProto::Storage::KeyBuilder.session_key(session.session_id)
@@ -433,12 +434,13 @@ describe AuthProto::State::SessionManager do
 
   describe "#get_session" do
     it "should retrieve an existing session by ID" do
-      original = session_manager.create_session(client_id: client_id, scope: scope, auth_server: auth_server, did: did)
+      original = session_manager.create_session(client_id: client_id, scope: scope,
+                                                auth_server: auth_server, did: did)
       retrieved = session_manager.get_session(original.session_id)
 
       retrieved.session_id.should == original.session_id
       retrieved.client_id.should == original.client_id
-      retrieved.scope.should == original.scope
+      retrieved.requested_scope.should == original.requested_scope
     end
 
     it "should return nil for a non-existent session ID" do
@@ -488,7 +490,8 @@ describe AuthProto::State::SessionManager do
 
   describe "#get_session_by_state_token" do
     it "should retrieve a session by a valid state token" do
-      original = session_manager.create_session(client_id: client_id, scope: scope, auth_server: auth_server, did: did)
+      original = session_manager.create_session(client_id: client_id, scope: scope,
+                                                auth_server: auth_server, did: did)
       retrieved = session_manager.get_session_by_state_token(original.state_token)
       retrieved.session_id.should == original.session_id
     end

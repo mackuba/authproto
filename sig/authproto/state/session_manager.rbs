@@ -6,7 +6,13 @@ module AuthProto
       @supported_signing_keys: Hash[String, String]
 
       def initialize: (client_id: String, ?supported_signing_keys: Hash[String, String]) -> void
-      def create_session: (client_id: String, scope: String, ?auth_server: Metadata::AuthorizationServer?, ?did: String?, ?signing_key_id: String?) -> Session
+      def create_session: (
+          client_id: String,
+          scope: String,
+          ?auth_server: Metadata::AuthorizationServer?,
+          ?did: String?,
+          ?signing_key_id: String?
+        ) -> Session
       def update_session: (Session session) -> Session
       def complete_authorization: (Session session) -> Session
       def get_session: (String session_id) -> Session?

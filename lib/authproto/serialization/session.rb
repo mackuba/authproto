@@ -35,7 +35,7 @@ module AuthProto
           session_id: obj.session_id,
           client_id: obj.client_id,
           dpop_key: obj.dpop_key.private_jwk,
-          scope: obj.scope,
+          requested_scope: obj.requested_scope,
           pkce_verifier: obj.pkce_verifier,
           pkce_challenge: obj.pkce_challenge,
           did: obj.did,
@@ -59,7 +59,7 @@ module AuthProto
         session = AuthProto::State::Session.new(
           client_id: data['client_id'],
           dpop_key: AuthProto::DPoP::KeySet.from_jwk(data.fetch('dpop_key')),
-          scope: data['scope'],
+          scope: data['requested_scope'],
           did: data['did'],
           pds: data['pds'],
           signing_key_id: data['signing_key_id'],

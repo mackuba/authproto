@@ -47,7 +47,7 @@ module AuthProto
 
       # Space-separated requested scopes.
       # @return [String]
-      attr_reader :scope
+      attr_reader :requested_scope
 
       # Secret PKCE verifier used for code exchange.
       # @return [String]
@@ -107,7 +107,7 @@ module AuthProto
         @client_id = client_id
         @signing_key_id = signing_key_id&.dup&.freeze
         @signing_key_thumbprint = signing_key_thumbprint&.dup&.freeze
-        @scope = scope
+        @requested_scope = scope
         @auth_server = auth_server
         @did = did
         @pds = pds&.dup&.freeze
@@ -198,7 +198,7 @@ module AuthProto
       #
       def has_limited_scope?
         synchronize do
-          @tokens ? !(@scope.split - @tokens.scope.split).empty? : false
+          @tokens ? !(@requested_scope.split - @tokens.scope.split).empty? : false
         end
       end
 
@@ -214,7 +214,7 @@ module AuthProto
             access_token: @tokens.access_token,
             expires_in: (@tokens.expires_at - Time.now).to_i,
             refresh_token: @tokens.refresh_token,
-            scope: @tokens.scope,
+            requested_scope: @requested_scope,
             granted_scope: @tokens.scope,
             session_id: @session_id,
             did: @did

@@ -47,7 +47,7 @@ describe AuthProto::State::Session do
       session.state_token.should_not be_nil
       session.client_id.should == client_id
       session.signing_key_id.should be_nil
-      session.scope.should == scope
+      session.requested_scope.should == scope
       session.auth_server.should == auth_server
       session.did.should == did
       session.pkce_verifier.should_not be_nil
@@ -178,7 +178,7 @@ describe AuthProto::State::Session do
         access_token: tokens.access_token,
         expires_in: 3540,
         refresh_token: tokens.refresh_token,
-        scope: tokens.scope,
+        requested_scope: scope,
         granted_scope: tokens.scope,
         session_id: session.session_id,
         did: did
@@ -216,7 +216,7 @@ describe AuthProto::State::Session do
           access_token: 'access', token_type: 'DPoP', expires_in: 3600, scope: granted, sub: did
         )
 
-        session.scope.should == scope
+        session.requested_scope.should == scope
         session.granted_scope.should == granted
         session.has_limited_scope?.should == limited
         session.session_data[:granted_scope].should == granted
@@ -233,7 +233,7 @@ describe AuthProto::State::Session do
 
       session.granted_scope.should == 'atproto'
       session.has_limited_scope?.should be true
-      session.scope.should == scope
+      session.requested_scope.should == scope
     end
   end
 

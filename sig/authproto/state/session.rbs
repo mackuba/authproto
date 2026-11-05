@@ -10,14 +10,23 @@ module AuthProto
       attr_reader dpop_key: DPoP::KeySet
       attr_reader signing_key_id: String?
       attr_reader signing_key_thumbprint: String?
-      attr_reader scope: String
+      attr_reader requested_scope: String
       attr_reader pkce_verifier: String
       attr_reader pkce_challenge: String
       attr_reader auth_server: Metadata::AuthorizationServer?
       attr_reader did: String?
       attr_reader tokens: TokenSet?
 
-      def initialize: (client_id: String, scope: String, ?auth_server: Metadata::AuthorizationServer?, ?did: String?, ?signing_key_id: String?, ?signing_key_thumbprint: String?, ?dpop_key: DPoP::KeySet, ?authorization_expires_at: Time?) -> void
+      def initialize: (
+          client_id: String,
+          scope: String,
+          ?auth_server: Metadata::AuthorizationServer?,
+          ?did: String?,
+          ?signing_key_id: String?,
+          ?signing_key_thumbprint: String?,
+          ?dpop_key: DPoP::KeySet,
+          ?authorization_expires_at: Time?
+        ) -> void
       def clear_state_token: () -> nil
       def authorization_server=: (Metadata::AuthorizationServer server) -> Metadata::AuthorizationServer
       def did=: (String did) -> String

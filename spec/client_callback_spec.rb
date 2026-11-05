@@ -177,8 +177,9 @@ describe AuthProto::Client, '#handle_callback' do
                                     expected_session_id: pending.session_id)
     restored = client.session_manager.get_session(pending.session_id)
 
+    result[:requested_scope].should == 'atproto transition:email'
     result[:granted_scope].should == 'atproto'
-    restored.scope.should == 'atproto transition:email'
+    restored.requested_scope.should == 'atproto transition:email'
     restored.granted_scope.should == 'atproto'
     restored.has_limited_scope?.should be true
   end

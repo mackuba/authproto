@@ -21,7 +21,7 @@ describe AuthProto::Serialization::Session do
     deserialized.session_id.should == session.session_id
     deserialized.state_token.should == session.state_token
     deserialized.client_id.should == session.client_id
-    deserialized.scope.should == session.scope
+    deserialized.requested_scope.should == session.requested_scope
     deserialized.pds.should == session.pds
     deserialized.pkce_verifier.should == session.pkce_verifier
     deserialized.pkce_challenge.should == session.pkce_challenge
@@ -44,7 +44,7 @@ describe AuthProto::Serialization::Session do
 
     restored = serializer.deserialize(serializer.serialize(authorized))
 
-    restored.scope.should == 'atproto transition:email'
+    restored.requested_scope.should == 'atproto transition:email'
     restored.granted_scope.should == 'atproto'
     restored.has_limited_scope?.should be true
   end

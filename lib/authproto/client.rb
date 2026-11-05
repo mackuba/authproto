@@ -224,9 +224,9 @@ module AuthProto
 
     # Reads tokens for a session with a currently valid access token.
     #
-    # The result contains `:access_token` (String), `:token_type` (String, `DPoP`),
+    # The result contains `:access_token` (String),
     # `:expires_in` (Integer seconds remaining), `:refresh_token` (String or nil),
-    # and `:scope` / `:granted_scope` (String, the granted permissions).
+    # and `:requested_scope` (String, requested permissions) and `:granted_scope` (String, granted permissions).
     # It also contains `:session_id` (String) and `:did` (String).
     # This method does not refresh expired tokens.
     #
@@ -242,9 +242,9 @@ module AuthProto
 
     # Refreshes a renewable session and persists the replacement tokens.
     #
-    # The result contains `:access_token` (String), `:token_type` (String, `DPoP`),
+    # The result contains `:access_token` (String),
     # `:expires_in` (Integer seconds remaining), `:refresh_token` (String or nil),
-    # and `:scope` / `:granted_scope` (String, the granted permissions).
+    # and `:requested_scope` (String, requested permissions) and `:granted_scope` (String, granted permissions).
     # The result also contains `:session_id` (String) and `:did` (String). An expired access token can
     # still be refreshed when the stored session has a refresh token.
     #
@@ -526,7 +526,7 @@ module AuthProto
         req.client_id = @client_id
         req.redirect_uri = @redirect_uri
         req.state = session.state_token
-        req.scope = session.scope
+        req.scope = session.requested_scope
         req.login_hint = login_hint if login_hint
         req.code_challenge = session.pkce_challenge
 
