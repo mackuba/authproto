@@ -1,45 +1,48 @@
-<div class="flex flex-col items-center md:flex md:flex-row md:justify-stretch md:items-center min-h-screen min-w-screen bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100">
-  <div class="px-6 pt-4 md:max-w-lg md:grid md:content-center md:justify-items-end md:self-stretch md:w-1/2 md:max-w-fix md:p-4 md:text-right md:dark:border-r md:dark:border-gray-700 md:bg-gray-100 md:dark:bg-gray-800">
-    <h1 class="text-xl md:text-2xl lg:text-5xl md:mt-4 mb-4 font-semibold text-brand">Successfully Authenticated!</h1>
+<div class="page">
+  <div class="page-header">
+    <h1 class="page-title">Successfully Authenticated!</h1>
   </div>
-  <div class="w-full px-6 md:max-w-3xl md:px-12">
-    <div class="space-y-8">
+
+  <div class="page-content">
+    <div class="authorized-content">
       <% if session[:error] %>
-        <div class="mb-8 bg-red-50 border-red-700 text-red-700 p-4 rounded-md">
+        <div class="message message-error">
           <%= session[:error] %>
           <% session[:error] = nil %>
         </div>
       <% end %>
 
       <% if session[:notice] %>
-        <div class="mb-8 bg-green-50 border-green-700 text-green-700 p-4 rounded-md">
+        <div class="message message-success">
           <%= session[:notice] %>
           <% session[:notice] = nil %>
         </div>
       <% end %>
 
-      <form method="post" action="/posts" class="flex flex-col py-4 space-y-4">
+      <form method="post" action="/posts" class="form">
         <fieldset>
-          <label for="post-text" class="mb-1 block text-gray-600 dark:text-gray-400 text-sm font-medium">New Bluesky post</label>
-          <textarea id="post-text" name="text" rows="4" maxlength="300" required placeholder="What's up?" class="w-full rounded-lg text-gray-700 dark:text-gray-100 bg-gray-100 dark:bg-gray-800 p-3 outline-none border-solid border-2 border-transparent hover:border-gray-400 focus:border-brand dark:hover:border-gray-500"></textarea>
+          <label for="post-text" class="field-label">New Bluesky post</label>
+          <textarea id="post-text" name="text" rows="4" maxlength="300" required
+              placeholder="What's up?" class="post-input">
+          </textarea>
         </fieldset>
         <div>
-          <button type="submit" class="py-2 px-6 rounded-lg cursor-pointer touch-manipulation tracking-wide bg-blue-400 text-white">Post to Bluesky</button>
+          <button type="submit" class="button">Post to Bluesky</button>
         </div>
       </form>
 
       <div class="token-info">
-        <p class="mb-1 text-gray-600 dark:text-gray-400 text-sm font-medium">Token Information</p>
-        <pre class="rounded-lg text-gray-700 dark:text-gray-100 bg-gray-100 dark:bg-slate-800 border border-gray-400 p-2 overflow-auto"><code><%= JSON.pretty_generate(@session) %></code></pre>
+        <p class="field-label">Token Information</p>
+        <pre class="data-output"><code><%= JSON.pretty_generate(@session) %></code></pre>
       </div>
 
       <div class="api-test">
-        <p class="mb-1 text-gray-600 dark:text-gray-400 text-sm font-medium">Test API Call Result</p>
-        <pre class="rounded-lg text-gray-700 dark:text-gray-100 bg-gray-100 dark:bg-slate-800 border border-gray-400 p-2 overflow-auto"><code><%= JSON.pretty_generate(@api_result) %></code></pre>
+        <p class="field-label">Test API Call Result</p>
+        <pre class="data-output"><code><%= JSON.pretty_generate(@api_result) %></code></pre>
       </div>
 
-      <div class="flex">
-        <a href="/signout" aria-label="Signout" class="py-2 px-6 rounded-lg truncate cursor-pointer touch-manipulation tracking-wide overflow-hidden bg-blue-400 text-white">Sign out</a>
+      <div class="signout-actions">
+        <a href="/signout" aria-label="Signout" class="button button-truncate">Sign out</a>
       </div>
     </div>
   </div>

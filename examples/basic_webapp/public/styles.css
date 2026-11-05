@@ -1,70 +1,346 @@
-.container {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
+*,
+::before,
+::after {
+  box-sizing: border-box;
+  border: 0 solid #e5e7eb;
 }
 
-.header {
-    max-width: 400px;
-    margin: 0 auto;
+html {
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  tab-size: 4;
+  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol", "Noto Color Emoji";
+  -webkit-tap-highlight-color: transparent;
 }
 
-.error {
-    background-color: #ffebee;
-    color: #c62828;
-    padding: 10px;
-    margin-bottom: 20px;
-    border-radius: 4px;
+body,
+h1,
+p,
+pre {
+  margin: 0;
 }
 
-.auth-form {
-    max-width: 400px;
-    margin: 40px auto;
+body {
+  line-height: inherit;
 }
 
-.form-group {
-    margin-bottom: 15px;
+h1 {
+  font-size: inherit;
+  font-weight: inherit;
 }
 
-.form-group label {
-    display: block;
-    margin-bottom: 5px;
+a {
+  color: inherit;
+  text-decoration: inherit;
 }
 
-.form-group input {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+button,
+input,
+textarea {
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
 }
 
 button {
-    background: #2196f3;
-    color: white;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
+  appearance: button;
+  -webkit-appearance: button;
+  text-transform: none;
+  background: transparent;
 }
 
-button:hover {
-    background: #1976d2;
+fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
 }
 
-.token-info,
-.api-test {
-    margin-top: 20px;
-    padding: 15px;
-    background: #f5f5f5;
-    border-radius: 4px;
+textarea {
+  resize: vertical;
 }
 
-pre {
-    overflow-x: auto;
-    white-space: pre-wrap;
-    word-wrap: break-word;
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af;
+  opacity: 1;
 }
 
+svg {
+  display: block;
+  vertical-align: middle;
+}
+
+pre,
 code {
-    font-size: 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 1em;
+}
+
+.page {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  align-items: center;
+  background-color: #fff;
+  color: #111827;
+}
+
+.page-header {
+  padding: 1rem 1.5rem 0;
+}
+
+.page-title {
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+}
+
+.page-description {
+  display: none;
+  max-width: 20rem;
+  color: #6b7280;
+}
+
+.page-content {
+  width: 100%;
+  padding: 0 1.5rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0;
+}
+
+.form > :not([hidden]) ~ :not([hidden]),
+.form-fields > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 1rem;
+  margin-bottom: 0;
+}
+
+.authorized-content > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 2rem;
+  margin-bottom: 0;
+}
+
+.message {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  border-radius: 0.375rem;
+}
+
+.message-error {
+  border-color: #b91c1c;
+  background-color: #fef2f2;
+  color: #b91c1c;
+}
+
+.message-notice {
+  border-color: #a16207;
+  background-color: #fefce8;
+  color: #a16207;
+}
+
+.message-success {
+  border-color: #15803d;
+  background-color: #f0fdf4;
+  color: #15803d;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #4b5563;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+}
+
+.handle-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.handle-input,
+.post-input {
+  border: 2px solid transparent;
+  border-radius: 0.5rem;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.handle-input {
+  display: flex;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: stretch;
+  padding-right: 0.5rem;
+  padding-left: 0.25rem;
+}
+
+.handle-input:hover,
+.post-input:hover {
+  border-color: #9ca3af;
+}
+
+.handle-input:focus-within {
+  background-color: #e5e7eb;
+}
+
+.handle-icon {
+  display: flex;
+  width: 2rem;
+  height: 3rem;
+  flex: 0 0 auto;
+  align-self: flex-start;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+}
+
+.handle-icon-image {
+  width: 1.25rem;
+}
+
+.handle-input-control {
+  position: relative;
+}
+
+.text-input {
+  width: 100%;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  background-color: transparent;
+  background-clip: padding-box;
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+.post-input {
+  width: 100%;
+  padding: 0.75rem;
+}
+
+.form-actions {
+  padding-top: 1rem;
+}
+
+.button {
+  padding: 0.5rem 1.5rem;
+  border-radius: 0.5rem;
+  background-color: #60a5fa;
+  color: #fff;
+  cursor: pointer;
+  touch-action: manipulation;
+  letter-spacing: 0.025em;
+}
+
+.button-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.data-output {
+  overflow: auto;
+  padding: 0.5rem;
+  border: 1px solid #9ca3af;
+  border-radius: 0.5rem;
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.signout-actions {
+  display: flex;
+}
+
+@media (min-width: 768px) {
+  .page {
+    flex-direction: row;
+    justify-content: stretch;
+  }
+
+  .page-header {
+    display: grid;
+    width: 50%;
+    max-width: 32rem;
+    align-self: stretch;
+    align-content: center;
+    justify-items: end;
+    padding: 1rem;
+    background-color: #f3f4f6;
+    text-align: right;
+  }
+
+  .page-title {
+    margin-top: 1rem;
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+
+  .page-description {
+    display: block;
+  }
+
+  .page-content {
+    max-width: 48rem;
+    padding-right: 3rem;
+    padding-left: 3rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-title {
+    font-size: 3rem;
+    line-height: 1;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .page {
+    background-color: #111827;
+    color: #f3f4f6;
+  }
+
+  .field-label {
+    color: #9ca3af;
+  }
+
+  .handle-input,
+  .post-input {
+    background-color: #1f2937;
+    color: #f3f4f6;
+  }
+
+  .handle-input:focus-within {
+    background-color: #374151;
+  }
+
+  .handle-input:hover,
+  .post-input:hover {
+    border-color: #6b7280;
+  }
+
+  .text-input::placeholder {
+    color: #6b7280;
+  }
+
+  .data-output {
+    background-color: #1e293b;
+    color: #f3f4f6;
+  }
+}
+
+@media (min-width: 768px) and (prefers-color-scheme: dark) {
+  .page-header {
+    border-right-width: 1px;
+    border-color: #374151;
+    background-color: #1f2937;
+  }
 }
