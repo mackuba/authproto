@@ -24,7 +24,7 @@ describe AuthProto::Client, 'DPoP' do
   end
 
   it "should use the nonce from process_dpop in the next authorization headers" do
-    client.process_dpop(success, server_url: url, session_id: session.session_id)
+    client.process_dpop(success, url: url, session_id: session.session_id)
 
     proof_payload.fetch('nonce').should == 'next'
   end

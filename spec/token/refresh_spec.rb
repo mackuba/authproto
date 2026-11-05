@@ -298,7 +298,7 @@ describe AuthProto::Token::Refresh do
     )
     expect { @refresher.perform_refresh }.to raise_error(AuthProto::Token::RefreshError, /use_dpop_nonce/)
     @dpop_client.nonce_manager.get(
-      server_url: 'https://example.com', session_id: @refresher.session.session_id
+      url: 'https://example.com', session_id: @refresher.session.session_id
     ).should == 'nonce-2'
     assert_requested :post, "https://example.com/token", times: 2
   end

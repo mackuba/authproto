@@ -40,15 +40,15 @@ module AuthProto
       #
       # @param nonce [String] server-provided nonce using RFC 9449's `1*NQCHAR` syntax
       # @param session_id [String] nonempty OAuth session identifier
-      # @param server_url [String] HTTPS server URL
+      # @param url [String] HTTPS URL whose origin owns the nonce
       # @return [void]
       # @raise [NonceError] if inputs are invalid or storage reports failure
       # @raise [Storage::StorageError] if backend validation or storage fails
       #
-      def update(nonce:, server_url:, session_id:)
+      def update(nonce:, url:, session_id:)
         validate_session_id(session_id)
-        validate_inputs(nonce, server_url)
-        origin = normalize_server_url(server_url)
+        validate_inputs(nonce, url)
+        origin = normalize_url(url)
 
         stored_nonce = StoredNonce.new(nonce, origin)
         serialized = @serializer.serialize(stored_nonce)
@@ -62,15 +62,15 @@ module AuthProto
       # Retrieves the current nonce for a session and URL's origin.
       #
       # @param session_id [String] nonempty OAuth session identifier
-      # @param server_url [String] HTTPS server URL
+      # @param url [String] HTTPS URL whose origin owns the nonce
       # @return [String, nil] stored nonce, or `nil` when missing/expired according to storage TTL
       # @raise [NonceError] if the session ID or URL is invalid, or serialized data cannot be read
       # @raise [Storage::StorageError] if storage retrieval fails
       #
-      def get(server_url:, session_id:)
+      def get(url:, session_id:)
         validate_session_id(session_id)
-        validate_server_url(server_url)
-        origin = normalize_server_url(server_url)
+        validate_url(url)
+        origin = normalize_url(url)
         key = Storage::KeyBuilder.nonce_key(session_id, origin)
 
         stored = AuthProto.storage.get(key)
@@ -87,15 +87,15 @@ module AuthProto
       # Removes the stored nonce for a session and URL's origin.
       #
       # @param session_id [String] nonempty OAuth session identifier
-      # @param server_url [String] HTTPS server URL
+      # @param url [String] HTTPS URL whose origin owns the nonce
       # @return [Boolean] backend deletion status
       # @raise [NonceError] if the session ID or URL is invalid
       # @raise [Storage::StorageError] if deletion fails
       #
-      def clear(server_url:, session_id:)
+      def clear(url:, session_id:)
         validate_session_id(session_id)
-        validate_server_url(server_url)
-        origin = normalize_server_url(server_url)
+        validate_url(url)
+        origin = normalize_url(url)
         key = Storage::KeyBuilder.nonce_key(session_id, origin)
         AuthProto.storage.delete(key)
       end
@@ -108,7 +108,7 @@ module AuthProto
         raise NonceError, "session_id must be a nonempty string"
       end
 
-      def normalize_server_url(url)
+      def normalize_url(url)
         uri = URI(url)
         port = uri.port
         port = nil if uri.scheme == 'https' && port == 443
@@ -118,22 +118,22 @@ module AuthProto
         origin
       end
 
-      def validate_inputs(nonce, server_url)
+      def validate_inputs(nonce, url)
         raise NonceError, "nonce must not be empty" if nonce.to_s == ''
         raise NonceError, "Invalid DPoP nonce" unless nonce.is_a?(String)
         raise NonceError, "Invalid characters in the DPoP nonce" unless nonce.ascii_only? && nonce =~ NONCE_REGEXP
 
-        validate_server_url(server_url)
+        validate_url(url)
       end
 
-      def validate_server_url(server_url)
-        raise NonceError, "server_url is required" if server_url.nil? || server_url.empty?
+      def validate_url(url)
+        raise NonceError, "url is required" if url.nil? || url.empty?
 
-        uri = ValidatedURI.new(server_url)
+        uri = ValidatedURI.new(url)
 
-        raise NonceError, "server_url must be HTTPS" unless uri.scheme == 'https'
+        raise NonceError, "url must be HTTPS" unless uri.scheme == 'https'
       rescue URI::InvalidURIError => e
-        raise NonceError, "invalid server_url: #{e.message}"
+        raise NonceError, "invalid url: #{e.message}"
       end
     end
   end

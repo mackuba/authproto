@@ -40,11 +40,11 @@ module AuthProto
         # Builds a namespaced storage key for a DPoP nonce.
         #
         # @param session_id [String] OAuth session identifier
-        # @param server_url [String] server origin URL
+        # @param origin [String] server origin URL
         # @return [String] colon-separated key beginning with `atproto:`
         #
-        def nonce_key(session_id, server_url)
-          build_key("nonce", session_id, server_url)
+        def nonce_key(session_id, origin)
+          build_key("nonce", session_id, origin)
         end
 
         # Builds a namespaced storage key for a lock.

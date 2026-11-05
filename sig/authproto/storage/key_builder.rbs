@@ -5,7 +5,7 @@ module AuthProto
       NAMESPACE_PREFIX: String
       def self.session_key: (String id) -> String
       def self.state_key: (String token) -> String
-      def self.nonce_key: (String session_id, String server_url) -> String
+      def self.nonce_key: (String session_id, String origin) -> String
       def self.lock_key: (String namespace, String id) -> String
 
       private

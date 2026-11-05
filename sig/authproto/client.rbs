@@ -22,7 +22,7 @@ module AuthProto
     def refresh_token: (String session_id) -> refreshed_tokens
     def authorized?: (String session_id) -> bool
     def auth_headers: (session_id: String, method: String, url: String) -> Hash[String, String]
-    def process_dpop: (http_response response, server_url: String, session_id: String) -> void
+    def process_dpop: (http_response response, url: String, session_id: String) -> void
     def has_nonce_error?: (http_response response) -> bool
     def with_nonce_handling: (String session_id, String url) { () -> http_response } -> http_response
     def delete_session: (String session_id, ?revoke: bool) -> void

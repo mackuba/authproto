@@ -29,7 +29,7 @@ module AuthProto
       def serialize_data(obj)
         {
           value: obj.value,
-          server_url: obj.server_url,
+          origin: obj.origin,
           timestamp: obj.timestamp
         }
       end
@@ -37,7 +37,7 @@ module AuthProto
       def deserialize_data(data)
         AuthProto::DPoP::StoredNonce.new(
           data["value"],
-          data["server_url"],
+          data["origin"],
           timestamp: Time.at(data["timestamp"])
         )
       end

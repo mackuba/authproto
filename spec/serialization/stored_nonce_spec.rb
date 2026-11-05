@@ -16,7 +16,7 @@ describe AuthProto::Serialization::StoredNonce do
     deserialized = serializer.deserialize(serialized)
 
     deserialized.value.should == stored_nonce.value
-    deserialized.server_url.should == stored_nonce.server_url
+    deserialized.origin.should == stored_nonce.origin
     deserialized.timestamp.to_i.should == stored_nonce.timestamp.to_i
   end
 

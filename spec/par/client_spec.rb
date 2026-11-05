@@ -101,10 +101,10 @@ describe AuthProto::PAR::Client do
     it "should retry the request with a nonce if the response indicates 'use_dpop_nonce'" do
       error_response = { status: 400, body: '{"error":"use_dpop_nonce"}', headers: { "DPoP-Nonce" => "new_nonce" } }
       @dpop_client.expects(:process_response).with(
-        error_response, server_url: @par_endpoint, session_id: @session.session_id
+        error_response, url: @par_endpoint, session_id: @session.session_id
       ).once
       @dpop_client.expects(:process_response).with(
-        @response, server_url: @par_endpoint, session_id: @session.session_id
+        @response, url: @par_endpoint, session_id: @session.session_id
       ).once
       @dpop_client.expects(:has_nonce_error?).with(error_response).returns(true)
       AuthProto.configuration.http_client.stubs(:post).returns(error_response).then.returns(@response)

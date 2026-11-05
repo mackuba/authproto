@@ -14,7 +14,7 @@ describe AuthProto::DPoP::Client do
   let(:uri) { "https://example.com/resource" }
   let(:nonce) { "valid_nonce" }
   let(:access_token) { "test_access_token" }
-  let(:server_url) { "https://example.com" }
+  let(:origin) { "https://example.com" }
   let(:proof) { "dpop_proof_jwt" }
   let(:response_headers) { { "DPoP-Nonce" => nonce } }
   let(:response) { { status: 200, headers: response_headers, body: '{}' } }
@@ -25,7 +25,7 @@ describe AuthProto::DPoP::Client do
       client.nonce_manager.expects(:update).never
 
       expect {
-        client.process_response(incomplete_response, server_url: server_url, session_id: session.session_id)
+        client.process_response(incomplete_response, url: origin, session_id: session.session_id)
       }.to raise_error(described_class::Error, /Missing response keys: #{key}/)
       expect {
         client.has_nonce_error?(incomplete_response)
@@ -59,13 +59,13 @@ describe AuthProto::DPoP::Client do
     it "should use each session's nonce through interleaved response processing and proof generation" do
       other = AuthProto::State::Session.new(client_id: 'client', scope: 'atproto')
       client.process_response(
-        response.merge(headers: { 'DPoP-Nonce' => 'first' }), server_url: uri, session_id: session.session_id
+        response.merge(headers: { 'DPoP-Nonce' => 'first' }), url: uri, session_id: session.session_id
       )
       client.process_response(
-        response.merge(headers: { 'DPoP-Nonce' => 'second' }), server_url: uri, session_id: other.session_id
+        response.merge(headers: { 'DPoP-Nonce' => 'second' }), url: uri, session_id: other.session_id
       )
       client.process_response(
-        response.merge(headers: { 'DPoP-Nonce' => 'updated-first' }), server_url: uri, session_id: session.session_id
+        response.merge(headers: { 'DPoP-Nonce' => 'updated-first' }), url: uri, session_id: session.session_id
       )
 
       [[session, 'updated-first'], [other, 'second'], [session, 'updated-first']].each do |current, expected_nonce|
@@ -78,7 +78,7 @@ describe AuthProto::DPoP::Client do
 
     it "should generate a DPoP proof using proof_generator" do
       client.nonce_manager.expects(:get)
-            .with(server_url: "https://example.com", session_id: session.session_id).returns(nonce)
+            .with(url: uri, session_id: session.session_id).returns(nonce)
       client.proof_generator.expects(:generate).with(
         key_set: session.dpop_key,
         method: method,
@@ -93,7 +93,7 @@ describe AuthProto::DPoP::Client do
 
     it "should raise an error if proof generation fails" do
       client.nonce_manager.expects(:get)
-            .with(server_url: "https://example.com", session_id: session.session_id).returns(nil)
+            .with(url: uri, session_id: session.session_id).returns(nil)
       client.proof_generator.expects(:generate).raises(StandardError, "Generation failed")
 
       expect {
@@ -158,7 +158,7 @@ describe AuthProto::DPoP::Client do
 
       result.should equal(response)
       calls.should == 1
-      client.nonce_manager.get(server_url: uri, session_id: session.session_id).should == nonce
+      client.nonce_manager.get(url: uri, session_id: session.session_id).should == nonce
     end
 
     [400, 401].each do |status|
@@ -179,7 +179,7 @@ describe AuthProto::DPoP::Client do
         proofs.first.should_not have_key('nonce')
         proofs.last['nonce'].should == 'challenge'
         proofs.last['jti'].should_not == proofs.first['jti']
-        client.nonce_manager.get(server_url: uri, session_id: session.session_id).should == nonce
+        client.nonce_manager.get(url: uri, session_id: session.session_id).should == nonce
       end
     end
 
@@ -195,7 +195,7 @@ describe AuthProto::DPoP::Client do
 
       calls.should == 2
       result.should equal(challenges.last)
-      client.nonce_manager.get(server_url: uri, session_id: session.session_id).should == 'nonce-2'
+      client.nonce_manager.get(url: uri, session_id: session.session_id).should == 'nonce-2'
     end
 
     it "should return other errors without retrying" do
@@ -208,7 +208,7 @@ describe AuthProto::DPoP::Client do
 
       result.should equal(failure)
       calls.should == 1
-      client.nonce_manager.get(server_url: uri, session_id: session.session_id).should == nonce
+      client.nonce_manager.get(url: uri, session_id: session.session_id).should == nonce
     end
 
     [1, 2].each do |invalid_attempt|
@@ -240,9 +240,9 @@ describe AuthProto::DPoP::Client do
 
   describe "#process_response" do
     it "should update the nonce manager with a valid nonce" do
-      client.nonce_manager.expects(:update).with(nonce: nonce, server_url: server_url, session_id: session.session_id)
+      client.nonce_manager.expects(:update).with(nonce: nonce, url: origin, session_id: session.session_id)
 
-      client.process_response(response, server_url: server_url, session_id: session.session_id)
+      client.process_response(response, url: origin, session_id: session.session_id)
     end
 
     it "should reject duplicate nonce headers with different casing without updating storage" do
@@ -250,29 +250,29 @@ describe AuthProto::DPoP::Client do
       headers = { 'DPoP-Nonce' => 'one', 'dpop-nonce' => 'one' }
 
       expect {
-        client.process_response(response.merge(headers: headers), server_url: server_url, session_id: session.session_id)
+        client.process_response(response.merge(headers: headers), url: origin, session_id: session.session_id)
       }.to raise_error(described_class::Error, /Multiple DPoP-Nonce/)
     end
 
     it "should reject repeated nonce headers combined by Net::HTTP without overwriting the cached nonce" do
-      client.process_response(response, server_url: server_url, session_id: session.session_id)
+      client.process_response(response, url: origin, session_id: session.session_id)
       http_response = Net::HTTPOK.new('1.1', '200', 'OK')
       http_response.add_field('DPoP-Nonce', 'one')
       http_response.add_field('dpop-nonce', 'two')
 
       expect {
         client.process_response(response.merge(headers: http_response.each_header.to_h),
-                                server_url: server_url, session_id: session.session_id)
+                                url: origin, session_id: session.session_id)
       }.to raise_error(described_class::Error, /Invalid.*DPoP nonce/)
 
-      client.nonce_manager.get(server_url: server_url, session_id: session.session_id).should == nonce
+      client.nonce_manager.get(url: origin, session_id: session.session_id).should == nonce
     end
 
     ['has space', 'has"quote', ['one', 'two'], 123].each do |value|
       it "should reject a malformed nonce header #{value.inspect}" do
         expect {
           client.process_response(response.merge(headers: { 'DPoP-Nonce' => value }),
-                                  server_url: server_url, session_id: session.session_id)
+                                  url: origin, session_id: session.session_id)
         }.to raise_error(described_class::Error, /Invalid.*DPoP nonce/)
       end
     end
@@ -282,7 +282,7 @@ describe AuthProto::DPoP::Client do
       client.nonce_manager.expects(:update).never
 
       expect {
-        client.process_response(response.merge(headers: headers), server_url: server_url, session_id: session.session_id)
+        client.process_response(response.merge(headers: headers), url: origin, session_id: session.session_id)
       }.to raise_error(described_class::Error, /Missing DPoP-Nonce/)
     end
 
@@ -292,7 +292,7 @@ describe AuthProto::DPoP::Client do
           headers = value.nil? ? {} : { 'dpop-nonce' => value }
           expect {
             client.process_response(response.merge(status: status, headers: headers),
-                                    server_url: server_url, session_id: session.session_id)
+                                    url: origin, session_id: session.session_id)
           }.to raise_error(described_class::Error, /Missing DPoP-Nonce/)
         end
       end
@@ -300,15 +300,15 @@ describe AuthProto::DPoP::Client do
 
     it "should update from a successful response with a differently cased nonce header" do
       client.process_response(response.merge(headers: { 'dPoP-nOnCe' => 'rotated' }),
-                              server_url: server_url, session_id: session.session_id)
-      client.nonce_manager.get(server_url: server_url, session_id: session.session_id).should == 'rotated'
+                              url: origin, session_id: session.session_id)
+      client.nonce_manager.get(url: origin, session_id: session.session_id).should == 'rotated'
     end
 
     it "should raise an error if nonce update fails" do
       client.nonce_manager.expects(:update).raises(StandardError, "Update failed")
 
       expect {
-        client.process_response(response, server_url: server_url, session_id: session.session_id)
+        client.process_response(response, url: origin, session_id: session.session_id)
       }.to raise_error(AuthProto::DPoP::Client::Error)
     end
   end

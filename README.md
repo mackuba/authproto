@@ -331,7 +331,7 @@ You handle this by passing the response to `client.process_dpop` like this to le
 response = { headers: res.headers, body: res.body, status: res.status }
 
 client.process_dpop(response,
-  server_url: endpoint,
+  url: endpoint,
   session_id: session_id
 )
 ```

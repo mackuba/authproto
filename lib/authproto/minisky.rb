@@ -131,10 +131,10 @@ class Minisky::OAuthClient
 
     raise ArgumentError, "OAuth requests accept auth: true or false, not a bearer token" unless auth == true
 
-    url = build_request_uri(method).dup
-    url.query = URI.encode_www_form(params) if params && !params.empty?
+    uri = build_request_uri(method).dup
+    uri.query = URI.encode_www_form(params) if params && !params.empty?
 
-    response = oauth_request(Net::HTTP::Get, url, headers || {})
+    response = oauth_request(Net::HTTP::Get, uri, headers || {})
     handle_response(response)
   end
 
@@ -166,8 +166,8 @@ class Minisky::OAuthClient
 
     raise ArgumentError, "OAuth requests accept auth: true or false, not a bearer token" unless auth == true
 
-    url = build_request_uri(method).dup
-    url.query = URI.encode_www_form(params) if params && !params.empty?
+    uri = build_request_uri(method).dup
+    uri.query = URI.encode_www_form(params) if params && !params.empty?
     headers = (headers || {}).dup
 
     body = if data.is_a?(String) || data.nil?
@@ -179,7 +179,7 @@ class Minisky::OAuthClient
              data.to_json
            end
 
-    response = oauth_request(Net::HTTP::Post, url, headers, body: body)
+    response = oauth_request(Net::HTTP::Post, uri, headers, body: body)
     handle_response(response)
   end
 
@@ -230,7 +230,7 @@ class Minisky::OAuthClient
 
   private
 
-  def oauth_request(request_class, url, headers, body: nil)
+  def oauth_request(request_class, uri, headers, body: nil)
     check_access
 
     nonce_retries = 0
@@ -240,16 +240,16 @@ class Minisky::OAuthClient
       # Fresh proof for every attempt; callers cannot override OAuth auth headers.
       request_headers = headers.reject { |k, v| %w[authorization dpop].include?(k.to_s.downcase) }
       request_headers.merge!(oauth_client.auth_headers(
-                               session_id: session_id, method: request_class::METHOD, url: url.to_s
+                               session_id: session_id, method: request_class::METHOD, url: uri.to_s
                              ))
 
-      request = request_class.new(url, request_headers)
+      request = request_class.new(uri, request_headers)
       request.body = body unless body.nil?
 
       response = make_request(request)
       response_hash = { status: response.code.to_i, headers: response.each_header.to_h, body: response.body }
 
-      oauth_client.process_dpop(response_hash, server_url: url.to_s, session_id: session_id)
+      oauth_client.process_dpop(response_hash, url: uri.to_s, session_id: session_id)
 
       if oauth_client.has_nonce_error?(response_hash)
         return response if nonce_retries >= MAX_NONCE_RETRIES

@@ -57,12 +57,7 @@ module AuthProto
       # @raise [Error] if URI parsing, nonce lookup or signing fails
       #
       def generate_proof(session:, method:, uri:, access_token: nil)
-        parsed_uri = URI(uri)
-
-        server_url = "#{parsed_uri.scheme}://#{parsed_uri.host}"
-        server_url += ":#{parsed_uri.port}" if parsed_uri.port != parsed_uri.default_port
-
-        nonce = @nonce_manager.get(server_url: server_url, session_id: session.session_id)
+        nonce = @nonce_manager.get(url: uri, session_id: session.session_id)
 
         @proof_generator.generate(
           key_set: session.dpop_key,
@@ -81,11 +76,11 @@ module AuthProto
       #
       # @param session_id [String] session that made the request
       # @param response [Hash{Symbol => Object}] HTTP response with `:status`, `:headers`, and `:body`
-      # @param server_url [String] request URL whose origin owns the nonce
+      # @param url [String] URL of the request that produced the response
       # @return [void]
       # @raise [Error] if nonce validation or persistence fails
       #
-      def process_response(response, server_url:, session_id:)
+      def process_response(response, url:, session_id:)
         validate_response_fields(response)
 
         if response[:headers].keys.count { |name| name.casecmp?('DPoP-Nonce') } > 1
@@ -99,7 +94,7 @@ module AuthProto
         end
 
         # Store new nonce for future requests
-        @nonce_manager.update(nonce: nonce, server_url: server_url, session_id: session_id)
+        @nonce_manager.update(nonce: nonce, url: url, session_id: session_id)
       rescue StandardError => e
         raise Error, "Failed to process response: #{e.message}"
       end
@@ -150,12 +145,12 @@ module AuthProto
       def with_nonce_handling(session_id, url)
         response = yield
 
-        process_response(response, server_url: url, session_id: session_id)
+        process_response(response, url: url, session_id: session_id)
 
         if has_nonce_error?(response)
           response = yield
 
-          process_response(response, server_url: url, session_id: session_id)
+          process_response(response, url: url, session_id: session_id)
         end
 
         response

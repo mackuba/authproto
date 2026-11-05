@@ -197,10 +197,10 @@ describe Minisky::OAuthClient do
       session.signing_key_id.should == 'client-key'
       state_token = session.state_token
       nonces = client.oauth_client.dpop_client.nonce_manager
-      nonces.get(server_url: auth_server.issuer, session_id: session.session_id).should == 'par-success'
+      nonces.get(url: auth_server.issuer, session_id: session.session_id).should == 'par-success'
       client.handle_callback(code: 'code', state: state_token, iss: auth_server.issuer,
                              expected_session_id: auth[:session_id])
-      nonces.get(server_url: auth_server.issuer, session_id: session.session_id).should == 'token-success'
+      nonces.get(url: auth_server.issuer, session_id: session.session_id).should == 'token-success'
       client.oauth_client.session_manager.get_session(session.session_id).state_token.should be_nil
       client.oauth_client.session_manager.get_session(session.session_id).signing_key_id.should == 'client-key'
       AuthProto.storage.exists?(AuthProto::Storage::KeyBuilder.state_key(state_token)).should be_falsey
@@ -534,7 +534,7 @@ describe Minisky::OAuthClient do
                                 headers: { "X-Test" => "yes", "authorization" => "Bearer wrong" })
     result["did"].should == "did:plc:ewvi7nxzyoun6zhxrhs64oiz"
     client.oauth_client.dpop_client.nonce_manager.get(
-      server_url: host, session_id: client.session_id
+      url: host, session_id: client.session_id
     ).should == "pds-nonce"
   end
 
@@ -568,7 +568,7 @@ describe Minisky::OAuthClient do
       client_id: client_metadata['client_id'], scope: 'atproto'
     )
     nonces = client.oauth_client.dpop_client.nonce_manager
-    nonces.update(nonce: 'other-session', server_url: host, session_id: other.session_id)
+    nonces.update(nonce: 'other-session', url: host, session_id: other.session_id)
     proofs = []
     stub_request(:get, endpoint).to_return do |request|
       proofs << JWT.decode(request.headers.fetch('Dpop'), nil, false).first
@@ -586,8 +586,8 @@ describe Minisky::OAuthClient do
     proofs.length.should == 2
     proofs.first.should_not have_key('nonce')
     proofs.last['nonce'].should == 'request-session'
-    nonces.get(server_url: host, session_id: other.session_id).should == 'other-session'
-    nonces.get(server_url: host, session_id: session.session_id).should == 'request-session'
+    nonces.get(url: host, session_id: other.session_id).should == 'other-session'
+    nonces.get(url: host, session_id: session.session_id).should == 'request-session'
   end
 
   it "should reuse the persisted DPoP key when refreshing a session from a new client" do
@@ -682,14 +682,14 @@ describe Minisky::OAuthClient do
   it "should reject successful responses without a nonce even when one is cached" do
     attach_session
     client.oauth_client.dpop_client.nonce_manager.update(
-      nonce: "cached", server_url: host, session_id: client.session_id
+      nonce: "cached", url: host, session_id: client.session_id
     )
     stub_request(:get, endpoint).to_return(status: 200, headers: { "Content-Type" => "application/json" }, body: "{}")
     expect {
       client.get_request("app.bsky.actor.getProfile")
     }.to raise_error(AuthProto::DPoP::Client::Error, /Missing DPoP-Nonce/)
     client.oauth_client.dpop_client.nonce_manager.get(
-      server_url: host, session_id: client.session_id
+      url: host, session_id: client.session_id
     ).should == "cached"
   end
 
@@ -777,7 +777,7 @@ describe Minisky::OAuthClient do
                                                       headers: { "content-type" => "application/octet-stream" })
       proofs.uniq.length.should == 2
       client.oauth_client.dpop_client.nonce_manager.get(
-        server_url: host, session_id: client.session_id
+        url: host, session_id: client.session_id
       ).should == "next-nonce"
     end
 

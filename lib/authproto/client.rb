@@ -328,13 +328,13 @@ module AuthProto
     # Stores the DPoP nonce from an HTTP response for the session and server origin.
     #
     # @param response [Hash{Symbol => Object}] HTTP response with `:status`, `:headers`, and `:body`
-    # @param server_url [String] URL of the request that produced the response
+    # @param url [String] URL of the request that produced the response
     # @param session_id [String] ID of the session that made the request
     # @return [void]
     # @raise [DPoP::Client::Error] if the response or nonce is invalid or storage fails
     #
-    def process_dpop(response, server_url:, session_id:)
-      dpop_client.process_response(response, server_url: server_url, session_id: session_id)
+    def process_dpop(response, url:, session_id:)
+      dpop_client.process_response(response, url: url, session_id: session_id)
     end
 
     # Checks whether an HTTP response requests a retry with a new DPoP nonce.
