@@ -72,7 +72,6 @@ describe AuthProto::Client, '#handle_callback' do
 
       result = client.handle_callback(**callback, expected_session_id: session.session_id)
 
-      result[:token_type].should == 'DPoP'
       client.session_manager.get_session(session.session_id).tokens.token_type.should == 'DPoP'
     end
   end

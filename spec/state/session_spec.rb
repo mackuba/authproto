@@ -176,7 +176,6 @@ describe AuthProto::State::Session do
       Time.stubs(:now).returns(now + 60)
       session.session_data.should == {
         access_token: tokens.access_token,
-        token_type: tokens.token_type,
         expires_in: 3540,
         refresh_token: tokens.refresh_token,
         scope: tokens.scope,

@@ -212,7 +212,6 @@ module AuthProto
 
           {
             access_token: @tokens.access_token,
-            token_type: @tokens.token_type,
             expires_in: (@tokens.expires_at - Time.now).to_i,
             refresh_token: @tokens.refresh_token,
             scope: @tokens.scope,
