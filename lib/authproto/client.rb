@@ -659,20 +659,21 @@ module AuthProto
 
     def validate_auth_params(handle, pds, scope)
       unless scope.is_a?(String) && scope.valid_encoding? && Metadata::ClientMetadata::SCOPE_PATTERN.match?(scope)
-        raise AuthorizationError, "scope must contain valid tokens separated by single spaces"
+        raise ArgumentError, "scope must contain valid tokens separated by single spaces"
       end
 
       requested_scopes = scope.split(' ')
-      raise AuthorizationError, "scope must include 'atproto'" unless requested_scopes.include?('atproto')
+      raise ArgumentError, "scope must include 'atproto'" unless requested_scopes.include?('atproto')
 
       undeclared = requested_scopes - @client_metadata.scope.split(' ')
 
       unless undeclared.empty?
-        raise AuthorizationError, "scope contains values not declared in client metadata: #{undeclared.join(' ')}"
+        raise ArgumentError, "scope contains values not declared in client metadata: #{undeclared.join(' ')}"
       end
 
-      raise AuthorizationError, "handle or pds must be provided" if handle.nil? && pds.nil?
-      raise AuthorizationError, "cannot provide both handle and pds" if handle && pds
+      raise ArgumentError, "handle or pds must be provided" if handle.nil? && pds.nil?
+      raise ArgumentError, "cannot provide both handle and pds" if handle && pds
+      raise ArgumentError, "pds must be a full URL" if pds && URI(pds).class == URI::Generic
     end
 
     def resolve_auth_server_info(pds)

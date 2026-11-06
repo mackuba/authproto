@@ -12,6 +12,7 @@ describe AuthProto::Client, 'requested scopes' do
       'dpop_bound_access_tokens' => true
     }
   end
+
   let(:client) do
     described_class.new(client_id: metadata['client_id'], redirect_uri: metadata['redirect_uris'].first,
                         metadata: metadata)
@@ -25,14 +26,14 @@ describe AuthProto::Client, 'requested scopes' do
       client.session_manager.expects(:create_session).never
 
       expect { client.authorize(pds: 'https://pds.example.com', scope: scope) }.to raise_error(
-        AuthProto::Error, /scope must contain valid tokens/
+        ArgumentError, /scope must contain valid tokens/
       )
     end
   end
 
   it "should require the exact atproto token" do
     expect { client.authorize(pds: 'https://pds.example.com', scope: 'repo:app.bsky.feed.post') }.to raise_error(
-      AuthProto::Error, /scope must include 'atproto'/
+      ArgumentError, /scope must include 'atproto'/
     )
   end
 
@@ -43,7 +44,7 @@ describe AuthProto::Client, 'requested scopes' do
       client.session_manager.expects(:create_session).never
 
       expect { client.authorize(pds: 'https://pds.example.com', scope: scope) }.to raise_error(
-        AuthProto::Error, /not declared in client metadata/
+        ArgumentError, /not declared in client metadata/
       )
     end
   end
@@ -60,6 +61,6 @@ describe AuthProto::Client, 'requested scopes' do
 
     expect {
       localhost.authorize(pds: 'https://pds.example.com', scope: 'atproto repo:app.bsky.feed.post')
-    }.to raise_error(AuthProto::Error, /not declared in client metadata/)
+    }.to raise_error(ArgumentError, /not declared in client metadata/)
   end
 end
