@@ -134,6 +134,20 @@ module AuthProto
     attr_reader :dpop_client
 
 
+    # Creates a localhost development client with redirect URI and scope encoded in its client ID.
+    #
+    # @param redirect_uri [String, URI::Generic] loopback callback URL used to complete authorization
+    # @param scope [String] space-separated scopes to declare in the generated client metadata
+    # @return [Client] configured localhost client
+    # @raise [InvalidClientMetadata] if the redirect URI or scope is invalid
+    #
+    def self.for_localhost(redirect_uri:, scope: 'atproto')
+      query = URI.encode_www_form(redirect_uri: redirect_uri, scope: scope)
+
+      self.new(client_id: "http://localhost/?#{query}", redirect_uri: redirect_uri)
+    end
+
+
     # Creates an OAuth client with specified configuration.
     #
     # The initializer validates all passed arguments, fetches and validates the remote metadata JSON if not provided

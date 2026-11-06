@@ -16,6 +16,8 @@ module AuthProto
     attr_reader session_manager: State::SessionManager
     attr_reader dpop_client: DPoP::Client
 
+    def self.for_localhost: (redirect_uri: (String | URI::Generic), ?scope: String) -> instance
+
     def initialize: (
         client_id: String,
         redirect_uri: (String | URI::Generic),

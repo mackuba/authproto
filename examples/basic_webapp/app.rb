@@ -61,26 +61,22 @@ class ExampleApp < Sinatra::Base
 
     if client_id =~ %r{\Ahttp://localhost(/|$)}
       # For localhost apps, redirect_uri & scope are appended as query params to the client_id URI
-      uri = URI(client_id)
-
-      params = URI.decode_www_form(uri.query.to_s)
-      params << ['scope', metadata['scope']] unless params.any? { |k, v| k == 'scope' }
-      params << ['redirect_uri', metadata['redirect_uris'][0]] unless params.any? { |k, v| k == 'redirect_uri' }
-
-      uri.query = URI.encode_www_form(params)
-      client_id = uri.to_s
-
-      # Don't pass the metadata hash to AuthProto::Client
-      metadata = nil
+      # Use this helper which does that for you:
+      oauth_client = AuthProto::Client.for_localhost(redirect_uri: redirect_uri, scope: metadata['scope'])
 
       if signing_key
         warn "-" * 100
         warn "Running the app on localhost as a public client - confidential clients require a production server."
         warn "-" * 100
-
-        signing_key = nil
       end
     else
+      oauth_client = AuthProto::Client.new(
+        client_id: client_id,
+        redirect_uri: redirect_uri,
+        metadata: metadata,
+        signing_key: signing_key
+      )
+
       # Apps on a live server can be public or confidential clients
       if !signing_key
         warn "-" * 100
@@ -89,13 +85,8 @@ class ExampleApp < Sinatra::Base
       end
     end
 
-    # Create the OAuth client and store it in the global settings
-    set :oauth_client, AuthProto::Client.new(
-      client_id: client_id,
-      redirect_uri: redirect_uri,
-      metadata: metadata,
-      signing_key: signing_key
-    )
+    # Store the OAuth client in the global settings
+    set :oauth_client, oauth_client
   end
 
   set :host_authorization, {

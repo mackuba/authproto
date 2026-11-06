@@ -219,32 +219,19 @@ Running OAuth on localhost is a bit of a special exception, it doesn't work the 
 * the `redirect_uri` needs to be on `127.0.0.1` or `[::1]` IP (likely with a port), **not** on `localhost`, confusingly
 * the app will always be a "public" client, not a "confidential" one
 
-So an example setup could look like this:
+The client ID will then look something like this:
 
-```rb
-redirect_uri = "http://127.0.0.1:8000/callback"
-scope = "atproto repo:app.bsky.feed.post"
-
-client_id = "http://localhost/?" + URI.encode_www_form({
-  redirect_uri: redirect_uri,
-  scope: scope
-})
-
-# "http://localhost/?redirect_uri=http%3A%2F%2F127.0.0.1%3A8000%2Fcallback" +
-#   "&scope=atproto+repo%3Aapp.bsky.feed.post"
-
-client = AuthProto::Client.new(
-  client_id: client_id,
-  redirect_uri: redirect_uri
-)
+```
+http://localhost/?redirect_uri=http%3A%2F%2F127.0.0.1%3A8000%2Fcallback&scope=atproto+repo%3Aapp.bsky.feed.post
 ```
 
-AuthProto also includes a helper called `LocalhostServer`, which starts a temporary localhost HTTP server inline just to receive the callback request, and returns the received codes to the block you pass to it:
+`AuthProto::Client` includes a special helper `Client.for_localhost` which generates this `client_id` with encoded query params for you:
 
 ```rb
-AuthProto::LocalhostServer.start(client.client_metadata) do |json|
-  client.handle_callback(**json, expected_session_id: session_id)
-end
+client = AuthProto::Client.for_localhost(
+  redirect_uri: "http://127.0.0.1:8000/callback",
+  scope: "atproto repo:app.bsky.feed.post"
+)
 ```
 
 
@@ -287,6 +274,14 @@ client.handle_callback(
   iss: params[:iss],
   expected_session_id: session[:session_id]
 )
+```
+
+For localhost clients, there is also a helper class included called `LocalhostServer`, which starts a temporary localhost HTTP server inline just to receive the callback request, and returns the received codes to the block you pass to it:
+
+```rb
+AuthProto::LocalhostServer.start(client.client_metadata) do |json|
+  client.handle_callback(**json, expected_session_id: session_id)
+end
 ```
 
 
