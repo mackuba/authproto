@@ -628,17 +628,6 @@ module AuthProto
     end
 
 
-    # Invokes the session manager's expiry cleanup hook.
-    #
-    # Currently a no-op; expiry is checked during retrieval and by storage TTLs.
-    #
-    # @return [void]
-    #
-    def cleanup_expired_sessions
-      session_manager.cleanup_expired
-    end
-
-
     private
 
     # --- used in initialize ---

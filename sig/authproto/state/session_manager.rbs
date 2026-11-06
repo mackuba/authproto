@@ -18,7 +18,6 @@ module AuthProto
       def get_session: (String session_id) -> Session?
       def get_session_by_state_token: (String? state) -> Session?
       def delete_session: (String session_id) -> void
-      def cleanup_expired: () -> void
 
       private
       def validate_client_id: (String client_id) -> void

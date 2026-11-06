@@ -22,6 +22,45 @@ describe AuthProto::Storage::SQLite do
     FileUtils.remove_entry(temporary_directory)
   end
 
+  describe "#cleanup_expired_records" do
+    it "should delete expired values and locks while preserving live and permanent records" do
+      now = Time.utc(2026, 1, 1)
+      Time.stubs(:now).returns(now)
+      storage.set('atproto:expired', 'expired', ttl: 1)
+      storage.set('atproto:live', 'live', ttl: 60)
+      storage.set('atproto:permanent', 'permanent')
+      storage.send(:acquire_lock, 'atproto:expired-lock', ttl: 1)
+      storage.send(:acquire_lock, 'atproto:live-lock', ttl: 60)
+      database = SQLite3::Database.new(database_path)
+
+      Time.stubs(:now).returns(now + 1)
+      storage.cleanup_expired_records
+      storage.cleanup_expired_records
+
+      database.execute("SELECT key FROM atproto_storage ORDER BY key").flatten.should == [
+        'atproto:live', 'atproto:permanent'
+      ]
+      database.execute("SELECT key FROM atproto_locks").flatten.should == ['atproto:live-lock']
+      storage.get('atproto:live').should == 'live'
+      storage.get('atproto:permanent').should == 'permanent'
+
+      expect {
+        storage.with_lock('atproto:live-lock') { true }
+      }.to raise_error(AuthProto::Storage::LockError)
+    ensure
+      database&.close
+    end
+
+    it "should wrap database cleanup errors" do
+      database = storage.instance_variable_get(:@database)
+      database.expects(:execute).raises(SQLite3::Exception, "Database failure")
+
+      expect {
+        storage.cleanup_expired_records
+      }.to raise_error(AuthProto::Storage::SQLite::SQLiteError, /Failed to clean up expired records/)
+    end
+  end
+
   describe "#initialize" do
     it "should create the storage and lock tables" do
       database = SQLite3::Database.new(database_path)

@@ -41,7 +41,6 @@ module AuthProto
     def has_nonce_error?: (http_response response) -> bool
     def with_nonce_handling: (String session_id, (String | URI::HTTPS) url) { () -> http_response } -> http_response
     def delete_session: (String session_id, ?revoke: bool) -> void
-    def cleanup_expired_sessions: () -> void
 
     private
     def load_client_metadata: (json_object? metadata) -> Metadata::ClientMetadata

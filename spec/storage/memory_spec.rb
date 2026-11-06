@@ -7,6 +7,32 @@ describe AuthProto::Storage::Memory do
 
   include_examples "a storage implementation"
 
+  describe "#cleanup_expired_records" do
+    it "should remove expired values and locks without accessing their keys" do
+      now = Time.utc(2026, 1, 1)
+      Time.stubs(:now).returns(now)
+      storage.set('atproto:expired', 'expired', ttl: 1)
+      storage.set('atproto:live', 'live', ttl: 60)
+      storage.set('atproto:permanent', 'permanent')
+      storage.send(:acquire_lock, 'atproto:expired-lock', ttl: 1)
+      storage.send(:acquire_lock, 'atproto:live-lock', ttl: 60)
+
+      Time.stubs(:now).returns(now + 1)
+      storage.cleanup_expired_records
+      storage.cleanup_expired_records
+
+      storage.instance_variable_get(:@data).keys.sort.should == ['atproto:live', 'atproto:permanent']
+      storage.instance_variable_get(:@expirations).keys.should == ['atproto:live']
+      storage.instance_variable_get(:@locks).keys.should == ['lock:atproto:live-lock']
+      storage.get('atproto:live').should == 'live'
+      storage.get('atproto:permanent').should == 'permanent'
+
+      expect {
+        storage.with_lock('atproto:live-lock') { true }
+      }.to raise_error(AuthProto::Storage::LockError)
+    end
+  end
+
   describe "memory-specific behavior" do
     it "should clear an existing expiry when overwriting without a TTL" do
       now = Time.utc(2026, 1, 1)

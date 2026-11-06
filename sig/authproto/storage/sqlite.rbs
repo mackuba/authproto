@@ -11,6 +11,7 @@ module AuthProto
       def get: (String key) -> (String | Numeric | nil)
       def delete: (String key) -> bool
       def exists?: (String key) -> bool
+      def cleanup_expired_records: () -> void
       def with_lock: [T] (String key, ?ttl: Integer) { () -> T } -> T
       def close: () -> void
 

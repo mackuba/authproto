@@ -198,6 +198,20 @@ module AuthProto
         end
       end
 
+      # Deletes expired values and locks.
+      #
+      # @return [void]
+      # @raise [SQLiteError] if deleting expired records fails
+      #
+      def cleanup_expired_records
+        now = current_time
+
+        @database.execute("DELETE FROM atproto_storage WHERE expires_at <= ?", [now])
+        @database.execute("DELETE FROM atproto_locks WHERE expires_at <= ?", [now])
+      rescue SQLite3::Exception => e
+        raise SQLiteError, "Failed to clean up expired records: #{e.message}"
+      end
+
       # Closes the underlying SQLite connection.
       #
       # @return [void]

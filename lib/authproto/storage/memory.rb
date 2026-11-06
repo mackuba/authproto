@@ -141,6 +141,29 @@ module AuthProto
         end
       end
 
+      # Removes expired values, expiration records and locks from this store.
+      # Also runs automatically once per minute.
+      #
+      # @return [void]
+      #
+      def cleanup_expired_records
+        @monitor.synchronize do
+          now = Time.now.to_i
+
+          # Cleanup expired data
+          @expirations.each do |key, expiry|
+            if now >= expiry
+              @data.delete(key)
+              @expirations.delete(key)
+            end
+          end
+
+          # Cleanup expired locks
+          @locks.delete_if { |key, expiry| now >= expiry }
+        end
+      end
+
+
       private
 
       def acquire_lock(key, ttl:)
@@ -195,28 +218,11 @@ module AuthProto
         @expirations[key] = Time.now.to_i + ttl
       end
 
-      def cleanup_expired
-        @monitor.synchronize do
-          now = Time.now.to_i
-
-          # Cleanup expired data
-          @expirations.each do |key, expiry|
-            if now >= expiry
-              @data.delete(key)
-              @expirations.delete(key)
-            end
-          end
-
-          # Cleanup expired locks
-          @locks.delete_if { |key, expiry| now >= expiry }
-        end
-      end
-
       def start_cleanup_thread
         Thread.new do
           loop do
             sleep @cleanup_interval
-            cleanup_expired
+            cleanup_expired_records
           rescue StandardError => e
             # Log error but keep thread running
             AuthProto.configuration.logger.error "Storage cleanup error: #{e.message}"

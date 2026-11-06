@@ -91,6 +91,16 @@ module AuthProto
         raise NotImplementedError
       end
 
+      # Removes physically stored expired records when supported by the backend.
+      # Backends that expire records automatically may leave this method as a no-op.
+      #
+      # @return [void]
+      # @raise [StorageError] if cleanup fails
+      #
+      def cleanup_expired_records
+      end
+
+
       protected
 
       # Validates that a storage key is nonempty and begins with `atproto:`.

@@ -101,6 +101,8 @@ end
 
 The `AuthProto::Storage::Memory` adapter is configured by default, so you can skip the `storage` part if you want to use it.
 
+For the `SQLite` adapter, you might call `AuthProto.storage.cleanup_expired_records` periodically to remove expired sessions and locks if you want. `Memory` and `Redis` handle this automatically.
+
 ### ATPROTO_MASTER_KEY:
 
 This is technically not required, but you'll want to set it for anything more than brief testing. In the session storage, things like state token and access tokens are encrypted at rest using a key read from an ENV var `ATPROTO_MASTER_KEY`. The var needs to be Base64-encoded, and 32 bytes long when decoded.

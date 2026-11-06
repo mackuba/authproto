@@ -221,15 +221,6 @@ module AuthProto
         end
       end
 
-      # Provides an expiry cleanup hook; currently performs no work.
-      # Expiry is handled through backend TTLs and retrieval validation.
-      #
-      # @return [void]
-      #
-      def cleanup_expired
-        # No-op - expiry handled by storage TTL and retrieval validation
-      end
-
 
       private
 

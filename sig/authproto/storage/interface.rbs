@@ -10,6 +10,7 @@ module AuthProto
       def get: (String key) -> untyped
       def delete: (String key) -> bool
       def exists?: (String key) -> bool
+      def cleanup_expired_records: () -> void
       def with_lock: [T] (String key, ?ttl: Integer) { () -> T } -> T
 
       # Protected in Ruby; RBS exposes protected methods as public.

@@ -6,6 +6,7 @@ module AuthProto
       def get: (String key) -> untyped
       def delete: (String key) -> true
       def exists?: (String key) -> bool
+      def cleanup_expired_records: () -> void
       def with_lock: [T] (String key, ?ttl: Integer) { () -> T } -> T
       def clear: () -> void
 
@@ -15,7 +16,6 @@ module AuthProto
       def expired?: (String key) -> bool
       def lock_expired?: (String lock_key) -> bool
       def set_expiration: (String key, Integer ttl) -> Integer
-      def cleanup_expired: () -> void
       def start_cleanup_thread: () -> Thread
     end
   end
