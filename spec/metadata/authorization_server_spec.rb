@@ -92,10 +92,20 @@ describe AuthProto::Metadata::AuthorizationServer do
     end
   end
 
+  describe "URI inputs" do
+    it "should fetch metadata using a URI object" do
+      endpoint = URI.join(issuer_url, '/.well-known/oauth-authorization-server')
+      AuthProto.configuration.stubs(:http_client).returns(transport = mock)
+      transport.expects(:get).with(endpoint).returns(mock_response)
+
+      described_class.from_url(URI(issuer_url).freeze).issuer.should == issuer_url
+    end
+  end
+
   describe ".from_url" do
     before do
       AuthProto.configuration.stubs(:http_client).returns(mock_http_client = mock)
-      mock_http_client.stubs(:get).with(URI.join(issuer_url, '/.well-known/oauth-authorization-server').to_s).returns(mock_response)
+      mock_http_client.stubs(:get).with(URI.join(issuer_url, '/.well-known/oauth-authorization-server')).returns(mock_response)
     end
 
     ['content-type', 'Content-Type', 'cOnTeNt-TyPe'].each do |header_name|

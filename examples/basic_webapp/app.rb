@@ -234,7 +234,7 @@ class ExampleApp < Sinatra::Base
       # TODO
       pds = settings.oauth_client.session_manager.get_session(session_id).pds
       endpoint = "/xrpc/com.atproto.server.checkAccountStatus"
-      url = URI.join(pds, endpoint).to_s
+      url = URI.join(pds, endpoint)
 
       connection = Faraday.new(url: pds) do |f|
         f.request :json
@@ -296,7 +296,7 @@ class ExampleApp < Sinatra::Base
     # TODO
     pds = settings.oauth_client.session_manager.get_session(session_id).pds
     endpoint = "/xrpc/com.atproto.repo.createRecord"
-    url = URI.join(pds, endpoint).to_s
+    url = URI.join(pds, endpoint)
 
     record = {
       repo: oauth_session[:did],

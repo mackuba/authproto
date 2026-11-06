@@ -1,0 +1,50 @@
+# Signatures for the methods defined by the optional Minisky adapter.
+# Additional methods mixed in from Minisky::Requests belong to the minisky gem.
+class Minisky
+class OAuthClient
+  include AuthProto::HTTPHelpers
+  MAX_NONCE_RETRIES: Integer
+  attr_reader host: String
+  attr_reader oauth_client: AuthProto::Client
+  attr_reader session_id: String?
+
+  def initialize: (
+      String host,
+      client_id: String,
+      redirect_uri: (String | URI::HTTPS),
+      ?metadata: AuthProto::json_object?,
+      ?signing_key: (AuthProto::json_object | JOSE::JWK)?,
+      ?session_id: String?
+    ) -> void
+  def config: () -> nil
+  def authorize: (?handle: String?, ?pds: (String | URI::HTTPS)?, ?scope: String) -> AuthProto::authorization_result
+  def handle_callback: (
+    code: String, state: String, iss: String, expected_session_id: String
+  ) -> AuthProto::callback_result
+  def get_request: (
+      String | URI::HTTP method,
+      ?Hash[untyped, untyped]? params,
+      ?auth: bool,
+      ?headers: Hash[String, String]?
+    ) -> untyped
+  def post_request: (
+      String | URI::HTTP method,
+      ?untyped data,
+      ?auth: bool,
+      ?headers: Hash[String, String]?,
+      ?params: Hash[untyped, untyped]?
+    ) -> untyped
+  def log_in: (*untyped args) -> bot
+  def perform_token_refresh: () -> AuthProto::refreshed_tokens
+  def check_access: () -> (:ok | :refreshed)
+
+  private
+  def oauth_request: (
+      singleton(Net::HTTP::Get) | singleton(Net::HTTP::Post) request_class,
+      URI::HTTP url,
+      Hash[String, String] headers,
+      ?body: String?
+    ) -> Net::HTTPResponse
+  def authentication_error: (Net::HTTPResponse response) -> String?
+end
+end

@@ -41,6 +41,17 @@ describe AuthProto::DPoP::NonceManager do
     end
   end
 
+  it "should share nonces between URI objects and strings for all operations" do
+    target = URI("#{url}/token?query=value").freeze
+    nonce_manager.update(session_id: session_id, nonce: nonce, url: target)
+    nonce_manager.get(url: url, session_id: session_id).should == nonce
+    nonce_manager.get(url: target, session_id: session_id).should == nonce
+
+    nonce_manager.clear(url: target, session_id: session_id)
+    nonce_manager.get(url: url, session_id: session_id).should be_nil
+    target.to_s.should == "#{url}/token?query=value"
+  end
+
   describe "#update" do
     ['has space', "has\ttab", "has\nnewline", 'has"quote', 'has\\slash',
      "\x7F", 'é', 'nonce'.encode('UTF-16LE'), 123, ['one', 'two'], "\xFF"].each do |value|

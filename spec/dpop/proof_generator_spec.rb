@@ -85,6 +85,15 @@ describe AuthProto::DPoP::ProofGenerator do
       extract_payload(proof).should_not have_key('ath')
     end
 
+    it "should normalize a frozen URI object without modifying it" do
+      target = URI('https://example.com:443/path?query=value#fragment').freeze
+      original = target.to_s
+      proof = generator.generate(key_set: key_set, method: method, uri: target)
+
+      extract_payload(proof)['htu'].should == 'https://example.com/path'
+      target.to_s.should == original
+    end
+
     it "should normalize URIs" do
       uri = "https://example.com:443/path?query#fragment"
       proof = generator.generate(key_set: key_set, method: method, uri: uri)

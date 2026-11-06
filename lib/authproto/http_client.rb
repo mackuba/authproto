@@ -106,7 +106,7 @@ module AuthProto
     # Non-2xx status codes are returned for the caller to interpret; they do not
     # themselves raise an exception.
     #
-    # @param url [String] absolute HTTPS request URL without a fragment
+    # @param url [String, URI::HTTPS] absolute HTTPS request URL without a fragment
     # @param headers [Hash{String => String}] additional request headers; can override the default `Cache-Control` value
     # @param follow_redirects [Boolean] follow redirects; defaults to false
     # @return [Hash{Symbol => Integer, Hash{String => String}, String, nil}] `:status` (Integer), lowercase `:headers` (Hash), and `:body` (String or nil)
@@ -136,7 +136,7 @@ module AuthProto
     # Non-2xx status codes are returned for the caller to interpret; they do not
     # themselves raise an exception.
     #
-    # @param url [String] absolute HTTPS request URL without a fragment
+    # @param url [String, URI::HTTPS] absolute HTTPS request URL without a fragment
     # @param body [String, Hash, nil] raw bytes, form fields encoded with `URI.encode_www_form`, or no body
     # @param headers [Hash{String => String}] additional request headers; can override the default `Cache-Control` value
     # @return [Hash{Symbol => Integer, Hash{String => String}, String, nil}] `:status` (Integer), lowercase `:headers` (Hash), and `:body` (String or nil)
@@ -283,7 +283,7 @@ module AuthProto
       location = URI(response["location"])
       location = kwargs[:original_uri] + location if location.relative?
 
-      validate_uri(location.to_s)
+      validate_uri(location)
       validate_ip(location)
 
       # Increment redirect count for the next request

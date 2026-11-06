@@ -653,6 +653,24 @@ describe AuthProto::Metadata::ClientMetadata do
     end
   end
 
+  it "should fetch client metadata using a URI object" do
+    url = @valid_metadata['client_id']
+    AuthProto.configuration.stubs(:http_client).returns(transport = mock)
+    transport.expects(:get).with(url).returns(
+      status: 200, headers: { 'content-type' => 'application/json' }, body: @valid_metadata.to_json
+    )
+
+    described_class.from_url(URI(url).freeze).client_id.should == url
+  end
+
+  it "should build localhost metadata using a URI object" do
+    url = 'http://localhost?scope=atproto&redirect_uri=http%3A%2F%2F127.0.0.1%3A3000%2Fcallback'
+    metadata = described_class.from_url(URI(url).freeze)
+
+    metadata.client_id.should == url
+    metadata.redirect_uris.should == ['http://127.0.0.1:3000/callback']
+  end
+
   describe ".from_url" do
     let(:http_client) { AuthProto::HTTPClient.new }
 

@@ -51,7 +51,7 @@ module AuthProto
       #
       # @param session [State::Session] session whose DPoP key signs the request
       # @param method [String] HTTP method, converted to uppercase
-      # @param uri [String] absolute HTTPS request URL; query and fragment are omitted from the signed `htu`
+      # @param uri [String, URI::HTTPS] absolute HTTPS request URL; query and fragment are omitted from the signed `htu`
       # @param access_token [String, nil] token to bind with an `ath` claim
       # @return [JOSE::SignedBinary] compact signed DPoP JWT
       # @raise [Error] if URI parsing, nonce lookup or signing fails
@@ -76,7 +76,7 @@ module AuthProto
       #
       # @param session_id [String] session that made the request
       # @param response [Hash{Symbol => Object}] HTTP response with `:status`, `:headers`, and `:body`
-      # @param url [String] URL of the request that produced the response
+      # @param url [String, URI::HTTPS] URL of the request that produced the response
       # @return [void]
       # @raise [Error] if nonce validation or persistence fails
       #
@@ -136,7 +136,7 @@ module AuthProto
       # the initial proof may already include a cached nonce.
       #
       # @param session_id [String] ID of the session making the request
-      # @param url [String] request URL whose origin owns the nonce
+      # @param url [String, URI::HTTPS] request URL whose origin owns the nonce
       # @yield sends one HTTP request using a fresh DPoP proof
       # @yieldreturn [Hash{Symbol => Object}] HTTP response with status, headers and body
       # @return [Hash{Symbol => Object}] final response, including any remaining error

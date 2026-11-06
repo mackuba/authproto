@@ -32,7 +32,7 @@ module AuthProto
       #
       # @param key_set [KeySet] key belonging to the session making this request
       # @param method [String] nonempty HTTP method, converted to uppercase
-      # @param uri [String] absolute HTTPS request URL
+      # @param uri [String, URI::HTTPS] absolute HTTPS request URL
       # @param nonce [String, nil] server-provided nonce to include
       # @param access_token [String, nil] access token to bind to the proof
       # @return [JOSE::SignedBinary] compact signed DPoP JWT
@@ -56,11 +56,12 @@ module AuthProto
         raise ProofError, "Failed to generate proof: #{e.message}"
       end
 
+
       private
 
       def validate_inputs(method, uri)
         raise ProofError, "method is required" if method.nil? || method.empty?
-        raise ProofError, "uri is required" if uri.nil? || uri.empty?
+        raise ProofError, "uri is required" if uri.nil? || uri == ''
 
         parsed_uri = ValidatedURI.new(uri)
         raise ProofError, "uri must use HTTPS" unless parsed_uri.scheme == 'https'
@@ -94,7 +95,7 @@ module AuthProto
       end
 
       def normalize_uri(uri)
-        uri = URI(uri)
+        uri = URI(uri).dup
 
         # Remove default ports
         uri.port = nil if uri.scheme == 'https' && uri.port == 443

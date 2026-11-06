@@ -21,23 +21,40 @@ module AuthProto
       attr_reader headers: Hash[String, String]
       attr_reader redirect_count: Integer
       attr_reader body: http_body
-      def self.new: (URI::HTTP original_uri, Symbol method, Net::HTTPResponse response, Hash[String, String] headers, Integer redirect_count, http_body body) -> instance
+      def self.new: (
+          URI::HTTP original_uri,
+          Symbol method,
+          Net::HTTPResponse response,
+          Hash[String, String] headers,
+          Integer redirect_count,
+          http_body body
+        ) -> instance
                   | (original_uri: URI::HTTP, method: Symbol, response: Net::HTTPResponse, headers: Hash[String, String], redirect_count: Integer, body: http_body) -> instance
     end
 
     def initialize: (?timeout: Numeric, ?verify_ssl: bool) -> void
-    def get: (String url, ?Hash[String, String] headers, ?follow_redirects: bool) -> http_response
-    def post: (String url, ?body: http_body, ?headers: Hash[String, String]) -> http_response
+    def get: ((String | URI::HTTPS) url, ?Hash[String, String] headers, ?follow_redirects: bool) -> http_response
+    def post: ((String | URI::HTTPS) url, ?body: http_body, ?headers: Hash[String, String]) -> http_response
 
     private
-    def validate_uri: (String url) -> URI::HTTP
+    def validate_uri: ((String | URI::HTTPS) url) -> URI::HTTP
     def validate_ip: (URI::HTTP uri) -> void
     def forbidden_ip?: (IPAddr ip) -> bool
-    def make_request: (URI::HTTP uri, ?Hash[String, String] headers, ?Integer redirect_count, ?follow_redirects: bool) -> Net::HTTPResponse
+    def make_request: (
+        URI::HTTP uri,
+        ?Hash[String, String] headers,
+        ?Integer redirect_count,
+        ?follow_redirects: bool
+      ) -> Net::HTTPResponse
     def make_post_request: (URI::HTTP uri, http_body body, ?Hash[String, String] headers) -> Net::HTTPResponse
     def configure_http_client: (Net::HTTP http, ?ssl: bool) -> void
     def add_security_headers: (Net::HTTPRequest request, Hash[String, String] headers) -> void
-    def handle_redirect: (original_uri: URI::HTTP, response: Net::HTTPResponse, headers: Hash[String, String], redirect_count: Integer) -> Net::HTTPResponse
+    def handle_redirect: (
+        original_uri: URI::HTTP,
+        response: Net::HTTPResponse,
+        headers: Hash[String, String],
+        redirect_count: Integer
+      ) -> Net::HTTPResponse
     def validate_response: (Net::HTTPResponse response) -> void
     def check_content_length: (Net::HTTPResponse response) -> void
   end

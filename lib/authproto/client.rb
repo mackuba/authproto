@@ -143,8 +143,8 @@ module AuthProto
     # - do not pass `metadata` or `signing_key`
     #
     # @param client_id [String] the OAuth client ID URL
-    # @param redirect_uri [String] the callback URL to which the user is redirected to complete authorization;
-    #   must be included on the `redirect_uris` list in the metadata
+    # @param redirect_uri [String, URI::Generic] the callback URL to which the user is redirected to complete
+    #   authorization; must be included on the `redirect_uris` list in the metadata
     # @param metadata [Hash{String => Object}, nil] optionally, the client metadata JSON located at the client ID URL;
     #   if not included, it will be fetched from that URL during initialization
     # @param signing_key [Hash, JOSE::JWK, nil] a private ES256 key for client authentication (client assertions)
@@ -156,7 +156,7 @@ module AuthProto
     #
     def initialize(client_id:, redirect_uri:, metadata: nil, signing_key: nil)
       @client_id = client_id
-      @redirect_uri = redirect_uri
+      @redirect_uri = redirect_uri.is_a?(URI::Generic) ? redirect_uri.to_s : redirect_uri
 
       if metadata && client_id.is_a?(String) && client_id =~ %r{^http://localhost(/|$)}i
         raise InvalidClientMetadata.new(
@@ -194,7 +194,7 @@ module AuthProto
     # authorization at the callback endpoint.
     #
     # @param handle [String, nil] account handle (may be prefixed with a `@`) or a DID string
-    # @param pds [String, nil] full URL of the PDS to authorize the user on
+    # @param pds [String, URI::HTTPS, nil] full URL of the PDS to authorize the user on
     # @param scope [String] space-separated list of scopes to request authorization for; the scopes must all be
     #   declared in the client metadata, and must include `atproto`
     #
@@ -213,6 +213,7 @@ module AuthProto
     #
     def authorize(handle: nil, pds: nil, scope: 'atproto')
       validate_auth_params(handle, pds, scope)
+      pds = pds.to_s if pds.is_a?(URI::HTTP)
 
       if !pds
         did = DIDKit::DID.resolve_handle(handle)
@@ -401,7 +402,7 @@ module AuthProto
     #
     # @param session_id [String] session ID of an authorized session
     # @param method [String] HTTP method for the proof
-    # @param url [String] absolute HTTPS URL of the request; the query string and fragment are ignored
+    # @param url [String, URI::HTTPS] absolute HTTPS URL of the request; the query string and fragment are ignored
     #
     # @return [Hash{String => String}] headers to attach to an outgoing request
     # @raise [TokenError] if the session is missing or its access token is expired
@@ -441,7 +442,7 @@ module AuthProto
     # ```
     #
     # @param response [Hash{Symbol => Object}] HTTP response hash with `:status`, `:headers`, and `:body`
-    # @param url [String] URL of the request that produced the response (only the origin is used)
+    # @param url [String, URI::HTTPS] URL of the request that produced the response (only the origin is used)
     # @param session_id [String] ID of the session that made the request
     # @return [void]
     # @raise [DPoP::Client::Error] if the response or nonce is invalid or storage fails
@@ -494,8 +495,8 @@ module AuthProto
     # @example
     #   uri = URI.join(pds_url, '/xrpc/app.bsky.feed.getTimeline')
     #   
-    #   response = client.with_nonce_handling(session_id, uri.to_s) do
-    #     headers = client.auth_headers(session_id: session_id, method: 'GET', url: uri.to_s)
+    #   response = client.with_nonce_handling(session_id, uri) do
+    #     headers = client.auth_headers(session_id: session_id, method: 'GET', url: uri)
     #     response = Net::HTTP.get_response(uri, headers)
     #   
     #     {
@@ -506,7 +507,7 @@ module AuthProto
     #   end
     #
     # @param session_id [String] ID of the session making the request
-    # @param url [String] URL of the request (only origin is used)
+    # @param url [String, URI::HTTPS] URL of the request (only origin is used)
     # @yield a block that generates fresh authorization headers and send a request with them
     # @yieldreturn [Hash{Symbol => Object}] HTTP response with `:status`, `:headers`, and `:body`
     #

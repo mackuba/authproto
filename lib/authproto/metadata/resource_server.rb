@@ -44,7 +44,7 @@ module AuthProto
       # Requires HTTPS even when the configured transport permits HTTP.
       # The PDS URL must have no userinfo, path prefix, query or fragment.
       #
-      # @param url [String] resource server/PDS base URL
+      # @param url [String, URI::HTTPS] resource server/PDS base URL
       # @return [ResourceServer] validated resource server metadata
       # @raise [InvalidAuthorizationServer] if HTTP transport, JSON parsing or metadata validation fails
       # @raise [HTTPClient::SSRFError] if the transport rejects the initial destination
@@ -52,6 +52,7 @@ module AuthProto
       #
       def self.from_url(url)
         validate_source_url(url)
+        url = url.to_s
 
         response = fetch_metadata(url)
         validate_response(response)
@@ -99,7 +100,7 @@ module AuthProto
         def fetch_metadata(url)
           metadata_url = URI.join(url, "/.well-known/oauth-protected-resource")
 
-          AuthProto.configuration.http_client.get(metadata_url.to_s)
+          AuthProto.configuration.http_client.get(metadata_url)
         rescue HTTPClient::HTTPError => e
           raise InvalidAuthorizationServer, "Failed to fetch resource server metadata: #{e.message}"
         end

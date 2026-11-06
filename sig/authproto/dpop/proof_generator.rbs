@@ -9,25 +9,25 @@ module AuthProto
       def generate: (
           key_set: KeySet,
           method: String,
-          uri: String,
+          uri: (String | URI::HTTPS),
           ?nonce: String?,
           ?access_token: String?
         ) -> JOSE::SignedBinary
 
       private
 
-      def validate_inputs: (String method, String uri) -> void
+      def validate_inputs: (String method, (String | URI::HTTPS) uri) -> void
 
       def build_header: (KeySet key_set) -> { typ: "dpop+jwt", alg: "ES256", jwk: Hash[String, untyped] }
 
       def build_payload: (
           method: String,
-          uri: String,
+          uri: (String | URI::HTTPS),
           ?nonce: String?,
           ?access_token: String?
         ) -> Hash[String, untyped]
 
-      def normalize_uri: (String uri) -> String
+      def normalize_uri: ((String | URI::HTTPS) uri) -> String
 
       def generate_access_token_hash: (String access_token) -> String
     end

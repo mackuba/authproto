@@ -8,15 +8,15 @@ module AuthProto
       end
 
       def initialize: (?ttl: Integer?) -> void
-      def update: (nonce: String, url: String, session_id: String) -> void
-      def get: (url: String, session_id: String) -> String?
-      def clear: (url: String, session_id: String) -> bool
+      def update: (nonce: String, url: (String | URI::HTTPS), session_id: String) -> void
+      def get: (url: (String | URI::HTTPS), session_id: String) -> String?
+      def clear: (url: (String | URI::HTTPS), session_id: String) -> bool
 
       private
       def validate_session_id: (String session_id) -> void
-      def normalize_url: (String url) -> String
-      def validate_inputs: (String nonce, String url) -> void
-      def validate_url: (String url) -> void
+      def normalize_url: ((String | URI::HTTPS) url) -> String
+      def validate_inputs: (String nonce, (String | URI::HTTPS) url) -> void
+      def validate_url: ((String | URI::HTTPS) url) -> void
     end
   end
 end

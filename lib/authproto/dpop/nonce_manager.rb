@@ -40,7 +40,7 @@ module AuthProto
       #
       # @param nonce [String] server-provided nonce using RFC 9449's `1*NQCHAR` syntax
       # @param session_id [String] nonempty OAuth session identifier
-      # @param url [String] HTTPS URL whose origin owns the nonce
+      # @param url [String, URI::HTTPS] HTTPS URL whose origin owns the nonce
       # @return [void]
       # @raise [NonceError] if inputs are invalid or storage reports failure
       # @raise [Storage::StorageError] if backend validation or storage fails
@@ -62,7 +62,7 @@ module AuthProto
       # Retrieves the current nonce for a session and URL's origin.
       #
       # @param session_id [String] nonempty OAuth session identifier
-      # @param url [String] HTTPS URL whose origin owns the nonce
+      # @param url [String, URI::HTTPS] HTTPS URL whose origin owns the nonce
       # @return [String, nil] stored nonce, or `nil` when missing/expired according to storage TTL
       # @raise [NonceError] if the session ID or URL is invalid, or serialized data cannot be read
       # @raise [Storage::StorageError] if storage retrieval fails
@@ -87,7 +87,7 @@ module AuthProto
       # Removes the stored nonce for a session and URL's origin.
       #
       # @param session_id [String] nonempty OAuth session identifier
-      # @param url [String] HTTPS URL whose origin owns the nonce
+      # @param url [String, URI::HTTPS] HTTPS URL whose origin owns the nonce
       # @return [Boolean] backend deletion status
       # @raise [NonceError] if the session ID or URL is invalid
       # @raise [Storage::StorageError] if deletion fails
@@ -99,6 +99,7 @@ module AuthProto
         key = Storage::KeyBuilder.nonce_key(session_id, origin)
         AuthProto.storage.delete(key)
       end
+
 
       private
 
@@ -127,7 +128,7 @@ module AuthProto
       end
 
       def validate_url(url)
-        raise NonceError, "url is required" if url.nil? || url.empty?
+        raise NonceError, "url is required" if url.nil? || url == ''
 
         uri = ValidatedURI.new(url)
 

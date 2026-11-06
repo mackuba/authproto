@@ -121,7 +121,7 @@ module AuthProto
       #
       # The document's issuer must exactly match the requested url.
       #
-      # @param url [String] authorization server issuer origin
+      # @param url [String, URI::HTTPS] authorization server issuer origin
       # @return [AuthorizationServer] validated discovery metadata
       # @raise [InvalidAuthorizationServer] if HTTP transport fails, JSON is invalid, or metadata/issuer validation fails
       # @raise [HTTPClient::SSRFError] if the transport rejects the initial destination
@@ -129,6 +129,7 @@ module AuthProto
       #
       def self.from_url(url)
         validate_source_url(url)
+        url = url.to_s
 
         response = fetch_metadata(url)
         validate_response(response)
@@ -335,7 +336,7 @@ module AuthProto
         def fetch_metadata(url)
           metadata_url = URI.join(url, "/.well-known/oauth-authorization-server")
 
-          AuthProto.configuration.http_client.get(metadata_url.to_s)
+          AuthProto.configuration.http_client.get(metadata_url)
         rescue HTTPClient::HTTPError => e
           raise InvalidAuthorizationServer, "Failed to fetch authorization server metadata: #{e.message}"
         end

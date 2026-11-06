@@ -37,10 +37,20 @@ describe AuthProto::Metadata::ResourceServer do
     end
   end
 
+  describe "URI inputs" do
+    it "should fetch metadata using a URI object" do
+      endpoint = URI.join(valid_url, '/.well-known/oauth-protected-resource')
+      AuthProto.configuration.stubs(:http_client).returns(transport = mock)
+      transport.expects(:get).with(endpoint).returns(mock_response)
+
+      described_class.from_url(URI(valid_url).freeze).authorization_server.should == valid_metadata['authorization_servers'].first
+    end
+  end
+
   describe ".from_url" do
     before do
       AuthProto.configuration.stubs(:http_client).returns(mock_http_client = mock)
-      mock_http_client.stubs(:get).with(URI.join(valid_url, "/.well-known/oauth-protected-resource").to_s).returns(mock_response)
+      mock_http_client.stubs(:get).with(URI.join(valid_url, "/.well-known/oauth-protected-resource")).returns(mock_response)
     end
 
     it "should fetch and parse metadata successfully" do

@@ -145,7 +145,7 @@ module AuthProto
       # The document's `client_id` must equal the requested URL.
       # Localhost HTTP client IDs generate virtual metadata without a network request.
       #
-      # @param url [String] HTTPS metadata URL, or localhost URL for development
+      # @param url [String, URI::HTTPS] HTTPS metadata URL, or localhost URL for development
       # @return [ClientMetadata] validated metadata
       # @raise [InvalidClientMetadata] if metadata is missing, invalid/mismatched, not JSON,
       #   or transport isn't configured
@@ -154,6 +154,7 @@ module AuthProto
       #
       def self.from_url(url)
         uri = ValidatedURI.new(url)
+        url = url.to_s
 
         unless uri.scheme == 'https' || (uri.scheme == 'http' && uri.host == 'localhost')
           raise InvalidClientMetadata, "client_id must use HTTPS except for localhost"

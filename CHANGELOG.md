@@ -3,6 +3,7 @@
 - added `process_dpop`, `has_nonce_error?` and `with_nonce_handling` helpers to `Client`, proxying the calls to `dpop_client` for easier access
 - renamed `server_url` params to `url` in `Client`, `DPoP::Client` and `DPoP::NonceManager` and to `origin` in `StoredNonce`
 - `Client` now rejects a `metadata` hash passed in argument for localhost clients (since you need to put the values into the `client_id` query params anyway for the server to read them)
+- `uri:` and `url:` arguments across the project now accept also `URI` objects
 
 ## [0.3.0.beta4] – 2026-11-03
 

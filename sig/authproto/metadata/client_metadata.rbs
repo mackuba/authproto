@@ -54,7 +54,7 @@ module AuthProto
 
       def initialize: (Hash[String, untyped] metadata) -> void
 
-      def self.from_url: (String url) -> ClientMetadata
+      def self.from_url: ((String | URI::HTTPS) url) -> ClientMetadata
 
       private def self.from_localhost_url: (String url) -> ClientMetadata
 

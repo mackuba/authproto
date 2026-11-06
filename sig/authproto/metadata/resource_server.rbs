@@ -8,7 +8,7 @@ module AuthProto
 
       def initialize: (Hash[String, untyped] metadata) -> void
 
-      def self.from_url: (String url) -> ResourceServer
+      def self.from_url: ((String | URI::HTTPS) url) -> ResourceServer
 
       private
 
@@ -16,7 +16,7 @@ module AuthProto
 
       private def self.fetch_metadata: (String url) -> http_response
 
-      private def self.validate_source_url: (String url) -> void
+      private def self.validate_source_url: ((String | URI::HTTPS) url) -> void
 
       private def self.parse_metadata: (String? body) -> Hash[String, untyped]
 

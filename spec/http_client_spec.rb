@@ -13,6 +13,21 @@ describe AuthProto::HTTPClient do
     Resolv::DNS.any_instance.stubs(:getaddresses).returns([Resolv::IPv4.create("93.184.216.34")])
   end
 
+  it "should accept frozen URI objects for GET and POST requests" do
+    target = URI(sample_url).freeze
+    stub_request(:get, sample_url).to_return(status: 200, body: 'get')
+    stub_request(:post, sample_url).with(body: 'data').to_return(status: 200, body: 'post')
+
+    client.get(target)[:body].should == 'get'
+    client.post(target, body: 'data')[:body].should == 'post'
+    target.to_s.should == sample_url
+  end
+
+  it "should apply URL validation to URI objects" do
+    expect { client.get(URI('http://example.com')) }.to raise_error(AuthProto::HTTPClient::SSRFError)
+    expect { client.post(URI('https://example.com/#fragment')) }.to raise_error(AuthProto::HTTPClient::SSRFError)
+  end
+
   describe "request validation" do
     it "should reject non-HTTPS URLs" do
       expect {

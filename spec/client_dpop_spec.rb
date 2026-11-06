@@ -23,6 +23,19 @@ describe AuthProto::Client, 'DPoP' do
     AuthProto.stubs(:storage).returns(AuthProto::Storage::Memory.new)
   end
 
+  context "with URI objects" do
+    let(:url) { URI('https://pds.example.com/xrpc/app.bsky.actor.getProfile?limit=1').freeze }
+
+    it "should process response nonces and generate proofs through the public client methods" do
+      client.process_dpop(success, url: url, session_id: session.session_id)
+      proof_payload.fetch('nonce').should == 'next'
+      proof_payload.fetch('htu').should == 'https://pds.example.com/xrpc/app.bsky.actor.getProfile'
+
+      client.with_nonce_handling(session.session_id, url) { success }.should equal(success)
+      url.query.should == 'limit=1'
+    end
+  end
+
   it "should use the nonce from process_dpop in the next authorization headers" do
     client.process_dpop(success, url: url, session_id: session.session_id)
 

@@ -40,7 +40,7 @@ class Minisky::OAuthClient
   #
   # @param host [String] PDS host or base URL used for XRPC requests
   # @param client_id [String] OAuth client metadata URL or localhost client ID
-  # @param redirect_uri [String] registered callback URI
+  # @param redirect_uri [String, URI::Generic] registered callback URI
   # @param metadata [Hash{String => Object}, nil] preloaded metadata, or `nil` to fetch it
   # @param signing_key [Hash, JOSE::JWK, nil] private ES256 key for confidential-client authentication
   # @param session_id [String, nil] stored session ID to resume; `nil` starts without an attached session
@@ -240,7 +240,7 @@ class Minisky::OAuthClient
       # Fresh proof for every attempt; callers cannot override OAuth auth headers.
       request_headers = headers.reject { |k, v| %w[authorization dpop].include?(k.to_s.downcase) }
       request_headers.merge!(oauth_client.auth_headers(
-                               session_id: session_id, method: request_class::METHOD, url: uri.to_s
+                               session_id: session_id, method: request_class::METHOD, url: uri
                              ))
 
       request = request_class.new(uri, request_headers)
@@ -249,7 +249,7 @@ class Minisky::OAuthClient
       response = make_request(request)
       response_hash = { status: response.code.to_i, headers: response.each_header.to_h, body: response.body }
 
-      oauth_client.process_dpop(response_hash, url: uri.to_s, session_id: session_id)
+      oauth_client.process_dpop(response_hash, url: uri, session_id: session_id)
 
       if oauth_client.has_nonce_error?(response_hash)
         return response if nonce_retries >= MAX_NONCE_RETRIES

@@ -1,6 +1,13 @@
 # frozen_string_literal: true
 
 describe AuthProto::Client, 'redirect URI matching' do
+  it "should accept a frozen redirect URI object and expose its string form" do
+    uri = URI('http://127.0.0.1:54321/').freeze
+    client = described_class.new(client_id: 'http://localhost', redirect_uri: uri)
+
+    client.redirect_uri.should == uri.to_s
+  end
+
   ['http://localhost', 'http://localhost/?scope=atproto'].each do |client_id|
     it "should reject preloaded metadata for #{client_id}" do
       metadata = {
