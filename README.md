@@ -292,7 +292,7 @@ client.handle_callback(
 
 ### Make authenticated data requests
 
-This part is… a bit complicated, because this API is designed to allow working with any HTTP client library you're using. `AuthProto::Client` by itself doesn't implement a full XRPC client for making requests and handling responses. What it gives you is a way to get a set of authentication headers generated for a specific request (method + URL) that you can then pass to e.g. `Net::HTTP` or [Faraday](https://github.com/lostisland/faraday):
+This part is a bit more complicated, because this API is designed to allow working with any HTTP client library you're using. `AuthProto::Client` by itself doesn't implement a full XRPC client for making requests and handling responses. What it gives you is a way to get a set of authentication headers generated for a specific request (method + URL) that you can then pass to e.g. `Net::HTTP` or [Faraday](https://github.com/lostisland/faraday):
 
 ```rb
 endpoint = "https://#{pds_host}/xrpc/com.atproto.repo.createRecord"
@@ -378,6 +378,40 @@ response = client.with_nonce_handling(session_id, endpoint) do
   end
 
   { headers: res.headers, body: res.body, status: res.status }
+end
+```
+
+Here's an example using `Net::HTTP`:
+
+```rb
+endpoint = "https://#{pds_host}/xrpc/app.bsky.feed.getTimeline"
+
+response = client.with_nonce_handling(session_id, endpoint) do
+  headers = client.auth_headers(
+    session_id: session_id,
+    method: 'GET',
+    url: endpoint
+  )
+
+  res = Net::HTTP.get_response(URI(endpoint), headers)
+
+  { headers: res.to_hash, body: res.body, status: res.code }
+end
+```
+
+And you can also use the `#http` method to access the global AuthProto HTTP client you've configured earlier:
+
+```rb
+endpoint = "https://#{pds_host}/xrpc/app.bsky.feed.getTimeline"
+
+response = client.with_nonce_handling(session_id, endpoint) do
+  headers = client.auth_headers(
+    session_id: session_id,
+    method: 'GET',
+    url: endpoint
+  )
+
+  client.http.get(endpoint, headers)
 end
 ```
 

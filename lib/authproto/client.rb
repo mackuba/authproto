@@ -378,6 +378,15 @@ module AuthProto
     end
 
 
+    # Returns the global HTTP client configured through `AuthProto.configuration`.
+    #
+    # @return [#get, #post, nil] configured HTTP client, or `nil` when not configured
+    #
+    def http
+      AuthProto.configuration.http_client
+    end
+
+
     # Checks if a session with given ID exists and has valid and not expired tokens.
     #
     # @param session_id [String] ID of a session to look up
@@ -494,18 +503,27 @@ module AuthProto
     # request with a new nonce. Returns the response from the final request, including if the second attempt returns
     # an error response.
     #
-    # @example
+    # @example using with Net::HTTP
     #   uri = URI.join(pds_url, '/xrpc/app.bsky.feed.getTimeline')
-    #   
+    #
     #   response = client.with_nonce_handling(session_id, uri) do
     #     headers = client.auth_headers(session_id: session_id, method: 'GET', url: uri)
     #     response = Net::HTTP.get_response(uri, headers)
-    #   
+    #
     #     {
     #       status: response.code,
     #       headers: response.to_hash,
     #       body: response.body
     #     }
+    #   end
+    #
+    # @example using with AuthProto's HTTPClient
+    #   uri = URI.join(pds_url, '/xrpc/app.bsky.feed.getTimeline')
+    #
+    #   response = client.with_nonce_handling(session_id, uri) do
+    #     headers = client.auth_headers(session_id: session_id, method: 'GET', url: uri)
+    #
+    #     client.http.get(uri, headers)
     #   end
     #
     # @param session_id [String] ID of the session making the request
@@ -753,7 +771,7 @@ module AuthProto
         )
       end
 
-      AuthProto.configuration.http_client.post(
+      http.post(
         session.auth_server.token_endpoint,
         body: body,
         headers: {
