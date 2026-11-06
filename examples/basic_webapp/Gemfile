@@ -1,14 +1,14 @@
 # frozen_string_literal: true
 
-source "https://rubygems.org"
+source 'https://rubygems.org'
 
-gem "authproto", path: "../.."
-gem "dotenv"
-gem "faraday"
-gem "json"
-gem "puma"
-gem "rackup"
-gem "redis"
-gem "sinatra"
-gem "sinatra-contrib"
-gem "sqlite3", "~> 2.9"
+gem 'authproto', path: '../..'
+gem 'dotenv'
+gem 'faraday'
+gem 'json'
+gem 'puma'
+gem 'rackup'
+gem 'redis'
+gem 'sinatra'
+gem 'sinatra-contrib'
+gem 'sqlite3', '~> 2.9'

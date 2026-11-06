@@ -76,7 +76,7 @@ svg {
 pre,
 code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 1em;
+  font-size: 10pt;
 }
 
 .page {
@@ -107,7 +107,7 @@ code {
 
 .page-content {
   width: 100%;
-  padding: 0 1.5rem;
+  padding: 1rem 1.5rem 1.5rem;
 }
 
 .form {
@@ -256,7 +256,7 @@ code {
   color: #374151;
 }
 
-.signout-actions {
+.logout-actions {
   display: flex;
 }
 

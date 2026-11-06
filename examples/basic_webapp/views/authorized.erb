@@ -7,14 +7,14 @@
     <div class="authorized-content">
       <% if session[:error] %>
         <div class="message message-error">
-          <%= session[:error] %>
+          <%= html_escape session[:error] %>
           <% session[:error] = nil %>
         </div>
       <% end %>
 
       <% if session[:notice] %>
         <div class="message message-success">
-          <%= session[:notice] %>
+          <%= html_escape session[:notice] %>
           <% session[:notice] = nil %>
         </div>
       <% end %>
@@ -23,8 +23,7 @@
         <fieldset>
           <label for="post-text" class="field-label">New Bluesky post</label>
           <textarea id="post-text" name="text" rows="4" maxlength="300" required
-              placeholder="What's up?" class="post-input">
-          </textarea>
+              placeholder="What's up?" class="post-input"></textarea>
         </fieldset>
         <div>
           <button type="submit" class="button">Post to Bluesky</button>
@@ -33,16 +32,16 @@
 
       <div class="token-info">
         <p class="field-label">Token Information</p>
-        <pre class="data-output"><code><%= JSON.pretty_generate(@session) %></code></pre>
+        <pre class="data-output"><code><%= @session ? html_escape(JSON.pretty_generate(@session)) : "\n" %></code></pre>
       </div>
 
       <div class="api-test">
         <p class="field-label">Test API Call Result</p>
-        <pre class="data-output"><code><%= JSON.pretty_generate(@api_result) %></code></pre>
+        <pre class="data-output"><code><%= @api_result ? html_escape(JSON.pretty_generate(@api_result)) : "\n" %></code></pre>
       </div>
 
-      <div class="signout-actions">
-        <a href="/signout" aria-label="Signout" class="button button-truncate">Sign out</a>
+      <div class="logout-actions">
+        <a href="/logout" aria-label="Log out" class="button button-truncate">Log out</a>
       </div>
     </div>
   </div>

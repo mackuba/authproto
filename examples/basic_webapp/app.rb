@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'cgi'
 require 'json'
 require 'securerandom'
 require 'time'
@@ -12,38 +11,36 @@ require 'faraday'
 require 'sinatra/base'
 require 'sinatra/reloader'
 
+
 $session_secret = ENV.fetch("SESSION_SECRET") { SecureRandom.hex(32) }
 raise "SESSION_SECRET must be at least 64 characters long (got: #{$session_secret})" if $session_secret.length < 64
 
-# Main app entry point
+$metadata_path = File.join(__dir__, 'config', 'oauth-client-metadata.json')
+raise "Missing metadata JSON file at config/oauth-client-metadata.json" unless File.exist?($metadata_path)
+
+$keys_path = File.join(__dir__, 'config', 'keys.json')
+
+
 class ExampleApp < Sinatra::Base
-  def check_stored_session(session_id)
-    return false unless session_id
-
-    settings.oauth_client.authorized?(session_id)
-  rescue AuthProto::SessionError
-    false
-  end
-
   configure :development do
     register Sinatra::Reloader
   end
 
-  # Initialize the AT Protocol OAuth client
   configure do
     # Configure AuthProto settings
     AuthProto.configure do |config|
-      config.http_client = AuthProto::HTTPClient.new(timeout: 10, verify_ssl: true)
-      config.dpop_nonce_lifetime = 300
+      config.http_client = AuthProto::HTTPClient.new(timeout: 10)
 
-      case ENV.fetch("STORAGE_BACKEND", "memory")
-      when "memory"
+      storage = ENV.fetch("STORAGE_BACKEND", 'memory')
+
+      case storage
+      when 'memory'
         config.storage = AuthProto::Storage::Memory.new
-      when "sqlite"
+      when 'sqlite'
         config.storage = AuthProto::Storage::SQLite.new(
-          path: ENV.fetch("SQLITE_PATH", File.join(__dir__, "db", "authproto.sqlite3"))
+          path: ENV.fetch("SQLITE_PATH", File.join(__dir__, 'db', 'authproto.sqlite3'))
         )
-      when "redis"
+      when 'redis'
         config.storage = AuthProto::Storage::Redis.new(
           redis_client: Redis.new(url: ENV.fetch("REDIS_URL"))
         )
@@ -53,20 +50,27 @@ class ExampleApp < Sinatra::Base
     end
 
     # Load client metadata
-    metadata_path = File.join(__dir__, "config", "oauth-client-metadata.json")
-    metadata = JSON.parse(File.read(metadata_path))
-
+    metadata = JSON.parse(File.read($metadata_path))
     client_id = metadata['client_id']
     redirect_uri = metadata['redirect_uris'][0]
 
-    # Private client-authentication keys are kept outside public metadata.
-    keys_file = File.join(__dir__, "config", "keys.json")
-    signing_key = JSON.parse(File.read(keys_file))['keys'].first if File.exist?(keys_file)
+    # Load private signing key for client assertions, if found
+    if File.exist?($keys_path)
+      signing_key = JSON.parse(File.read($keys_path))['keys'].first
+    end
 
-    if client_id.chomp("/") == "http://localhost"
-      scope = CGI.escape(metadata['scope'])
-      redirect = CGI.escape(metadata['redirect_uris'][0])
-      client_id += "?scope=#{scope}&redirect_uri=#{redirect}"
+    if client_id =~ %r{\Ahttp://localhost(/|$)}
+      # For localhost apps, redirect_uri & scope are appended as query params to the client_id URI
+      uri = URI(client_id)
+
+      params = URI.decode_www_form(uri.query.to_s)
+      params << ['scope', metadata['scope']] unless params.any? { |k, v| k == 'scope' }
+      params << ['redirect_uri', metadata['redirect_uris'][0]] unless params.any? { |k, v| k == 'redirect_uri' }
+
+      uri.query = URI.encode_www_form(params)
+      client_id = uri.to_s
+
+      # Don't pass the metadata hash to AuthProto::Client
       metadata = nil
 
       if signing_key
@@ -77,6 +81,7 @@ class ExampleApp < Sinatra::Base
         signing_key = nil
       end
     else
+      # Apps on a live server can be public or confidential clients
       if !signing_key
         warn "-" * 100
         warn "Missing config/keys.json - running the app as a public client."
@@ -84,7 +89,7 @@ class ExampleApp < Sinatra::Base
       end
     end
 
-    # Create OAuth client
+    # Create the OAuth client and store it in the global settings
     set :oauth_client, AuthProto::Client.new(
       client_id: client_id,
       redirect_uri: redirect_uri,
@@ -106,14 +111,12 @@ class ExampleApp < Sinatra::Base
       same_site: :lax     # CSRF protection
 
   helpers do
-    def recover_session
+    def load_session
       session_id = session[:oauth_session_id]
       return nil unless session_id
 
       begin
-        # Check if session is still valid
         return nil unless settings.oauth_client.authorized?(session_id)
-
         session_id
       rescue AuthProto::Client::SessionError
         # Clear invalid session
@@ -121,189 +124,234 @@ class ExampleApp < Sinatra::Base
         nil
       end
     end
+
+    def log_error(e)
+      if settings.development?
+        puts e
+        puts e.backtrace.take_while { |l| !l.include?('/lib/sinatra/base') }
+      end
+    end
+
+    def html_escape(text)
+      Rack::Utils.escape_html(text)
+    end
   end
 
+  # The landing / login page
   get "/" do
-    # Check for existing session
-    redirect "/authorized" if recover_session
+    redirect "/authorized" if load_session
 
     erb :index
   end
 
+  # Client metadata served on a standard endpoint (only needed on the live site)
   get "/oauth-client-metadata.json" do
     content_type :json
 
-    # Read metadata from config file
-    metadata_path = File.join(__dir__, "config", "oauth-client-metadata.json")
-    metadata = JSON.parse(File.read(metadata_path))
-
-    # This file contains only the public counterparts of config/keys.json.
-    JSON.generate(metadata)
+    File.read($metadata_path)
   end
 
-  # Start OAuth flow
-  post "/auth" do
+  # Starts the OAuth flow and redirects the user to the PDS's OAuth authorization page
+  post "/authenticate" do
     handle = params[:handle]
 
     begin
-      # Start authorization flow
       auth = settings.oauth_client.authorize(
         handle: handle,
         scope: "atproto repo:app.bsky.feed.post"
       )
 
-      # Bind the pending authorization attempt to this browser, separately from any active login.
-      session[:pending_oauth_session_id] = auth[:session_id]
+      session_id, authorization_url = auth.values_at(:session_id, :url)
 
-      # Redirect to authorization URL
-      redirect auth[:url]
+      # Remember the ID of the created OAuth session in the browser session.
+      #
+      # We need to extract it later when receiving the callback completing the authorization, in order to verify
+      # that the authorization was started in the same browser session (and that we aren't logging in the user to
+      # someone else's browser session).
+
+      session[:pending_oauth_session_id] = session_id
+
+      # This is an authorization URL on the user's PDS, redirect them there:
+      redirect authorization_url
     rescue StandardError => e
+      log_error(e)
       session[:error] = "Authorization failed: #{e.message}"
       redirect "/"
     end
   end
 
-  # OAuth callback handler
+  # OAuth callback handler to which the user gets redirected back, which completes the authorization flow
   get "/callback" do
-    # Handle the callback
+    # Handle possible errors (e.g. user has rejected authorization)
+    if params[:error]
+      message = params[:error]
+      message += ": " + params[:error_description] if params[:error_description]
+      session[:error] = "Authorization failed: #{message}"
+      redirect "/"
+    end
+
+    # Extract the session ID previously stored in this browser session and pass it to oauth_client for verification.
+    pending_session_id = session[:pending_oauth_session_id]
+
     result = settings.oauth_client.handle_callback(
       code: params[:code],
       state: params[:state],
       iss: params[:iss],
-      expected_session_id: session[:pending_oauth_session_id]
+      expected_session_id: pending_session_id
     )
 
     session.delete(:pending_oauth_session_id)
-
-    # Remember the authenticated session ID.
     session[:oauth_session_id] = result[:session_id]
 
     redirect "/authorized"
   rescue StandardError => e
+    log_error(e)
     session[:error] = "Callback failed: #{e.message}"
     redirect "/"
   end
 
-  # Show authorized state and test API call
+  # Home page for a logged in user. Makes a sample request to test authorization headers API.
   get "/authorized" do
-    session_id = session[:oauth_session_id]
-    return redirect "/" unless check_stored_session(session_id)
+    session_id = load_session
+    redirect "/" if session_id.nil?
 
+    # Get current session info
+    oauth_session = settings.oauth_client.get_tokens(session_id)
+
+    # Check if token needs refresh
     begin
-      # Get current session tokens
-      oauth_session = settings.oauth_client.get_tokens(session_id)
-
-      # Check if token needs refresh
       if oauth_session[:expires_in] < 30
-        # Refresh token
         oauth_session = settings.oauth_client.refresh_token(session_id)
       end
+    rescue StandardError => e
+      log_error(e)
+      session[:error] = "Token refresh failed: #{e.message}"
+      halt erb(:index)
+    end
 
-      # Make test API call to com.atproto.identity.resolveHandle
-      conn = Faraday.new(url: "https://api.bsky.app") do |f|
+    # Make test API call to com.atproto.identity.resolveHandle using Faraday
+    begin
+      # TODO
+      pds = settings.oauth_client.session_manager.get_session(session_id).pds
+      endpoint = "/xrpc/com.atproto.server.checkAccountStatus"
+      url = URI.join(pds, endpoint).to_s
+
+      connection = Faraday.new(url: pds) do |f|
         f.request :json
-        f.response :json
       end
 
-      # Get auth headers for request
-      headers = settings.oauth_client.auth_headers(
-        session_id: session_id,
-        method: 'GET',
-        url: "https://api.bsky.app/xrpc/com.atproto.identity.resolveHandle"
-      )
+      # This wrapper repeats the request if needed with updated DPoP nonce
+      response = settings.oauth_client.with_nonce_handling(session_id, url) do
+        # Create authentication headers for this request
+        headers = settings.oauth_client.auth_headers(
+          session_id: session_id,
+          method: 'GET',
+          url: url
+        )
 
-      # Make authenticated request
-      response = conn.get("/xrpc/com.atproto.identity.resolveHandle") do |req|
-        req.headers.merge!(headers)
-        req.params[:handle] = "bsky.app"
+        # Make authenticated request
+        res = connection.get(endpoint) do |req|
+          req.headers.merge!(headers)
+        end
+
+        # Convert the Faraday response to expected format
+        { status: res.status, body: res.body, headers: res.headers }
       end
 
-      @api_result = response.body
-      @session = oauth_session
+      if response[:status] == 200
+        @api_result = JSON.parse(response[:body])
+        @session = oauth_session
+      else
+        session[:error] = "API call failed: HTTP #{response[:status]}: #{response[:body]}"
+      end
+
       erb :authorized
     rescue StandardError => e
+      log_error(e)
       session[:error] = "API call failed: #{e.message}"
-      redirect "/"
+      erb :index
     end
   end
 
+  # Make a test post on Bluesky
   post "/posts" do
-    session_id = session[:oauth_session_id]
-    return redirect "/" unless check_stored_session(session_id)
+    session_id = load_session
+    redirect "/" if session_id.nil?
+
+    # Get current session info
+    oauth_session = settings.oauth_client.get_tokens(session_id)
 
     text = params[:text].to_s
+
     if text.strip.empty?
       session[:error] = "Post text cannot be empty"
-      return redirect "/authorized"
+      redirect "/authorized"
     end
 
     if text.length > 300 || text.bytesize > 3_000
       session[:error] = "Post text must be at most 300 characters and 3,000 bytes"
-      return redirect "/authorized"
+      redirect "/authorized"
     end
 
-    oauth_session = settings.oauth_client.session_manager.get_session(session_id)
+    # TODO
+    pds = settings.oauth_client.session_manager.get_session(session_id).pds
+    endpoint = "/xrpc/com.atproto.repo.createRecord"
+    url = URI.join(pds, endpoint).to_s
 
-    pds_url = ENV['PDS_URL'] || DIDKit::DID.new(oauth_session.did).document.pds_endpoint
-    raise "No HTTPS PDS location found" unless pds_url && URI(pds_url).is_a?(URI::HTTPS)
-
-    endpoint = URI.join(
-      "#{pds_url.chomp("/")}/",
-      "xrpc/com.atproto.repo.createRecord"
-    ).to_s
-
-    headers = settings.oauth_client.auth_headers(
-      session_id: session_id,
-      method: 'POST',
-      url: endpoint
-    )
-
-    conn = Faraday.new do |f|
-      f.request :json
-      f.response :json
-    end
-
-    response = conn.post(endpoint) do |req|
-      req.headers.merge!(headers)
-      req.body = {
-        repo: oauth_session.did,
-        collection: "app.bsky.feed.post",
-        record: {
-          "$type": "app.bsky.feed.post",
-          text: text,
-          langs: ["en"],
-          createdAt: Time.now.utc.iso8601(3)
-        }
+    record = {
+      repo: oauth_session[:did],
+      collection: "app.bsky.feed.post",
+      record: {
+        text: text,
+        langs: ["en"],
+        createdAt: Time.now.utc.iso8601(3)
       }
+    }
+
+    connection = Faraday.new(url: pds) do |f|
+      f.request :json
     end
 
-    unless response.success?
-      error_body = response.body.is_a?(String) ? response.body : JSON.generate(response.body)
-      raise "PDS rejected post (#{response.status}): #{error_body}"
+    # This wrapper repeats the request if needed with updated DPoP nonce
+    response = settings.oauth_client.with_nonce_handling(session_id, url) do
+      # Create authentication headers for this request
+      headers = settings.oauth_client.auth_headers(
+        session_id: session_id,
+        method: 'POST',
+        url: url
+      )
+
+      # Make authenticated request
+      res = connection.post(endpoint) do |req|
+        req.headers.merge!(headers)
+        req.body = record
+      end
+
+      # Convert the Faraday response to expected format
+      { status: res.status, body: res.body, headers: res.headers }
+    end
+
+    unless response[:status] == 200
+      session[:error] = "Error #{response[:status]}: #{response[:body]}"
+      redirect "/authorized"
     end
 
     session[:notice] = "Post published successfully"
     redirect "/authorized"
   rescue StandardError => e
+    log_error(e)
     session[:error] = "Publishing post failed: #{e.message}"
     redirect "/authorized"
   end
 
-  get "/signout" do
+  get "/logout" do
     if session[:oauth_session_id]
-      # Clean up stored session
+      # Revoke access tokens and clean up the stored session
       settings.oauth_client.delete_session(session[:oauth_session_id], revoke: true)
     end
 
     session.clear
-    session[:notice] = "Successfully signed out"
+    session[:notice] = "Successfully logged out"
     redirect "/"
-  end
-
-  # Helper method to check if user is authenticated
-  def authenticated?
-    return false unless session[:tokens]
-
-    settings.oauth_client.authorized?(session[:tokens][:session_id])
   end
 end

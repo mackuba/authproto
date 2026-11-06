@@ -5,18 +5,18 @@
   </div>
 
   <div class="page-content">
-    <form method="post" action="/auth" class="form">
+    <form method="post" action="/authenticate" class="form">
       <div class="form-fields">
         <% if session[:error] %>
           <div class="message message-error">
-            <%= session[:error] %>
+            <%= html_escape session[:error] %>
             <% session[:error] = nil %>
           </div>
         <% end %>
 
         <% if session[:notice] %>
           <div class="message message-notice">
-            <%= session[:notice] %>
+            <%= html_escape session[:notice] %>
             <% session[:notice] = nil %>
           </div>
         <% end %>
