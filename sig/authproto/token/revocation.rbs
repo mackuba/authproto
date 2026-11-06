@@ -1,6 +1,7 @@
 module AuthProto
   module Token
     class Revocation
+      include HTTPHelpers
       class Error < AuthProto::Error
       end
 

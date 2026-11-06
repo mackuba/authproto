@@ -48,6 +48,13 @@ describe AuthProto::Metadata::ResourceServer do
   end
 
   describe ".from_url" do
+    it "should accept a string status and array content type from the transport" do
+      mock_response[:status] = '200'
+      mock_response[:headers] = { 'Content-Type' => ['application/json'] }
+
+      described_class.from_url(valid_url).authorization_server.should == valid_metadata['authorization_servers'].first
+    end
+
     before do
       AuthProto.configuration.stubs(:http_client).returns(mock_http_client = mock)
       mock_http_client.stubs(:get).with(URI.join(valid_url, "/.well-known/oauth-protected-resource")).returns(mock_response)

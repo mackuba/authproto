@@ -98,7 +98,7 @@ module AuthProto
           make_request(request, session: session)
         end
 
-        if response[:status] == 201
+        if response_status(response) == 201
           handle_success_response(response)
         else
           handle_error_response(response)

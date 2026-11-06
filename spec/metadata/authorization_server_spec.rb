@@ -103,6 +103,13 @@ describe AuthProto::Metadata::AuthorizationServer do
   end
 
   describe ".from_url" do
+    it "should accept a string status and array content type from the transport" do
+      mock_response[:status] = '200'
+      mock_response[:headers] = { 'Content-Type' => ['application/json'] }
+
+      described_class.from_url(issuer_url).issuer.should == issuer_url
+    end
+
     before do
       AuthProto.configuration.stubs(:http_client).returns(mock_http_client = mock)
       mock_http_client.stubs(:get).with(URI.join(issuer_url, '/.well-known/oauth-authorization-server')).returns(mock_response)

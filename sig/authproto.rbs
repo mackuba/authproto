@@ -6,7 +6,7 @@ end
 module AuthProto
   type json_object = Hash[String, untyped]
   type http_body = String | Hash[untyped, untyped] | nil
-  type http_response = { status: Integer, headers: Hash[String, String], body: String? }
+  type http_response = { status: Integer | String, headers: Hash[String, String | Array[String]], body: String? }
   type session_data = { access_token: String, expires_in: Integer,
                         refresh_token: String?, requested_scope: String, granted_scope: String,
                         session_id: String, did: String }

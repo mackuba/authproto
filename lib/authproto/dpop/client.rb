@@ -112,7 +112,7 @@ module AuthProto
       def has_nonce_error?(response)
         validate_response_fields(response)
 
-        case response[:status]
+        case response_status(response)
         when 400
           return false unless response[:body].is_a?(String)
 

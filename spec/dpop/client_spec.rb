@@ -19,6 +19,35 @@ describe AuthProto::DPoP::Client do
   let(:response_headers) { { "DPoP-Nonce" => nonce } }
   let(:response) { { status: 200, headers: response_headers, body: '{}' } }
 
+  it "should handle string statuses and array headers during nonce retries" do
+    challenge = {
+      status: '401', headers: {
+        'DPoP-Nonce' => ['challenge'].freeze,
+        'WWW-Authenticate' => ['Bearer realm="api"', 'DPoP error="use_dpop_nonce"'].freeze
+      }.freeze, body: nil
+    }.freeze
+    success = { status: '200', headers: { 'DPoP-Nonce' => ['next'] }, body: '{}' }
+    responses = [challenge, success]
+
+    client.with_nonce_handling(session.session_id, uri) { responses.shift }.should equal(success)
+    client.nonce_manager.get(url: uri, session_id: session.session_id).should == 'next'
+    challenge[:status].should == '401'
+    challenge[:headers]['DPoP-Nonce'].should == ['challenge']
+  end
+
+  it "should detect a JSON nonce challenge with a string status" do
+    client.has_nonce_error?(
+      status: '400', headers: {}, body: '{"error":"use_dpop_nonce"}'
+    ).should be true
+  end
+
+  it "should reject an empty nonce header array" do
+    expect {
+      client.process_response(response.merge(headers: { 'DPoP-Nonce' => [] }),
+                              url: uri, session_id: session.session_id)
+    }.to raise_error(described_class::Error, /Missing DPoP-Nonce/)
+  end
+
   %i[status headers body].each do |key|
     it "should reject responses missing :#{key} before storing a nonce or detecting a challenge" do
       incomplete_response = response.except(key)

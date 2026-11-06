@@ -41,6 +41,35 @@ describe AuthProto::HTTPHelpers do
     helper.send(:response_header, {}, 'Content-Type', strip_parameters: true).should be_nil
   end
 
+  [200, '200', '401', '429', '500'].each do |status|
+    it "should read numeric status #{status.inspect} without changing the response" do
+      response = { status: status }.freeze
+
+      helper.send(:response_status, response).should == status.to_i
+      response[:status].should == status
+    end
+  end
+
+  ['200oops', '', nil].each do |status|
+    it "should preserve an invalid status #{status.inspect}" do
+      helper.send(:response_status, { status: status }).should == status
+    end
+  end
+
+  it "should join array header values with a comma and space without changing them" do
+    values = ['Bearer realm="api"', 'DPoP error="use_dpop_nonce"'].freeze
+    response = { headers: { 'WWW-Authenticate' => values }.freeze }.freeze
+
+    helper.send(:response_header, response, 'www-authenticate').should == values.join(', ')
+    response[:headers]['WWW-Authenticate'].should equal(values)
+  end
+
+  it "should strip parameters after joining array header values" do
+    response = { headers: { 'Content-Type' => ['Application/JSON; charset=utf-8'] } }
+
+    helper.send(:response_header, response, 'content-type', strip_parameters: true).should == 'Application/JSON'
+  end
+
   describe '#authentication_challenge' do
     [
       'Bearer realm="api", DPoP error="use_dpop_nonce"',

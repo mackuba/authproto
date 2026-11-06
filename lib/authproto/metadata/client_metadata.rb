@@ -166,7 +166,7 @@ module AuthProto
 
         response = AuthProto.configuration.http_client.get(url)
 
-        unless response[:status] == 200
+        unless response_status(response) == 200
           raise InvalidClientMetadata,
             "expected HTTP 200 response for client metadata request, got #{response[:status]}"
         end

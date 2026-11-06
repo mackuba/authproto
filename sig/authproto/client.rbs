@@ -1,5 +1,6 @@
 module AuthProto
   class Client
+    include HTTPHelpers
     class CallbackError < AuthProto::Error
     end
     class TokenError < AuthProto::Error

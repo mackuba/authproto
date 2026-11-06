@@ -653,6 +653,15 @@ describe AuthProto::Metadata::ClientMetadata do
     end
   end
 
+  it "should accept a string status and array content type for client metadata" do
+    AuthProto.configuration.stubs(:http_client).returns(transport = mock)
+    transport.expects(:get).with(@valid_metadata['client_id']).returns(
+      status: '200', headers: { 'Content-Type' => ['application/json'] }, body: @valid_metadata.to_json
+    )
+
+    described_class.from_url(@valid_metadata['client_id']).client_id.should == @valid_metadata['client_id']
+  end
+
   it "should fetch client metadata using a URI object" do
     url = @valid_metadata['client_id']
     AuthProto.configuration.stubs(:http_client).returns(transport = mock)

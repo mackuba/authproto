@@ -41,6 +41,13 @@ describe AuthProto::PAR::Client do
       end
     end
 
+    it "should accept a string status and array content type in a PAR response" do
+      @response[:status] = '201'
+      @response[:headers] = { 'Content-Type' => ['application/json'] }
+
+      @client.submit(@request, session: @session).request_uri.should == 'mocked_uri'
+    end
+
     it "should submit the PAR request and return a Response object on success" do
       @http_client.expects(:post).with(
         @par_endpoint,

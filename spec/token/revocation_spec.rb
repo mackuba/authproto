@@ -19,6 +19,14 @@ describe AuthProto::Token::Revocation do
     Resolv::DNS.any_instance.stubs(:getaddresses).returns([Resolv::IPv4.create('93.184.216.34')])
   end
 
+  it "should accept a string status and array nonce from the revocation endpoint" do
+    AuthProto.configuration.http_client.stubs(:post).returns(
+      status: '200', headers: { 'DPoP-Nonce' => ['nonce'] }, body: nil
+    )
+
+    expect { revoker.revoke_token('refresh', token_type: 'refresh_token') }.not_to raise_error
+  end
+
   it "should revoke the refresh token using the session key and fresh proofs after a nonce challenge" do
     proofs = []
     stub_request(:post, endpoint).with do |request|

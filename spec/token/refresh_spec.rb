@@ -99,6 +99,29 @@ describe AuthProto::Token::Refresh do
     AuthProto.configuration = @previous_configuration
   end
 
+  it "should refresh tokens with a string status and array headers from the transport" do
+    AuthProto.configuration.http_client.stubs(:post).returns(
+      status: '200', headers: { 'Content-Type' => ['application/json'], 'DPoP-Nonce' => ['nonce'] },
+      body: successful_response.to_json
+    )
+
+    @refresher.perform_refresh.access_token.should == 'new_token'
+  end
+
+  it "should recognize a string error status" do
+    expect {
+      @refresher.send(:handle_refresh_response,
+                      { status: '400', headers: {}, body: '{"error":"invalid_grant"}' })
+    }.to raise_error(AuthProto::Token::RefreshError, /Refresh token has been invalidated/)
+  end
+
+  it "should read an array Retry-After header with a string rate limit status" do
+    expect {
+      @refresher.send(:handle_refresh_response,
+                      { status: '429', headers: { 'Retry-After' => ['15'] }, body: nil })
+    }.to raise_error(AuthProto::Token::RefreshError, /Rate limited - retry after 15 seconds/)
+  end
+
   it "should refresh the token and return a new TokenSet" do
     token_set = @refresher.perform_refresh
 

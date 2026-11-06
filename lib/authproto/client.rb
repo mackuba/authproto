@@ -7,6 +7,7 @@ require 'uri'
 require_relative 'configuration'
 require_relative 'dpop/client'
 require_relative 'errors'
+require_relative 'http_helpers'
 require_relative 'metadata/authorization_server'
 require_relative 'metadata/client_metadata'
 require_relative 'metadata/resource_server'
@@ -71,14 +72,15 @@ module AuthProto
   #     response = Net::HTTP.get_response(URI(url), headers)
   #   
   #     {
-  #       status: response.code.to_i,
-  #       headers: response.to_hash.transform_values { |values| values.join(', ') },
+  #       status: response.code,
+  #       headers: response.to_hash,
   #       body: response.body
   #     }
   #   end
   #
 
   class Client
+    include HTTPHelpers
     include Token::Identity
 
     # An error raised when initial authorization fails.
@@ -500,8 +502,8 @@ module AuthProto
     #     response = Net::HTTP.get_response(uri, headers)
     #   
     #     {
-    #       status: response.code.to_i,
-    #       headers: response.to_hash.transform_values { |values| values.join(', ') },
+    #       status: response.code,
+    #       headers: response.to_hash,
     #       body: response.body
     #     }
     #   end
@@ -719,7 +721,7 @@ module AuthProto
         make_token_request(code, session)
       end
 
-      raise TokenError, "Token request failed: #{response[:status]}" unless response[:status] == 200
+      raise TokenError, "Token request failed: #{response[:status]}" unless response_status(response) == 200
 
       tokens = Token::Response.parse(response)
       validate_token_identity(tokens, session)

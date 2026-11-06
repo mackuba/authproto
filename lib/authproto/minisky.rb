@@ -247,7 +247,7 @@ class Minisky::OAuthClient
       request.body = body unless body.nil?
 
       response = make_request(request)
-      response_hash = { status: response.code.to_i, headers: response.each_header.to_h, body: response.body }
+      response_hash = { status: response.code, headers: response.each_header.to_h, body: response.body }
 
       oauth_client.process_dpop(response_hash, url: uri, session_id: session_id)
 

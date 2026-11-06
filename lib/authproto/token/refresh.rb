@@ -297,7 +297,7 @@ module AuthProto
       end
 
       def handle_refresh_response(response)
-        case response[:status]
+        case response_status(response)
         when 200
           process_successful_response(response)
         when 400, 401

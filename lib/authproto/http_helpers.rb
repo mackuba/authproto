@@ -12,6 +12,11 @@ module AuthProto
 
     private
 
+    def response_status(response)
+      status = response[:status]
+      status.is_a?(String) && /\A[0-9]+\z/.match?(status) ? status.to_i : status
+    end
+
     # Looks up a response header without regard to the case of its name.
     #
     # @param response [Hash{Symbol => Object}] HTTP response with an optional `:headers` hash
@@ -21,6 +26,7 @@ module AuthProto
     #
     def response_header(response, name, strip_parameters: false)
       value = (response[:headers] || {}).find { |header, value| header.casecmp?(name) }&.last
+      value = value.join(', ') if value.is_a?(Array)
       return value unless value && strip_parameters
 
       value.split(';', 2).first.to_s.strip

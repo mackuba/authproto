@@ -2,6 +2,7 @@
 
 require_relative '../configuration'
 require_relative '../errors'
+require_relative '../http_helpers'
 require_relative '../par'
 
 module AuthProto
@@ -12,6 +13,7 @@ module AuthProto
     #
 
     class Revocation
+      include HTTPHelpers
 
       # Error raised when revocation is unavailable or rejected by the server.
       class Error < AuthProto::Error; end
@@ -56,7 +58,7 @@ module AuthProto
           make_request(token, endpoint, token_type)
         end
 
-        raise Error, "Token revocation failed: HTTP #{response[:status]}" unless response[:status] == 200
+        raise Error, "Token revocation failed: HTTP #{response[:status]}" unless response_status(response) == 200
       end
 
 

@@ -106,7 +106,7 @@ module AuthProto
         end
 
         def validate_response(response)
-          unless response[:status] == 200
+          unless response_status(response) == 200
             raise InvalidAuthorizationServer, "Resource server metadata must return HTTP 200"
           end
 

@@ -40,6 +40,18 @@ describe AuthProto::Client, '#handle_callback' do
     )
   end
 
+  it "should accept a string status and array headers during code exchange" do
+    client.expects(:make_token_request).with('code', anything).returns(
+      status: '200', headers: { 'Content-Type' => ['application/json'], 'DPoP-Nonce' => ['nonce'] }, body: {
+        access_token: 'access', refresh_token: 'refresh', token_type: 'DPoP',
+        expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
+      }.to_json
+    )
+
+    client.handle_callback(**callback, expected_session_id: session.session_id)
+    client.session_manager.get_session(session.session_id).tokens.access_token.should == 'access'
+  end
+
   [{ headers: {} }, { headers: { 'Content-Type' => 'text/html' } }, { body: '[]' },
    { expires_in: 0 }, { access_token: 123 }, { refresh_token: '' }].each do |invalid_response|
     it "should reject malformed code exchange responses #{invalid_response.inspect} without completing authorization" do
