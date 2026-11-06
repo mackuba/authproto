@@ -1,0 +1,11 @@
+{
+  "client_id": "http://localhost",
+  "client_name": "AT Protocol OAuth Ruby Example",
+  "redirect_uris": ["http://127.0.0.1:9292/callback"],
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "scope": "atproto repo:app.bsky.feed.post",
+  "token_endpoint_auth_method": "none",
+  "application_type": "web",
+  "dpop_bound_access_tokens": true
+}

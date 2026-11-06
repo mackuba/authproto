@@ -219,7 +219,7 @@ class ExampleApp < Sinatra::Base
       halt erb(:index)
     end
 
-    # Make test API call to com.atproto.identity.resolveHandle using Faraday
+    # Make test API call to com.atproto.server.checkAccountStatus using Faraday
     begin
       # TODO
       pds = settings.oauth_client.session_manager.get_session(session_id).pds

@@ -99,9 +99,27 @@ AuthProto.configure do |config|
 end
 ```
 
+For more complex production setups you may want to use Redis instead, which is configured like this:
+
+```ruby
+require 'redis'
+
+AuthProto.configure do |config|
+  redis_client = Redis.new(
+    url: ENV.fetch('REDIS_URL'),
+    ssl_params: { verify_mode: OpenSSL::SSL::VERIFY_PEER }
+  )
+
+  config.storage = AuthProto::Storage::Redis.new(
+    redis_client: redis_client
+  )
+end
+```
+
 The `AuthProto::Storage::Memory` adapter is configured by default, so you can skip the `storage` part if you want to use it.
 
 For the `SQLite` adapter, you might call `AuthProto.storage.cleanup_expired_records` periodically to remove expired sessions and locks if you want. `Memory` and `Redis` handle this automatically.
+
 
 ### ATPROTO_MASTER_KEY:
 
