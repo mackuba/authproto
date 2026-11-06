@@ -43,7 +43,7 @@ get "/callback" do
   elsif params[:code] && params[:state] && params[:iss]
     "To complete authentication, run this in the console where you started the authentication flow " +
     "(replace \"client\" with the local variable name you've used):\n\n" +
-    "handle_callback(client, #{params.slice(:code, :state, :iss).map { |k, v| [k.to_sym, v] }.to_h.inspect})\n"
+    "handle_callback(client, #{params.inspect})\n"
   else
     "Missing params"
   end

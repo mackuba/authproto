@@ -83,16 +83,17 @@ class Minisky::OAuthClient
   # @see AuthProto::Client#authorize
   #
   def authorize(**options)
-    oauth_client.authorize(**options).tap { |result| @session_id = result.fetch(:session_id) }
+    result = oauth_client.authorize(**options)
+    @session_id = result.fetch(:session_id)
+
+    result
   end
 
   # Completes OAuth authorization and remembers the authenticated session ID.
   #
   # @param expected_session_id [String] pending session ID retained in the initiating browser session or native context
-  # @param options [Hash{Symbol => String}] callback parameters forwarded to {AuthProto::Client#handle_callback}
-  # @option options [String] :code authorization code
-  # @option options [String] :state callback state token
-  # @option options [String] :iss authorization server issuer
+  # @param callback_params [Hash{String, Symbol => Object}] callback query parameters from the URL the user gets
+  #    redirected to after authorization (should contain `code`, `state` and `iss`, or `error`)
   #
   # @return [Hash{Symbol => String, Integer, nil}] token and session details from the OAuth client
   # @raise [AuthProto::Client::CallbackError] if expected session, state or issuer validation fails
@@ -100,10 +101,11 @@ class Minisky::OAuthClient
   # @raise [AuthProto::Error] if proofs, storage or serialization fail
   # @see AuthProto::Client#handle_callback
   #
-  def handle_callback(expected_session_id:, **options)
-    oauth_client.handle_callback(**options, expected_session_id: expected_session_id).tap do |result|
-      @session_id = result.fetch(:session_id)
-    end
+  def handle_callback(callback_params, expected_session_id:)
+    result = oauth_client.handle_callback(callback_params, expected_session_id: expected_session_id)
+    @session_id = result.fetch(:session_id)
+
+    result
   end
 
   # Sends an XRPC GET through Minisky, adding OAuth handling when authenticated.

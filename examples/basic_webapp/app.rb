@@ -174,6 +174,7 @@ class ExampleApp < Sinatra::Base
   # OAuth callback handler to which the user gets redirected back, which completes the authorization flow
   get "/callback" do
     # Handle possible errors (e.g. user has rejected authorization)
+    # You can also pass it as is to `oauth_client.handle_callback` and get a `CallbackError`
     if params[:error]
       message = params[:error]
       message += ": " + params[:error_description] if params[:error_description]
@@ -185,9 +186,7 @@ class ExampleApp < Sinatra::Base
     pending_session_id = session[:pending_oauth_session_id]
 
     result = settings.oauth_client.handle_callback(
-      code: params[:code],
-      state: params[:state],
-      iss: params[:iss],
+      params,
       expected_session_id: pending_session_id
     )
 
@@ -197,7 +196,7 @@ class ExampleApp < Sinatra::Base
     redirect "/authorized"
   rescue StandardError => e
     log_error(e)
-    session[:error] = "Callback failed: #{e.message}"
+    session[:error] = "Authorization failed: #{e.message}"
     redirect "/"
   end
 

@@ -2,6 +2,10 @@ module AuthProto
   class Client
     include HTTPHelpers
     class CallbackError < AuthProto::Error
+      attr_reader error_code: String?
+      attr_reader error_description: String?
+      attr_reader error_uri: String?
+      def initialize: (String message, ?error_code: String?, ?error_description: String?, ?error_uri: String?) -> void
     end
     class TokenError < AuthProto::Error
     end
@@ -26,7 +30,9 @@ module AuthProto
       ) -> void
     def http: () -> _HTTPClient?
     def authorize: (?handle: String?, ?pds: (String | URI::HTTPS)?, ?scope: String) -> authorization_result
-    def handle_callback: (code: String, state: String, iss: String, expected_session_id: String) -> callback_result
+    def handle_callback: (
+        Hash[String | Symbol, untyped] callback_params, expected_session_id: String
+      ) -> callback_result
     def get_tokens: (String session_id) -> token_info?
     def refresh_token: (String session_id) -> refreshed_tokens
     def authorized?: (String session_id) -> bool
@@ -50,6 +56,7 @@ module AuthProto
         State::Session session,
         ?login_hint: String?
       ) -> String
+    def validate_callback_params: (Hash[String | Symbol, untyped] callback_params) -> Hash[String, untyped]
     def exchange_code: (code: String, session: State::Session) -> State::TokenSet
     def make_token_request: (String code, State::Session session) -> http_response
     def validate_token_identity: (State::TokenSet tokens, State::Session session) -> void

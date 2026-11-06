@@ -265,22 +265,22 @@ Depending on your app, either redirect the user to this URL, or present it to th
 
 After the user approves or rejects the request, they will be redirected to your configured `redirect_uri`. Check the received params for an `error` key – if it's set, handle the error in some appropriate way.
 
-If there's no error, pass the received values back to `Client` to the `#handle_callback` method. Note: you will need to also pass the ID of the session from which the login was initiated. This is to make sure that we don't log in a user completing authorization into *another user's* account:
+If there's no error, pass the received query parameters to `Client#handle_callback`. Note: you will need to also pass the ID of the session from which the login was initiated. This is to make sure that we don't log in a user completing authorization into *another user's* account:
 
 ```rb
 client.handle_callback(
-  code: params[:code],
-  state: params[:state],
-  iss: params[:iss],
+  params,
   expected_session_id: session[:session_id]
 )
 ```
+
+You can also skip checking for `error` and just pass the params to `handle_callback`, in which case you will get a `CallbackError` raised with the error details if the params included an error.
 
 For localhost clients, there is also a helper class included called `LocalhostServer`, which starts a temporary localhost HTTP server inline just to receive the callback request, and returns the received codes to the block you pass to it:
 
 ```rb
 AuthProto::LocalhostServer.start(client.client_metadata) do |json|
-  client.handle_callback(**json, expected_session_id: session_id)
+  client.handle_callback(json, expected_session_id: session_id)
 end
 ```
 
@@ -460,7 +460,7 @@ auth = sky.authorize(pds: "https://#{pds_host}", scope: "atproto ...")
 p auth[:url]
 # ...
 
-sky.handle_callback(**params, expected_session_id: auth[:session_id])
+sky.handle_callback(params, expected_session_id: auth[:session_id])
 ```
 
 and then e.g.:

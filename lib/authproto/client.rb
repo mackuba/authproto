@@ -56,14 +56,10 @@ module AuthProto
   #   )
   #   
   #   p auth[:url]
+  #   
   #   # ...
   #   
-  #   client.handle_callback(
-  #     code: params[:code],
-  #     state: params[:state],
-  #     iss: params[:iss],
-  #     expected_session_id: auth[:session_id]
-  #   )
+  #   client.handle_callback(params, expected_session_id: auth[:session_id])
   #   
   #   url = "https://pds.example.com/xrpc/app.bsky.feed.getTimeline"
   #   
@@ -86,8 +82,39 @@ module AuthProto
     # An error raised when initial authorization fails.
     class AuthorizationError < AuthProto::Error; end
 
-    # An error raised when authorization callback fails.
-    class CallbackError < AuthProto::Error; end
+    #
+    # An error raised when authorization callback validation or authorization fails.
+    #
+
+    class CallbackError < AuthProto::Error
+
+      # OAuth error code returned by the authorization server, if included.
+      # @return [String, nil]
+      attr_reader :error_code
+
+      # Human-readable explanation returned by the authorization server, if included.
+      # @return [String, nil]
+      attr_reader :error_description
+
+      # URL with more information about the OAuth error, if included.
+      # @return [String, nil]
+      attr_reader :error_uri
+
+      # Creates a callback error with optional OAuth error details.
+      #
+      # @param message [String] explanation of the callback failure
+      # @param error_code [String, nil] `error` value from the callback URL params
+      # @param error_description [String, nil] `error_description` value from the callback URL params
+      # @param error_uri [String, nil] `error_uri` value from the callback URL params
+      #
+      def initialize(message, error_code: nil, error_description: nil, error_uri: nil)
+        @error_code = error_code
+        @error_description = error_description
+        @error_uri = error_uri
+
+        super(message)
+      end
+    end
 
     # An error raised when token operations fail.
     class TokenError < AuthProto::Error; end
@@ -281,15 +308,15 @@ module AuthProto
     # - `:requested_scope` (String) – space-separated list of requested permissions
     # - `:granted_scope` (String) – space-separated list of actually granted permissions
     #
-    # @param code [String] authorization code from the callback
-    # @param state [String] state token from the callback
-    # @param iss [String] issuer URL from the callback
+    # @param callback_params [Hash{String, Symbol => Object}] callback query parameters from the URL the user gets
+    #    redirected to after authorization (should contain `code`, `state` and `iss`, or `error`)
     # @param expected_session_id [String] pending session ID previously received from {#authorize}
     #
     # @return [Hash{Symbol => String, Integer, nil}] tokens and session data
     #
     # @raise [ArgumentError] if returned token fields fail token-set validation
-    # @raise [CallbackError] if the expected session ID is invalid, state is unknown, or session/issuer validation fails
+    # @raise [CallbackError] if parameters are invalid, the server returns an OAuth error, the expected session ID
+    #   is invalid, state is unknown, or session/issuer validation fails
     # @raise [DPoP::Client::Error] if proof/assertion generation fails
     # @raise [Encryption::EncryptionError] if tokens cannot be encrypted for storage
     # @raise [HTTPClient::HTTPError, HTTPClient::SSRFError] if token transport fails
@@ -298,11 +325,13 @@ module AuthProto
     # @raise [Storage::StorageError] if session storage or locking fails
     # @raise [TokenError] if token exchange or response validation fails; identity failures attempt token revocation
     #
-    def handle_callback(code:, state:, iss:, expected_session_id:)
+    def handle_callback(callback_params, expected_session_id:)
       unless expected_session_id.is_a?(String) && !expected_session_id.empty?
         raise CallbackError, "Expected session ID is required"
       end
 
+      params = validate_callback_params(callback_params)
+      code, state, iss = params.values_at('code', 'state', 'iss')
       session = session_manager.get_session_by_state_token(state)
 
       raise CallbackError, "Invalid state parameter" unless session
@@ -747,6 +776,41 @@ module AuthProto
 
 
     # --- used in handle_callback ---
+
+    def validate_callback_params(callback_params)
+      raise CallbackError, "Callback parameters must be a hash" unless callback_params.is_a?(Hash)
+
+      params = callback_params.transform_keys(&:to_s)
+
+      if params.key?('error')
+        unless params['error'].is_a?(String) && !params['error'].empty?
+          raise CallbackError, "Callback error must be a nonempty string"
+        end
+
+        %w[error_description error_uri].each do |field|
+          unless params[field].nil? || params[field].is_a?(String)
+            raise CallbackError, "Callback #{field} must be a string"
+          end
+        end
+
+        message = [params['error'], params['error_description']].compact.join(": ")
+
+        raise CallbackError.new(
+          "Authorization failed: #{message}",
+          error_code: params['error'],
+          error_description: params['error_description'],
+          error_uri: params['error_uri']
+        )
+      end
+
+      %w[code state iss].each do |field|
+        unless params[field].is_a?(String) && !params[field].empty?
+          raise CallbackError, "Callback #{field} must be a nonempty string"
+        end
+      end
+
+      params
+    end
 
     def exchange_code(code:, session:)
       response = dpop_client.with_nonce_handling(session.session_id, session.auth_server.token_endpoint) do

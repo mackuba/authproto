@@ -19,7 +19,7 @@ class OAuthClient
   def config: () -> nil
   def authorize: (?handle: String?, ?pds: (String | URI::HTTPS)?, ?scope: String) -> AuthProto::authorization_result
   def handle_callback: (
-    code: String, state: String, iss: String, expected_session_id: String
+    Hash[String | Symbol, untyped] callback_params, expected_session_id: String
   ) -> AuthProto::callback_result
   def get_request: (
       String | URI::HTTP method,

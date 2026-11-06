@@ -40,6 +40,97 @@ describe AuthProto::Client, '#handle_callback' do
     )
   end
 
+  describe "callback parameters" do
+    [nil, 'code=value', [], 123].each do |params|
+      it "should reject a non-hash callback #{params.inspect} before looking up a session" do
+        client.session_manager.expects(:get_session_by_state_token).never
+        client.expects(:exchange_code).never
+
+        expect {
+          client.handle_callback(params, expected_session_id: 'pending')
+        }.to raise_error(AuthProto::Client::CallbackError, /parameters must be a hash/)
+      end
+    end
+
+    %i[code state iss].each do |field|
+      [nil, '', [], {}, 123].each do |value|
+        it "should reject #{field}=#{value.inspect} before looking up a session" do
+          params = { code: 'code', state: 'state', iss: 'https://auth.example.com' }.merge(field => value)
+          client.session_manager.expects(:get_session_by_state_token).never
+          client.expects(:exchange_code).never
+
+          expect {
+            client.handle_callback(params, expected_session_id: 'pending')
+          }.to raise_error(AuthProto::Client::CallbackError, /#{field} must be a nonempty string/)
+        end
+      end
+
+      it "should reject a missing #{field} before looking up a session" do
+        client.session_manager.expects(:get_session_by_state_token).never
+
+        expect {
+          client.handle_callback(callback.except(field), expected_session_id: session.session_id)
+        }.to raise_error(AuthProto::Client::CallbackError, /#{field} must be a nonempty string/)
+      end
+    end
+
+    it "should accept a frozen string-keyed hash and ignore unrelated query parameters" do
+      params = callback.transform_keys(&:to_s).merge('extra' => 'value').freeze
+      client.expects(:exchange_code).with(code: 'code', session: anything).returns(AuthProto::State::TokenSet.new(
+        access_token: 'access', refresh_token: 'refresh', token_type: 'DPoP',
+        expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
+      ))
+
+      client.handle_callback(params, expected_session_id: session.session_id)[:session_id].should == session.session_id
+      params['extra'].should == 'value'
+    end
+
+    [false, true].each do |string_keys|
+      it "should preserve OAuth error details from #{string_keys ? 'string' : 'symbol'} keys" do
+        params = {
+          error: 'access_denied', error_description: 'User declined', error_uri: 'https://auth.example.com/help'
+        }
+        params = params.transform_keys(&:to_s) if string_keys
+        client.session_manager.expects(:get_session_by_state_token).never
+        client.expects(:exchange_code).never
+
+        expect {
+          client.handle_callback(params.freeze, expected_session_id: 'pending')
+        }.to raise_error(AuthProto::Client::CallbackError) { |error|
+          error.message.should == "Authorization failed: access_denied: User declined"
+          error.error_code.should == 'access_denied'
+          error.error_description.should == 'User declined'
+          error.error_uri.should == 'https://auth.example.com/help'
+        }
+      end
+    end
+
+    it "should handle an OAuth error without optional details even when success parameters are present" do
+      params = { code: 'code', state: 'state', iss: 'issuer', error: 'access_denied' }
+      client.expects(:exchange_code).never
+
+      expect {
+        client.handle_callback(params, expected_session_id: 'pending')
+      }.to raise_error(AuthProto::Client::CallbackError, "Authorization failed: access_denied") { |error|
+        error.error_code.should == 'access_denied'
+        error.error_description.should be_nil
+        error.error_uri.should be_nil
+      }
+    end
+
+    [{ error: nil }, { error: '' }, { error: [] },
+     { error: 'access_denied', error_description: [] }, { error: 'access_denied', error_uri: {} }].each do |params|
+      it "should reject malformed OAuth error parameters #{params.inspect}" do
+        client.session_manager.expects(:get_session_by_state_token).never
+        client.expects(:exchange_code).never
+
+        expect {
+          client.handle_callback(params, expected_session_id: 'pending')
+        }.to raise_error(AuthProto::Client::CallbackError, /must be a (nonempty )?string/)
+      end
+    end
+  end
+
   it "should accept a string status and array headers during code exchange" do
     client.expects(:make_token_request).with('code', anything).returns(
       status: '200', headers: { 'Content-Type' => ['application/json'], 'DPoP-Nonce' => ['nonce'] }, body: {
@@ -48,7 +139,7 @@ describe AuthProto::Client, '#handle_callback' do
       }.to_json
     )
 
-    client.handle_callback(**callback, expected_session_id: session.session_id)
+    client.handle_callback(callback, expected_session_id: session.session_id)
     client.session_manager.get_session(session.session_id).tokens.access_token.should == 'access'
   end
 
@@ -66,7 +157,7 @@ describe AuthProto::Client, '#handle_callback' do
       client.stubs(:make_token_request).returns(response)
 
       expect {
-        client.handle_callback(**callback, expected_session_id: session.session_id)
+        client.handle_callback(callback, expected_session_id: session.session_id)
       }.to raise_error(AuthProto::Client::TokenError)
 
       client.session_manager.get_session_by_state_token(session.state_token).should be_pending
@@ -82,7 +173,7 @@ describe AuthProto::Client, '#handle_callback' do
         }.to_json
       )
 
-      result = client.handle_callback(**callback, expected_session_id: session.session_id)
+      result = client.handle_callback(callback, expected_session_id: session.session_id)
 
       client.session_manager.get_session(session.session_id).tokens.token_type.should == 'DPoP'
     end
@@ -92,7 +183,7 @@ describe AuthProto::Client, '#handle_callback' do
     client.expects(:exchange_code).never
 
     expect {
-      client.handle_callback(**callback)
+      client.handle_callback(callback)
     }.to raise_error(ArgumentError, /missing keyword: :expected_session_id/)
   end
 
@@ -101,7 +192,7 @@ describe AuthProto::Client, '#handle_callback' do
       client.expects(:exchange_code).never
 
       expect {
-        client.handle_callback(**callback, expected_session_id: expected_session_id)
+        client.handle_callback(callback, expected_session_id: expected_session_id)
       }.to raise_error(AuthProto::Client::CallbackError, "Expected session ID is required")
 
       client.session_manager.get_session_by_state_token(session.state_token).session_id.should == session.session_id
@@ -115,7 +206,7 @@ describe AuthProto::Client, '#handle_callback' do
     client.expects(:exchange_code).never
 
     expect {
-      client.handle_callback(**callback, expected_session_id: other_session.session_id)
+      client.handle_callback(callback, expected_session_id: other_session.session_id)
     }.to raise_error(AuthProto::Client::CallbackError, "Session ID mismatch")
 
     client.session_manager.get_session_by_state_token(session.state_token).should be_pending
@@ -126,7 +217,7 @@ describe AuthProto::Client, '#handle_callback' do
     client.expects(:exchange_code).never
 
     expect {
-      client.handle_callback(**callback.merge(state: 'unknown'), expected_session_id: session.session_id)
+      client.handle_callback(callback.merge(state: 'unknown'), expected_session_id: session.session_id)
     }.to raise_error(AuthProto::Client::CallbackError, "Invalid state parameter")
   end
 
@@ -135,7 +226,7 @@ describe AuthProto::Client, '#handle_callback' do
 
     expect {
       client.handle_callback(
-        **callback.merge(iss: 'https://other.example.com'), expected_session_id: session.session_id
+        callback.merge(iss: 'https://other.example.com'), expected_session_id: session.session_id
       )
     }.to raise_error(AuthProto::Client::CallbackError, "Issuer mismatch")
   end
@@ -147,7 +238,7 @@ describe AuthProto::Client, '#handle_callback' do
     ))
     state = session.state_token
 
-    result = client.handle_callback(**callback, expected_session_id: session.session_id)
+    result = client.handle_callback(callback, expected_session_id: session.session_id)
 
     result[:session_id].should == session.session_id
     result[:access_token].should == 'access'
@@ -164,7 +255,7 @@ describe AuthProto::Client, '#handle_callback' do
     )
 
     expect {
-      client.handle_callback(**callback, expected_session_id: session.session_id)
+      client.handle_callback(callback, expected_session_id: session.session_id)
     }.to raise_error(AuthProto::Client::TokenError, "Subject mismatch in token response")
 
     assert_requested :post, 'https://auth.example.com/revoke', body: {
@@ -185,7 +276,7 @@ describe AuthProto::Client, '#handle_callback' do
       }.to_json
     )
 
-    result = client.handle_callback(code: 'code', state: pending.state_token, iss: auth_server.issuer,
+    result = client.handle_callback({ code: 'code', state: pending.state_token, iss: auth_server.issuer },
                                     expected_session_id: pending.session_id)
     restored = client.session_manager.get_session(pending.session_id)
 
@@ -206,7 +297,7 @@ describe AuthProto::Client, '#handle_callback' do
     stub_request(:post, 'https://auth.example.com/revoke').to_raise(IOError)
 
     expect {
-      client.handle_callback(**callback, expected_session_id: session.session_id)
+      client.handle_callback(callback, expected_session_id: session.session_id)
     }.to raise_error(AuthProto::Client::TokenError, "Subject mismatch in token response")
   end
 
@@ -246,7 +337,7 @@ describe AuthProto::Client, '#handle_callback' do
         document = stub(pds_endpoint: endpoint)
         DIDKit::DID.expects(:new).with(subject).returns(stub(document: document))
 
-        result = client.handle_callback(**callback, expected_session_id: session.session_id)
+        result = client.handle_callback(callback, expected_session_id: session.session_id)
 
         result[:did].should == subject
         client.session_manager.get_session(session.session_id).should be_authorized
@@ -259,7 +350,7 @@ describe AuthProto::Client, '#handle_callback' do
         DIDKit::DID.expects(:new).with(subject).returns(stub(document: document))
 
         expect {
-          client.handle_callback(**callback, expected_session_id: session.session_id)
+          client.handle_callback(callback, expected_session_id: session.session_id)
         }.to raise_error(AuthProto::Client::TokenError, "Subject PDS does not match session PDS")
 
         client.session_manager.get_session_by_state_token(session.state_token).should be_pending
@@ -273,7 +364,7 @@ describe AuthProto::Client, '#handle_callback' do
       DIDKit::DID.expects(:new).with(subject).raises(DIDKit::DIDError, "Invalid DID")
 
       expect {
-        client.handle_callback(**callback, expected_session_id: session.session_id)
+        client.handle_callback(callback, expected_session_id: session.session_id)
       }.to raise_error(AuthProto::Client::TokenError, /Invalid token subject/)
 
       client.session_manager.get_session_by_state_token(session.state_token).should be_pending
@@ -285,7 +376,7 @@ describe AuthProto::Client, '#handle_callback' do
       DIDKit::DID.expects(:new).with(subject).returns(did)
 
       expect {
-        client.handle_callback(**callback, expected_session_id: session.session_id)
+        client.handle_callback(callback, expected_session_id: session.session_id)
       }.to raise_error(AuthProto::Client::TokenError, /Connection failed; start authorization again/)
 
       client.session_manager.get_session_by_state_token(session.state_token).should be_pending
@@ -299,7 +390,7 @@ describe AuthProto::Client, '#handle_callback' do
       DIDKit::DID.expects(:new).never
 
       expect {
-        client.handle_callback(code: 'code', state: old_session.state_token, iss: auth_server.issuer,
+        client.handle_callback({ code: 'code', state: old_session.state_token, iss: auth_server.issuer },
                                expected_session_id: old_session.session_id)
       }.to raise_error(AuthProto::Client::TokenError, /missing its PDS/)
     end

@@ -30,7 +30,7 @@ def authorize(client)
   puts
 
   AuthProto::LocalhostServer.start(client.oauth_client.client_metadata) do |json|
-    client.handle_callback(**json, expected_session_id: auth.fetch(:session_id))
+    client.handle_callback(json, expected_session_id: auth.fetch(:session_id))
   end
 
   puts "Authentication complete ✓"

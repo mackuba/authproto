@@ -198,7 +198,7 @@ describe Minisky::OAuthClient do
       state_token = session.state_token
       nonces = client.oauth_client.dpop_client.nonce_manager
       nonces.get(url: auth_server.issuer, session_id: session.session_id).should == 'par-success'
-      client.handle_callback(code: 'code', state: state_token, iss: auth_server.issuer,
+      client.handle_callback({ code: 'code', state: state_token, iss: auth_server.issuer },
                              expected_session_id: auth[:session_id])
       nonces.get(url: auth_server.issuer, session_id: session.session_id).should == 'token-success'
       client.oauth_client.session_manager.get_session(session.session_id).state_token.should be_nil
@@ -206,7 +206,7 @@ describe Minisky::OAuthClient do
       AuthProto.storage.exists?(AuthProto::Storage::KeyBuilder.state_key(state_token)).should be_falsey
 
       expect {
-        client.handle_callback(code: 'code', state: state_token, iss: auth_server.issuer,
+        client.handle_callback({ code: 'code', state: state_token, iss: auth_server.issuer },
                                expected_session_id: auth[:session_id])
       }.to raise_error(AuthProto::Client::CallbackError, "Invalid state parameter")
 
@@ -251,7 +251,7 @@ describe Minisky::OAuthClient do
     authorizations.reverse_each do |auth|
       pending = restored.oauth_client.session_manager.get_session(auth[:session_id])
       restored.handle_callback(
-        code: pending.session_id, state: pending.state_token, iss: auth_server.issuer,
+        { code: pending.session_id, state: pending.state_token, iss: auth_server.issuer },
         expected_session_id: pending.session_id
       )
     end
@@ -300,7 +300,7 @@ describe Minisky::OAuthClient do
 
       expect {
         restored.handle_callback(
-          code: 'code', state: pending_session.state_token, iss: auth_server.issuer,
+          { code: 'code', state: pending_session.state_token, iss: auth_server.issuer },
           expected_session_id: pending_session.session_id
         )
       }.to raise_error(AuthProto::Client::CallbackError, "Invalid state parameter")
@@ -343,7 +343,7 @@ describe Minisky::OAuthClient do
       restored = restore_client(replacement)
       restored.oauth_client.session_manager.get_session(pending_session.session_id).should be_nil
       expect {
-        restored.handle_callback(code: 'code', state: pending_session.state_token, iss: auth_server.issuer,
+        restored.handle_callback({ code: 'code', state: pending_session.state_token, iss: auth_server.issuer },
                                  expected_session_id: pending_session.session_id)
       }.to raise_error(AuthProto::Client::CallbackError, "Invalid state parameter")
 
@@ -364,7 +364,7 @@ describe Minisky::OAuthClient do
       restored = restore_client(@signing_key)
 
       expect {
-        restored.handle_callback(code: 'code', state: pending_session.state_token, iss: auth_server.issuer,
+        restored.handle_callback({ code: 'code', state: pending_session.state_token, iss: auth_server.issuer },
                                  expected_session_id: pending_session.session_id)
       }.to raise_error(AuthProto::Client::CallbackError, "Invalid state parameter")
 
@@ -379,7 +379,7 @@ describe Minisky::OAuthClient do
     client.oauth_client.stubs(:exchange_code).raises(AuthProto::Client::TokenError, "Token exchange failed")
 
     expect {
-      client.handle_callback(code: 'code', state: session.state_token, iss: auth_server.issuer,
+      client.handle_callback({ code: 'code', state: session.state_token, iss: auth_server.issuer },
                              expected_session_id: session.session_id)
     }.to raise_error(AuthProto::Client::TokenError, "Token exchange failed")
 
@@ -505,7 +505,7 @@ describe Minisky::OAuthClient do
     client.oauth_client.expects(:handle_callback).never
 
     expect {
-      client.handle_callback(code: 'code', state: 'state', iss: 'issuer')
+      client.handle_callback({ code: 'code', state: 'state', iss: 'issuer' })
     }.to raise_error(ArgumentError, /missing keyword: :expected_session_id/)
   end
 
@@ -514,10 +514,10 @@ describe Minisky::OAuthClient do
           .returns(url: "https://auth.example.com/authorize", session_id: "pending")
     client.authorize(handle: "alice.example.com")[:session_id].should == "pending"
     client.session_id.should == "pending"
-    client.oauth_client.expects(:handle_callback).with(code: 'code', state: 'state', iss: 'issuer',
+    client.oauth_client.expects(:handle_callback).with({ code: 'code', state: 'state', iss: 'issuer' },
                                                      expected_session_id: 'pending')
           .returns(session_id: "authorized")
-    client.handle_callback(code: 'code', state: 'state', iss: 'issuer', expected_session_id: 'pending')
+    client.handle_callback({ code: 'code', state: 'state', iss: 'issuer' }, expected_session_id: 'pending')
     client.session_id.should == "authorized"
   end
 

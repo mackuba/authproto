@@ -60,7 +60,7 @@ describe AuthProto::Client, 'sessions' do
     client.expects(:exchange_code).never
 
     expect {
-      client.handle_callback(code: 'code', state: session.state_token, iss: 'https://auth.example.com',
+      client.handle_callback({ code: 'code', state: session.state_token, iss: 'https://auth.example.com' },
                              expected_session_id: session.session_id)
     }.to raise_error(AuthProto::Client::CallbackError, "Invalid state parameter")
 
