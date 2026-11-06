@@ -176,7 +176,7 @@ The other type is a **confidential client**; to run one, you need a set of keys 
 }
 ```
 
-This is a private key, a public key lacks the `d` field. You can generate those e.g. using this [generate_keys.rb script](https://tangled.org/mackuba.eu/authproto/blob/readme/examples/confidential_client/scripts/generate_keys.rb) from the example app in [examples folder](https://tangled.org/mackuba.eu/authproto/tree/readme/examples/) here.
+This is a private key, a public key lacks the `d` field. You can generate those e.g. using this [generate_keys.rb script](https://tangled.org/mackuba.eu/authproto/blob/readme/examples/basic_webapp/scripts/generate_keys.rb) from the example app in [examples folder](https://tangled.org/mackuba.eu/authproto/tree/readme/examples/) here.
 
 Once you have the keys, put the public one under `jwks.keys` in the metadata JSON:
 
