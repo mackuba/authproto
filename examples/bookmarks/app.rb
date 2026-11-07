@@ -1,17 +1,13 @@
 # frozen_string_literal: true
 
-require 'authproto'
-require 'authproto/minisky'
-require 'didkit'
-require 'dotenv/load'
 require 'json'
 require 'securerandom'
-require 'sinatra/activerecord'
 require 'sinatra/base'
 require 'sinatra/reloader'
 require 'time'
 require 'uri'
 
+require_relative 'init'
 require_relative 'bookmark'
 
 
@@ -23,17 +19,12 @@ class BookmarksApp < Sinatra::Base
   SCOPE = 'atproto rpc:app.bsky.bookmark.getBookmarks?aud=*'
   PER_PAGE = 20
 
-  register Sinatra::ActiveRecordExtension
-
   configure :development do
     register Sinatra::Reloader
   end
 
   configure do
     set :root, __dir__
-    set :database, adapter: 'sqlite3',
-                   database: ENV.fetch('BOOKMARKS_DATABASE', File.join(__dir__, 'db', 'bookmarks.sqlite3')),
-                   timeout: 5_000
     set :metadata_path, ENV.fetch('OAUTH_METADATA_PATH', File.join(__dir__, 'config', 'oauth-client-metadata.json'))
 
     unless File.exist?(metadata_path)
@@ -42,13 +33,6 @@ class BookmarksApp < Sinatra::Base
 
     metadata = JSON.parse(File.read(metadata_path))
     raise "Client metadata must request only #{SCOPE}" unless metadata['scope'] == SCOPE
-
-    AuthProto.configure do |config|
-      config.http_client = AuthProto::HTTPClient.new(timeout: 10)
-      config.storage = AuthProto::Storage::SQLite.new(
-        path: ENV.fetch('AUTHPROTO_DATABASE', File.join(__dir__, 'db', 'authproto.sqlite3'))
-      )
-    end
 
     client_id = metadata.fetch('client_id')
     redirect_uri = metadata.fetch('redirect_uris').first
@@ -76,6 +60,7 @@ class BookmarksApp < Sinatra::Base
         secure: production?,
         httponly: true,
         same_site: :lax
+
     use Rack::Protection::AuthenticityToken
   end
 

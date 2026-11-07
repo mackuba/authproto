@@ -1,17 +1,18 @@
 # frozen_string_literal: true
 
-require 'sinatra/activerecord'
 require 'sinatra/activerecord/rake'
 
 namespace :db do
   task :load_config do
-    require_relative 'app'
+    require_relative 'init'
   end
 end
 
 namespace :bookmarks do
   desc "Fetch only newer bookmarks for an account: bookmarks:fetch[did]"
   task :fetch, [:did] => 'db:load_config' do |task, args|
+    require_relative 'app'
+
     did = args[:did] || ENV['DID']
     abort "Pass the owner's DID: bundle exec rake 'bookmarks:fetch[did:plc:...]'" if did.to_s.empty?
 
