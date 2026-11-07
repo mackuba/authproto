@@ -9,7 +9,7 @@ module AuthProto
   type http_response = { status: Integer | String, headers: Hash[String, String | Array[String]], body: String? }
   type session_data = { access_token: String, expires_in: Integer,
                         refresh_token: String?, requested_scope: String, granted_scope: String,
-                        session_id: String, did: String }
+                        session_id: String, did: String, pds: String? }
   type token_info = session_data
   type refreshed_tokens = session_data
   type callback_result = session_data

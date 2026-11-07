@@ -221,8 +221,7 @@ class ExampleApp < Sinatra::Base
 
     # Make test API call to com.atproto.server.checkAccountStatus using Faraday
     begin
-      # TODO
-      pds = settings.oauth_client.session_manager.get_session(session_id).pds
+      pds = oauth_session[:pds]
       endpoint = "/xrpc/com.atproto.server.checkAccountStatus"
       url = URI.join(pds, endpoint)
 
@@ -283,8 +282,7 @@ class ExampleApp < Sinatra::Base
       redirect "/authorized"
     end
 
-    # TODO
-    pds = settings.oauth_client.session_manager.get_session(session_id).pds
+    pds = oauth_session[:pds]
     endpoint = "/xrpc/com.atproto.repo.createRecord"
     url = URI.join(pds, endpoint)
 

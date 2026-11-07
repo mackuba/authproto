@@ -217,7 +217,8 @@ module AuthProto
             requested_scope: @requested_scope,
             granted_scope: @tokens.scope,
             session_id: @session_id,
-            did: @did
+            did: @did,
+            pds: @pds
           }
         end
       end

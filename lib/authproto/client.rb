@@ -302,6 +302,7 @@ module AuthProto
     #
     # - `:session_id` (String)
     # - `:did` (String)
+    # - `:pds` (String or nil)
     # - `:access_token` (String)
     # - `:refresh_token` (String or nil)
     # - `:expires_in` (Integer) – number of seconds remaining until the access token expires
@@ -355,6 +356,7 @@ module AuthProto
     #
     # - `:session_id` (String)
     # - `:did` (String)
+    # - `:pds` (String or nil)
     # - `:access_token` (String)
     # - `:refresh_token` (String or nil)
     # - `:expires_in` (Integer) – number of seconds remaining until the access token expires
@@ -380,6 +382,7 @@ module AuthProto
     #
     # - `:session_id` (String)
     # - `:did` (String)
+    # - `:pds` (String or nil)
     # - `:access_token` (String)
     # - `:refresh_token` (String or nil)
     # - `:expires_in` (Integer) – number of seconds remaining until the access token expires

@@ -181,8 +181,16 @@ describe AuthProto::State::Session do
         requested_scope: scope,
         granted_scope: tokens.scope,
         session_id: session.session_id,
-        did: did
+        did: did,
+        pds: nil
       }
+    end
+
+    it "should include the discovered PDS in session data" do
+      session = described_class.new(client_id: client_id, scope: scope, pds: 'https://pds.example.com:8443')
+      session.tokens = tokens
+
+      session.session_data[:pds].should == 'https://pds.example.com:8443'
     end
 
     it "should include a nil refresh token and preserve negative remaining lifetimes" do
