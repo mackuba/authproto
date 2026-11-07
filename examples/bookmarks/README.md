@@ -1,6 +1,6 @@
 # Bluesky bookmarks example
 
-A Sinatra app in `app.rb` with a separate `bookmark.rb` model, using
+A Sinatra app in `app/server.rb` with a separate `app/bookmark.rb` model, using
 `Minisky::OAuth`, AuthProto, ActiveRecord 8.1, and `sinatra-activerecord`.
 Sign in with a handle, fetch private bookmarks, and browse
 them newest first, 20 per page. Search returns every bookmark containing the given
@@ -139,10 +139,10 @@ Optional path overrides: `BOOKMARKS_DATABASE`, `AUTHPROTO_DATABASE`, and
 
 ## Using the database from scripts
 
-For scripts that only need ActiveRecord and the database, load `init.rb`:
+For scripts that only need ActiveRecord and the database, load `app/init.rb`:
 
 ```ruby
-require_relative 'init'
+require_relative 'app/init'
 
 Bookmark.where(did: 'did:plc:YOUR_ACCOUNT_DID').newest_first.each do |bookmark|
   puts bookmark.text

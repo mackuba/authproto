@@ -9,7 +9,7 @@ module OAuth
     attr_accessor :metadata, :metadata_path
 
     def init
-      @metadata_path = ENV.fetch('OAUTH_METADATA_PATH', File.join(__dir__, 'config', 'oauth-client-metadata.json'))
+      @metadata_path = ENV.fetch('OAUTH_METADATA_PATH', File.expand_path('../config/oauth-client-metadata.json', __dir__))
 
       unless File.exist?(@metadata_path)
         raise "Copy a metadata template to config/oauth-client-metadata.json before starting the app"
@@ -23,7 +23,7 @@ module OAuth
       if client_id.match?(%r{\Ahttp://localhost(/|$)})
         @oauth_client = AuthProto::Client.for_localhost(redirect_uri: redirect_uri, scope: @metadata['scope'])
       else
-        keys_path = File.join(__dir__, 'config', 'keys.json')
+        keys_path = File.expand_path('../config/keys.json', __dir__)
         signing_key = JSON.parse(File.read(keys_path))['keys'].first if File.exist?(keys_path)
 
         @oauth_client = AuthProto::Client.new(

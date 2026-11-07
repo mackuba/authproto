@@ -2,8 +2,8 @@
 
 require 'sinatra/activerecord/rake'
 
-require_relative 'init'
-require_relative 'bookmark'
+require_relative 'app/bookmark'
+require_relative 'app/init'
 
 namespace :bookmarks do
   desc "Fetch only newer bookmarks for an account: bookmarks:fetch[did]"

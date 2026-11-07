@@ -12,14 +12,14 @@ AuthProto.configure do |config|
   config.http_client = AuthProto::HTTPClient.new(timeout: 10)
 
   config.storage = AuthProto::Storage::SQLite.new(
-    path: ENV.fetch('AUTHPROTO_DATABASE', File.join(__dir__, 'db', 'authproto.sqlite3'))
+    path: ENV.fetch('AUTHPROTO_DATABASE', File.expand_path('../db/authproto.sqlite3', __dir__))
   )
 end
 
 Sinatra::Base.register(Sinatra::ActiveRecordExtension)
 Sinatra::Base.set(:database, {
   adapter: 'sqlite3',
-  database: ENV.fetch('BOOKMARKS_DATABASE', File.join(__dir__, 'db', 'bookmarks.sqlite3')),
+  database: ENV.fetch('BOOKMARKS_DATABASE', File.expand_path('../db/bookmarks.sqlite3', __dir__)),
   timeout: 5_000
 })
 

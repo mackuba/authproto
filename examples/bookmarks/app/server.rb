@@ -23,7 +23,7 @@ class BookmarksApp < Sinatra::Base
   end
 
   configure do
-    set :root, __dir__
+    set :root, File.expand_path('..', __dir__)
     set :host_authorization, permitted_hosts: ['localhost', '127.0.0.1', '[::1]', ENV['PERMITTED_DOMAIN']].compact
 
     session_secret = ENV.fetch('SESSION_SECRET') { SecureRandom.hex(32) }
