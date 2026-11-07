@@ -12,12 +12,15 @@ class OAuthClient
       redirect_uri: (String | URI::Generic), ?scope: String, ?session_id: String?
     ) -> instance
 
+  def self.with_oauth_client: (AuthProto::Client oauth_client, ?session_id: String?) -> instance
+
   def initialize: (
       client_id: String,
       redirect_uri: (String | URI::HTTPS),
       ?metadata: AuthProto::json_object?,
       ?signing_key: (AuthProto::json_object | JOSE::JWK)?,
-      ?session_id: String?
+      ?session_id: String?,
+      ?oauth_client: AuthProto::Client?
     ) -> void
   def config: () -> nil
   def authorize: (?handle: String?, ?pds: (String | URI::HTTPS)?, ?scope: String) -> AuthProto::authorization_result

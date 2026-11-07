@@ -505,6 +505,12 @@ sky = Minisky::OAuthClient.for_localhost(
 )
 ```
 
+You can also use the `with_oauth_client` helper to reuse an existing instance of `AuthProto::Client` (normally `Minisky::OAuthClient` creates one internally):
+
+```rb
+sky = Minisky::OAuthClient.with_oauth_client(client, session_id: session_id)
+```
+
 This class is a bit more experimental and likely to change in future versions (pending a redesign of the Minisky internal architecture).
 
 

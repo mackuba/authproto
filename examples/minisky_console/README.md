@@ -80,6 +80,11 @@ To restore a session after closing and reopening the console, write down the ses
 client = create_client(session_id: '123456-789-abc-...')
 ```
 
+The localhost script uses the `Minisky::OAuthClient.for_localhost` helper with the `REDIRECT_URI` and `SCOPE`
+constants declared in `localhost.rb`. Keep those values unchanged when restoring a stored session, since they determine
+the client ID, and a session may only be restored for the same client ID it was created for.
+
+
 ## Production use
 
 Deploy the code in `examples/minisky_console` to a production server using a method of your choice. The relevant part is in the `app.rb` file.

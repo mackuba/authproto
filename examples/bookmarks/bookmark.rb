@@ -19,7 +19,7 @@ class Bookmark < ActiveRecord::Base
   # @raise [Minisky::AuthError] if the session cannot be resumed
   #
   def self.fetch_bookmarks(session_id, newer_only: false)
-    client = OAuth.make_minisky(session_id)
+    client = Minisky::OAuthClient.with_oauth_client(OAuth.client, session_id: session_id)
     client.check_access
 
     oauth_session = client.oauth_client.session_manager.get_session(session_id)

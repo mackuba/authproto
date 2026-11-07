@@ -49,6 +49,31 @@ class Minisky::OAuthClient
   end
 
 
+  # Creates a Minisky instance using an existing {AuthProto::Client}.
+  #
+  # Reuses the supplied client, including its metadata, signing key and session manager.
+  #
+  # @param oauth_client [AuthProto::Client] OAuth client to reuse
+  # @param session_id [String, nil] optionally, stored session ID to resume
+  #
+  # @return [Minisky::OAuthClient] Minisky client backed by the supplied OAuth client
+  # @raise [ArgumentError] if the supplied client is not an AuthProto client
+  # @raise [Minisky::AuthError] if a supplied session ID cannot be restored
+  #
+  def self.with_oauth_client(oauth_client, session_id: nil)
+    unless oauth_client.is_a?(AuthProto::Client)
+      raise ArgumentError, "oauth_client must be an AuthProto::Client"
+    end
+
+    self.new(
+      client_id: oauth_client.client_id,
+      redirect_uri: oauth_client.redirect_uri,
+      oauth_client: oauth_client,
+      session_id: session_id
+    )
+  end
+
+
   # Creates an experimental Minisky client backed by an OAuth session.
   #
   # Disables Minisky's app-password token management and enables authenticated
@@ -59,21 +84,28 @@ class Minisky::OAuthClient
   # @param metadata [Hash{String => Object}, nil] preloaded metadata, or `nil` to fetch it
   # @param signing_key [Hash, JOSE::JWK, nil] private ES256 key for confidential-client authentication
   # @param session_id [String, nil] stored session ID to resume; `nil` starts without an attached session
+  # @param oauth_client [AuthProto::Client, nil] existing OAuth client to reuse instead of creating one
   #
+  # @raise [ArgumentError] if oauth_client is combined with metadata or signing_key
   # @raise [Minisky::AuthError] if a supplied session ID cannot be restored
   # @raise [AuthProto::InvalidClientMetadata] if metadata is invalid or unavailable
   # @raise [AuthProto::Error] if OAuth client or DPoP initialization fails
   # @raise [AuthProto::HTTPClient::HTTPError, AuthProto::HTTPClient::SSRFError] if fetching metadata fails
   # @see AuthProto::Client#initialize
   #
-  def initialize(client_id:, redirect_uri:, metadata: nil, signing_key: nil, session_id: nil)
+  def initialize(client_id:, redirect_uri:, metadata: nil, signing_key: nil, session_id: nil, oauth_client: nil)
+    if oauth_client
+      raise ArgumentError, "Do not pass metadata when existing oauth_client is included" if !metadata.nil?
+      raise ArgumentError, "Do not pass signing_key when existing oauth_client is included" if !signing_key.nil?
+    end
+
     @host = nil
     @session_id = session_id
 
     @send_auth_headers = true
     @auto_manage_tokens = false
 
-    @oauth_client = AuthProto::Client.new(
+    @oauth_client = oauth_client || AuthProto::Client.new(
       client_id: client_id,
       redirect_uri: redirect_uri,
       metadata: metadata,

@@ -107,6 +107,74 @@ describe Minisky::OAuthClient do
       .to_return(status: 200, headers: { 'Content-Type' => 'application/json' }, body: auth_server.to_h.to_json)
   end
 
+  describe '#initialize' do
+    [{ metadata: {} }, { signing_key: {} }, { metadata: {}, signing_key: {} }].each do |options|
+      it "should reject oauth_client combined with #{options.keys.join(' and ')} before restoring a session" do
+        existing = client.oauth_client
+        existing.session_manager.expects(:get_session).never
+        AuthProto::Client.expects(:new).never
+
+        expect {
+          described_class.new(
+            client_id: existing.client_id, redirect_uri: existing.redirect_uri,
+            oauth_client: existing, session_id: 'pending', **options
+          )
+        }.to raise_error(ArgumentError, /Do not pass \w+ when existing oauth_client is included/)
+      end
+    end
+  end
+
+  describe '.with_oauth_client' do
+    it "should reuse the supplied OAuth client without creating another" do
+      existing = client.oauth_client
+      AuthProto::Client.expects(:new).never
+      wrapped = described_class.with_oauth_client(existing)
+
+      wrapped.oauth_client.should equal(existing)
+      wrapped.session_id.should be_nil
+      wrapped.auto_manage_tokens.should be false
+      wrapped.send_auth_headers.should be true
+      expect { wrapped.host }.to raise_error(Minisky::AuthError)
+    end
+
+    it "should restore the supplied client's session and make requests against its PDS" do
+      session = attach_session
+      wrapped = described_class.with_oauth_client(client.oauth_client, session_id: session.session_id)
+
+      wrapped.session_id.should == session.session_id
+      wrapped.host.should == host
+      stub_request(:get, endpoint).to_return(status: 200, headers: response_headers, body: '{}')
+      wrapped.get_request('app.bsky.actor.getProfile').should == {}
+    end
+
+    it "should authorize and complete a callback through the supplied client" do
+      existing = client.oauth_client
+      wrapped = described_class.with_oauth_client(existing)
+      existing.expects(:authorize).with(handle: 'alice.example.com').returns(url: 'https://auth.example.com',
+                                                                           session_id: 'pending')
+      wrapped.authorize(handle: 'alice.example.com')[:session_id].should == 'pending'
+      callback = { code: 'code', state: 'state', iss: 'https://auth.example.com' }
+      existing.expects(:handle_callback).with(callback, expected_session_id: 'pending')
+              .returns(session_id: 'authorized', pds: host)
+
+      wrapped.handle_callback(callback, expected_session_id: 'pending')
+      wrapped.session_id.should == 'authorized'
+      wrapped.host.should == host
+    end
+
+    it "should reject a session the supplied client cannot restore" do
+      expect {
+        described_class.with_oauth_client(client.oauth_client, session_id: 'missing')
+      }.to raise_error(Minisky::AuthError, "OAuth session not found")
+    end
+
+    it "should reject an invalid OAuth client" do
+      expect {
+        described_class.with_oauth_client(Object.new)
+      }.to raise_error(ArgumentError, "oauth_client must be an AuthProto::Client")
+    end
+  end
+
   describe '.for_localhost' do
     let(:redirect_uri) { 'http://127.0.0.1:3000/callback?flow=login&next=%2Fhome' }
     let(:scope) { 'atproto rpc:app.bsky.feed.getTimeline?aud=*' }
