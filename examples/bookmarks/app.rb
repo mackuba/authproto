@@ -16,7 +16,6 @@ require_relative 'bookmark'
 #
 
 class BookmarksApp < Sinatra::Base
-  SCOPE = 'atproto rpc:app.bsky.bookmark.getBookmarks?aud=*'
   PER_PAGE = 20
 
   configure :development do
@@ -25,55 +24,20 @@ class BookmarksApp < Sinatra::Base
 
   configure do
     set :root, __dir__
-    set :metadata_path, ENV.fetch('OAUTH_METADATA_PATH', File.join(__dir__, 'config', 'oauth-client-metadata.json'))
-
-    unless File.exist?(metadata_path)
-      raise "Copy a metadata template to config/oauth-client-metadata.json before starting the app"
-    end
-
-    metadata = JSON.parse(File.read(metadata_path))
-    raise "Client metadata must request only #{SCOPE}" unless metadata['scope'] == SCOPE
-
-    client_id = metadata.fetch('client_id')
-    redirect_uri = metadata.fetch('redirect_uris').first
-    options = { client_id: client_id, redirect_uri: redirect_uri }
-
-    if client_id.match?(%r{\Ahttp://localhost(/|$)})
-      options[:client_id] = 'http://localhost/?' + URI.encode_www_form(redirect_uri: redirect_uri, scope: SCOPE)
-    else
-      options[:metadata] = metadata
-      keys_path = File.join(__dir__, 'config', 'keys.json')
-      options[:signing_key] = JSON.parse(File.read(keys_path)).fetch('keys').first if File.exist?(keys_path)
-    end
-
-    set :oauth_options, options
-    set :oauth_client, Minisky::OAuthClient.new('https://bsky.social', **options).oauth_client
     set :host_authorization, permitted_hosts: ['localhost', '127.0.0.1', '[::1]', ENV['PERMITTED_DOMAIN']].compact
 
     session_secret = ENV.fetch('SESSION_SECRET') { SecureRandom.hex(32) }
     raise "SESSION_SECRET must be at least 64 characters long" if session_secret.length < 64
 
     use Rack::Session::Cookie,
-        key: 'bookmarks.session',
-        expire_after: 86_400,
-        secret: session_secret,
-        secure: production?,
-        httponly: true,
-        same_site: :lax
+      key: 'bookmarks.session',
+      expire_after: 86_400,
+      secret: session_secret,
+      secure: production?,
+      httponly: true,
+      same_site: :lax
 
     use Rack::Protection::AuthenticityToken
-  end
-
-  # Creates a separate Minisky client for a stored OAuth session.
-  #
-  # @param session_id [String, nil] session to resume, or `nil` to start authorization
-  # @return [Minisky::OAuthClient] client targeting the account's PDS
-  #
-  def self.api_client(session_id = nil)
-    oauth_session = settings.oauth_client.session_manager.get_session(session_id) if session_id
-    host = oauth_session ? oauth_session.pds : 'https://bsky.social'
-
-    Minisky::OAuthClient.new(host, **settings.oauth_options, session_id: session_id)
   end
 
   # Fetches bookmarks synchronously, following API cursors and saving text posts.
@@ -85,20 +49,24 @@ class BookmarksApp < Sinatra::Base
   # @raise [Minisky::AuthError] if the session cannot be resumed
   #
   def self.fetch_bookmarks(session_id, newer_only: false)
-    client = api_client(session_id)
+    client = OAuth.make_minisky(session_id)
     client.check_access
+
     oauth_session = client.oauth_client.session_manager.get_session(session_id)
     did = oauth_session.did
+
     newest = Bookmark.where(did: did).maximum(:created_at) if newer_only
     imported = 0
     cursor = nil
+
+    headers = { 'atproto-proxy' => 'did:web:api.bsky.app#bsky_appview' }
 
     Bookmark.transaction do
       loop do
         query = { limit: 100 }
         query[:cursor] = cursor if cursor
-        response = client.get_request('app.bsky.bookmark.getBookmarks', query,
-                                      headers: { 'atproto-proxy' => 'did:web:api.bsky.app#bsky_appview' })
+
+        response = client.get_request('app.bsky.bookmark.getBookmarks', query, headers: headers)
         reached_newest = false
 
         response.fetch('bookmarks').each do |entry|
@@ -122,6 +90,7 @@ class BookmarksApp < Sinatra::Base
             posted_at: Time.iso8601(record.fetch('createdAt')),
             text: record.fetch('text')
           )
+
           imported += 1
         end
 
@@ -139,7 +108,7 @@ class BookmarksApp < Sinatra::Base
       return @current_session if defined?(@current_session)
 
       session_id = session[:oauth_session_id]
-      oauth_session = session_id && settings.oauth_client.session_manager.get_session(session_id)
+      oauth_session = session_id && OAuth.client.session_manager.get_session(session_id)
       @current_session = oauth_session unless oauth_session&.pending?
 
       session.delete(:oauth_session_id) if @current_session.nil?
@@ -162,12 +131,14 @@ class BookmarksApp < Sinatra::Base
     def lookup_handle(did)
       DID.new(did).get_verified_handle
     rescue StandardError => e
-      logger.warn("Handle lookup failed: #{e.class}: #{e.message}")
+      puts "Handle lookup failed: #{e.class}: #{e.message}"
       nil
     end
 
     def report_error(message, error)
-      logger.error("#{message}: #{error.class}: #{error.message}")
+      puts "#{message}: #{error.class}: #{error.message}"
+      puts error.backtrace.take_while { |l| !l.include?('/lib/sinatra/base') }
+
       session[:error] = "#{message}: #{error.message}"
     end
   end
@@ -185,11 +156,11 @@ class BookmarksApp < Sinatra::Base
   get '/oauth-client-metadata.json' do
     content_type :json
 
-    File.read(settings.metadata_path)
+    File.read(OAuth.metadata_path)
   end
 
   post '/authenticate' do
-    auth = self.class.api_client.authorize(handle: params[:handle].to_s.strip, scope: SCOPE)
+    auth = OAuth.client.authorize(handle: params[:handle].to_s.strip, scope: OAuth.metadata['scope'])
 
     session[:pending_oauth_session_id] = auth.fetch(:session_id)
     redirect auth.fetch(:url)
@@ -199,10 +170,9 @@ class BookmarksApp < Sinatra::Base
   end
 
   get '/callback' do
-    result = self.class.api_client.handle_callback(
-      params,
-      expected_session_id: session.delete(:pending_oauth_session_id)
-    )
+    pending_session_id = session.delete(:pending_oauth_session_id)
+
+    result = OAuth.client.handle_callback(params, expected_session_id: pending_session_id)
 
     session[:oauth_session_id] = result.fetch(:session_id)
     session[:handle] = lookup_handle(result.fetch(:did))
@@ -254,7 +224,7 @@ class BookmarksApp < Sinatra::Base
     did = current_session.did
     session_id = current_session.session_id
 
-    settings.oauth_client.delete_session(session_id, revoke: true)
+    OAuth.client.delete_session(session_id, revoke: true)
 
     if AuthProto.storage.get("atproto:bookmarks:session:#{did}") == session_id
       AuthProto.storage.delete("atproto:bookmarks:session:#{did}")

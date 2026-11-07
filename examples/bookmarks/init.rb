@@ -6,6 +6,8 @@ require 'didkit'
 require 'dotenv/load'
 require 'sinatra/activerecord'
 
+require_relative 'oauth'
+
 AuthProto.configure do |config|
   config.http_client = AuthProto::HTTPClient.new(timeout: 10)
 
@@ -20,3 +22,5 @@ Sinatra::Base.set(:database, {
   database: ENV.fetch('BOOKMARKS_DATABASE', File.join(__dir__, 'db', 'bookmarks.sqlite3')),
   timeout: 5_000
 })
+
+OAuth.init
