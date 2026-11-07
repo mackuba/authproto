@@ -12,15 +12,6 @@ require 'sinatra/base'
 require 'sinatra/reloader'
 
 
-$session_secret = ENV.fetch("SESSION_SECRET") { SecureRandom.hex(32) }
-raise "SESSION_SECRET must be at least 64 characters long (got: #{$session_secret})" if $session_secret.length < 64
-
-$metadata_path = File.join(__dir__, 'config', 'oauth-client-metadata.json')
-raise "Missing metadata JSON file at config/oauth-client-metadata.json" unless File.exist?($metadata_path)
-
-$keys_path = File.join(__dir__, 'config', 'keys.json')
-
-
 class ExampleApp < Sinatra::Base
   configure :development do
     register Sinatra::Reloader
@@ -50,13 +41,18 @@ class ExampleApp < Sinatra::Base
     end
 
     # Load client metadata
-    metadata = JSON.parse(File.read($metadata_path))
+    metadata_path = File.join(__dir__, 'config', 'oauth-client-metadata.json')
+    raise "Missing metadata JSON file at config/oauth-client-metadata.json" unless File.exist?(metadata_path)
+
+    metadata = JSON.parse(File.read(metadata_path))
     client_id = metadata['client_id']
     redirect_uri = metadata['redirect_uris'][0]
 
+    keys_path = File.join(__dir__, 'config', 'keys.json')
+
     # Load private signing key for client assertions, if found
-    if File.exist?($keys_path)
-      signing_key = JSON.parse(File.read($keys_path))['keys'].first
+    if File.exist?(keys_path)
+      signing_key = JSON.parse(File.read(keys_path))['keys'].first
     end
 
     if client_id =~ %r{\Ahttp://localhost(/|$)}
@@ -87,19 +83,23 @@ class ExampleApp < Sinatra::Base
 
     # Store the OAuth client in the global settings
     set :oauth_client, oauth_client
+    set :metadata_path, metadata_path
+
+    set :host_authorization, {
+      permitted_hosts: ["localhost", ENV.fetch("PERMITTED_DOMAIN", nil)].compact
+    }
+
+    session_secret = ENV.fetch("SESSION_SECRET") { SecureRandom.hex(32) }
+    raise "SESSION_SECRET must be at least 64 characters long (got: #{session_secret})" if session_secret.length < 64
+
+    use Rack::Session::Cookie,
+        key: "atproto.session",
+        expire_after: 86_400, # 1 day in seconds
+        secret: session_secret,
+        secure: ENV.fetch("RACK_ENV", "development") == "production",  # Only send over HTTPS
+        httponly: true,     # Not accessible via JavaScript
+        same_site: :lax     # CSRF protection
   end
-
-  set :host_authorization, {
-    permitted_hosts: ["localhost", ENV.fetch("PERMITTED_DOMAIN", nil)].compact
-  }
-
-  use Rack::Session::Cookie,
-      key: "atproto.session",
-      expire_after: 86_400, # 1 day in seconds
-      secret: $session_secret,
-      secure: ENV.fetch("RACK_ENV", "development") == "production",  # Only send over HTTPS
-      httponly: true,     # Not accessible via JavaScript
-      same_site: :lax     # CSRF protection
 
   helpers do
     def load_session
@@ -139,7 +139,7 @@ class ExampleApp < Sinatra::Base
   get "/oauth-client-metadata.json" do
     content_type :json
 
-    File.read($metadata_path)
+    File.read(settings.metadata_path)
   end
 
   # Starts the OAuth flow and redirects the user to the PDS's OAuth authorization page
