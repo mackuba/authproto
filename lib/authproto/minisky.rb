@@ -100,6 +100,7 @@ class Minisky::OAuthClient
     end
 
     @host = nil
+    @did = nil
     @session_id = session_id
 
     @send_auth_headers = true
@@ -117,6 +118,7 @@ class Minisky::OAuthClient
       raise Minisky::AuthError, "OAuth session not found" unless session
 
       @host = session.pds
+      @did = session.did
     end
   end
 
@@ -131,6 +133,19 @@ class Minisky::OAuthClient
     end
 
     @host
+  end
+
+  # Returns the DID of the authenticated user.
+  #
+  # @return [String] session's account DID
+  # @raise [Minisky::AuthError] if the DID is not known yet
+  #
+  def did
+    if @did.nil?
+      raise Minisky::AuthError, "Client has not completed authentication yet"
+    end
+
+    @did
   end
 
   # Returns no app-password credential configuration; OAuth owns this client's tokens.
@@ -173,6 +188,7 @@ class Minisky::OAuthClient
     result = oauth_client.handle_callback(callback_params, expected_session_id: expected_session_id)
     @session_id = result.fetch(:session_id)
     @host = result.fetch(:pds)
+    @did = result.fetch(:did)
 
     result
   end

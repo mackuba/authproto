@@ -22,8 +22,7 @@ class Bookmark < ActiveRecord::Base
     client = Minisky::OAuthClient.with_oauth_client(OAuth.client, session_id: session_id)
     client.check_access
 
-    oauth_session = client.oauth_client.session_manager.get_session(session_id)
-    did = oauth_session.did
+    did = client.did
 
     newest = Bookmark.where(did: did).maximum(:created_at) if newer_only
     imported = 0

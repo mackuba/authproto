@@ -143,6 +143,7 @@ describe Minisky::OAuthClient do
 
       wrapped.session_id.should == session.session_id
       wrapped.host.should == host
+      wrapped.did.should == session.did
       stub_request(:get, endpoint).to_return(status: 200, headers: response_headers, body: '{}')
       wrapped.get_request('app.bsky.actor.getProfile').should == {}
     end
@@ -155,11 +156,12 @@ describe Minisky::OAuthClient do
       wrapped.authorize(handle: 'alice.example.com')[:session_id].should == 'pending'
       callback = { code: 'code', state: 'state', iss: 'https://auth.example.com' }
       existing.expects(:handle_callback).with(callback, expected_session_id: 'pending')
-              .returns(session_id: 'authorized', pds: host)
+              .returns(session_id: 'authorized', pds: host, did: 'did:plc:alice')
 
       wrapped.handle_callback(callback, expected_session_id: 'pending')
       wrapped.session_id.should == 'authorized'
       wrapped.host.should == host
+      wrapped.did.should == 'did:plc:alice'
     end
 
     it "should reject a session the supplied client cannot restore" do
@@ -211,6 +213,7 @@ describe Minisky::OAuthClient do
 
       restored.session_id.should == session.session_id
       restored.host.should == host
+      restored.did.should == session.did
       restored.oauth_client.get_tokens(session.session_id)[:access_token].should == 'access'
     end
 
@@ -329,6 +332,7 @@ describe Minisky::OAuthClient do
       client.handle_callback({ code: 'code', state: state_token, iss: auth_server.issuer },
                              expected_session_id: auth[:session_id])
       client.host.should == host
+      client.did.should == 'did:plc:ewvi7nxzyoun6zhxrhs64oiz'
       nonces.get(url: auth_server.issuer, session_id: session.session_id).should == 'token-success'
       client.oauth_client.session_manager.get_session(session.session_id).state_token.should be_nil
       client.oauth_client.session_manager.get_session(session.session_id).signing_key_id.should == 'client-key'
@@ -595,6 +599,7 @@ describe Minisky::OAuthClient do
     client.session_id.should be_nil
 
     expect { client.host }.to raise_error(Minisky::AuthError, /has not completed authentication/)
+    expect { client.did }.to raise_error(Minisky::AuthError, /has not completed authentication/)
   end
 
   it "should reject the old positional host argument" do
@@ -621,6 +626,7 @@ describe Minisky::OAuthClient do
 
     restored.session_id.should == session.session_id
     restored.host.should == session.pds
+    restored.did.should == session.did
     stub_request(:get, endpoint).to_return(status: 200, headers: response_headers, body: '{}')
     restored.get_request('app.bsky.actor.getProfile').should == {}
   end
@@ -671,10 +677,11 @@ describe Minisky::OAuthClient do
     client.session_id.should == "pending"
     client.oauth_client.expects(:handle_callback).with({ code: 'code', state: 'state', iss: 'issuer' },
                                                      expected_session_id: 'pending')
-          .returns(session_id: "authorized", pds: host)
+          .returns(session_id: "authorized", pds: host, did: 'did:plc:alice')
     client.handle_callback({ code: 'code', state: 'state', iss: 'issuer' }, expected_session_id: 'pending')
     client.session_id.should == "authorized"
     client.host.should == host
+    client.did.should == 'did:plc:alice'
   end
 
   it "should omit query params from GET proofs, preserve request params and headers, and save response nonces" do

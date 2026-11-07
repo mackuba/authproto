@@ -5,6 +5,7 @@ class OAuthClient
   include AuthProto::HTTPHelpers
   MAX_NONCE_RETRIES: Integer
   def host: () -> String
+  def did: () -> String
   attr_reader oauth_client: AuthProto::Client
   attr_reader session_id: String?
 
