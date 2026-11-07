@@ -46,8 +46,8 @@ Run `bin/console`, then:
 ```rb
 require_relative 'localhost'
 
-client = create_client('your.pds.hostname.here')
-authorize(client)
+client = create_client
+authorize(client, 'your.handle')
 ```
 
 This will print:
@@ -77,7 +77,7 @@ client.get_request('app.bsky.feed.getTimeline', { limit: 10 })
 To restore a session after closing and reopening the console, write down the sesion ID printed after successful authentication, and then pass it back to the `OAuthClient` constructor:
 
 ```rb
-client = create_client('your.pds.hostname.here', session_id: '123456-789-abc-...')
+client = create_client(session_id: '123456-789-abc-...')
 ```
 
 ## Production use
@@ -95,8 +95,8 @@ Locally, run `bin/console`, then:
 ```rb
 require_relative 'production'
 
-client = create_client('your.server.hostname', 'your.pds.hostname')
-authorize(client)
+client = create_client('your.server.hostname')
+authorize(client, 'your.handle')
 ```
 
 This will print:
@@ -126,5 +126,5 @@ Then, you can run `client.get_request(...)` and `client.post_request(...)` to pe
 Again, to restore a session after closing and reopening the console, write down the sesion ID printed after successful authentication, and then pass it back to the `OAuthClient` constructor:
 
 ```rb
-client = create_client('your.server.hostname', 'your.pds.hostname', session_id: '123456-789-abc-...')
+client = create_client('your.server.hostname', session_id: '123456-789-abc-...')
 ```

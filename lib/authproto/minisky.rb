@@ -21,10 +21,6 @@ class Minisky::OAuthClient
   # @return [Integer]
   MAX_NONCE_RETRIES = 2
 
-  # PDS host or base URL used by Minisky.
-  # @return [String]
-  attr_reader :host
-
   # OAuth client that owns the session, tokens and DPoP key.
   # @return [AuthProto::Client]
   attr_reader :oauth_client
@@ -38,20 +34,20 @@ class Minisky::OAuthClient
   # Disables Minisky's app-password token management and enables authenticated
   # requests by default. Configure AuthProto's global storage/transport separately.
   #
-  # @param host [String] PDS host or base URL used for XRPC requests
   # @param client_id [String] OAuth client metadata URL or localhost client ID
   # @param redirect_uri [String, URI::Generic] registered callback URI
   # @param metadata [Hash{String => Object}, nil] preloaded metadata, or `nil` to fetch it
   # @param signing_key [Hash, JOSE::JWK, nil] private ES256 key for confidential-client authentication
   # @param session_id [String, nil] stored session ID to resume; `nil` starts without an attached session
   #
+  # @raise [Minisky::AuthError] if a supplied session ID cannot be restored
   # @raise [AuthProto::InvalidClientMetadata] if metadata is invalid or unavailable
   # @raise [AuthProto::Error] if OAuth client or DPoP initialization fails
   # @raise [AuthProto::HTTPClient::HTTPError, AuthProto::HTTPClient::SSRFError] if fetching metadata fails
   # @see AuthProto::Client#initialize
   #
-  def initialize(host, client_id:, redirect_uri:, metadata: nil, signing_key: nil, session_id: nil)
-    @host = host
+  def initialize(client_id:, redirect_uri:, metadata: nil, signing_key: nil, session_id: nil)
+    @host = nil
     @session_id = session_id
 
     @send_auth_headers = true
@@ -63,6 +59,26 @@ class Minisky::OAuthClient
       metadata: metadata,
       signing_key: signing_key
     )
+
+    if session_id
+      session = @oauth_client.session_manager.get_session(session_id)
+      raise Minisky::AuthError, "OAuth session not found" unless session
+
+      @host = session.pds
+    end
+  end
+
+  # Returns the PDS URL of the authenticated user.
+  #
+  # @return [String] session's PDS URL
+  # @raise [Minisky::AuthError] if the PDS is not known yet
+  #
+  def host
+    if @host.nil?
+      raise Minisky::AuthError, "Client has not completed authentication yet"
+    end
+
+    @host
   end
 
   # Returns no app-password credential configuration; OAuth owns this client's tokens.
@@ -104,6 +120,7 @@ class Minisky::OAuthClient
   def handle_callback(callback_params, expected_session_id:)
     result = oauth_client.handle_callback(callback_params, expected_session_id: expected_session_id)
     @session_id = result.fetch(:session_id)
+    @host = result.fetch(:pds)
 
     result
   end

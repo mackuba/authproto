@@ -45,10 +45,7 @@ module OAuth
     end
 
     def make_minisky(session_id)
-      oauth_session = @oauth_client.session_manager.get_session(session_id)
-      raise Error, "Session not found" if oauth_session.nil?
-
-      Minisky::OAuthClient.new(oauth_session.pds, **@minisky_options, session_id: session_id)
+      Minisky::OAuthClient.new(**@minisky_options, session_id: session_id)
     end
   end
 end

@@ -18,12 +18,12 @@ REDIRECT_URI = 'http://127.0.0.1:9292/callback'
 SCOPE = 'atproto repo:app.bsky.feed.post rpc:app.bsky.feed.getTimeline?aud=*'
 CLIENT_ID = 'http://localhost/?' + URI.encode_www_form({ redirect_uri: REDIRECT_URI, scope: SCOPE })
 
-def create_client(pds, session_id: nil)
-  Minisky::OAuthClient.new(pds, client_id: CLIENT_ID, redirect_uri: REDIRECT_URI, session_id: session_id)
+def create_client(session_id: nil)
+  Minisky::OAuthClient.new(client_id: CLIENT_ID, redirect_uri: REDIRECT_URI, session_id: session_id)
 end
 
-def authorize(client)
-  auth = client.authorize(pds: "https://#{client.host}", scope: SCOPE)
+def authorize(client, handle)
+  auth = client.authorize(handle: handle, scope: SCOPE)
 
   puts "Open this URL in the browser and complete authorization:"
   puts auth[:url]

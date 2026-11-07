@@ -468,7 +468,7 @@ The API is a bit of a mix of a standard password-auth Minisky client and the `Au
 # and requires `gem 'minisky'` in the Gemfile
 require 'authproto/minisky'
 
-sky = Minisky::OAuthClient.new(pds_host,
+sky = Minisky::OAuthClient.new(
   client_id: "https://#{server_hostname}/oauth-client-metadata.json",
   redirect_uri: "https://#{server_hostname}/callback",
   metadata: metadata,       # or nil/skip
@@ -476,7 +476,7 @@ sky = Minisky::OAuthClient.new(pds_host,
   signing_key: signing_key  # or nil/skip
 )
 
-auth = sky.authorize(pds: "https://#{pds_host}", scope: "atproto ...")
+auth = sky.authorize(handle: 'user.handle', scope: "atproto ...")
 p auth[:url]
 # ...
 

@@ -12,16 +12,16 @@ AuthProto.configure do |config|
   )
 end
 
-def create_client(server_hostname, pds, session_id: nil)
-  Minisky::OAuthClient.new(pds,
+def create_client(server_hostname, session_id: nil)
+  Minisky::OAuthClient.new(
     client_id: "https://#{server_hostname}/oauth-client-metadata.json",
     redirect_uri: "https://#{server_hostname}/callback",
     session_id: session_id
   )
 end
 
-def authorize(client)
-  auth = client.authorize(pds: "https://#{client.host}", scope: client.oauth_client.client_metadata.scope)
+def authorize(client, handle)
+  auth = client.authorize(handle: handle, scope: client.oauth_client.client_metadata.scope)
 
   puts "Open this URL in the browser and complete authorization:"
   puts auth[:url]

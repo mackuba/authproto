@@ -4,12 +4,11 @@ class Minisky
 class OAuthClient
   include AuthProto::HTTPHelpers
   MAX_NONCE_RETRIES: Integer
-  attr_reader host: String
+  def host: () -> String
   attr_reader oauth_client: AuthProto::Client
   attr_reader session_id: String?
 
   def initialize: (
-      String host,
       client_id: String,
       redirect_uri: (String | URI::HTTPS),
       ?metadata: AuthProto::json_object?,

@@ -8,6 +8,7 @@
 - `Client#handle_callback` now takes the callback parameters as a single Hash parameter instead of keyword args
 - `uri:` and `url:` arguments across the project now accept also `URI` objects
 - response hashes are now accepted also having status code as a String and header values as array, so you can now pass e.g. a `Net::HTTPResponse` as: `{ status: res.code, headers: res.to_hash, body: res.body }`
+- `Minisky::OAuthClient` doesn't require a PDS hostname anymore to create an instance
 - added `AuthProto.storage.cleanup_expired_records`
 
 ## [0.3.0.beta4] – 2026-11-03

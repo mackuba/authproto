@@ -24,7 +24,7 @@ describe Minisky::OAuthClient do
   end
   let(:client) do
     Minisky::OAuthClient.new(
-      host, client_id: client_metadata["client_id"], redirect_uri: client_metadata["redirect_uris"].first,
+      client_id: client_metadata["client_id"], redirect_uri: client_metadata["redirect_uris"].first,
             metadata: client_metadata, signing_key: @signing_key
     )
   end
@@ -71,6 +71,7 @@ describe Minisky::OAuthClient do
     session.tokens = token_set(expires_in: expires_in)
     client.oauth_client.session_manager.update_session(session)
     client.instance_variable_set(:@session_id, session.session_id)
+    client.instance_variable_set(:@host, session.pds)
     session
   end
 
@@ -109,7 +110,7 @@ describe Minisky::OAuthClient do
   it "should authorize a localhost public client using PKCE and DPoP without a client assertion" do
     redirect_uri = 'http://127.0.0.1:9292/callback'
     client_id = "http://localhost/?#{URI.encode_www_form(redirect_uri: redirect_uri)}"
-    client = described_class.new(host, client_id: client_id, redirect_uri: redirect_uri)
+    client = described_class.new(client_id: client_id, redirect_uri: redirect_uri)
     stub_authorization_metadata
     AuthProto::PAR::ClientAssertion.expects(:new).never
     stub_request(:post, "#{auth_server.issuer}/par").with do |request|
@@ -193,6 +194,7 @@ describe Minisky::OAuthClient do
       )
 
       auth = client.authorize(pds: host)
+      expect { client.host }.to raise_error(Minisky::AuthError)
       session = client.oauth_client.session_manager.get_session(auth[:session_id])
       session.signing_key_id.should == 'client-key'
       state_token = session.state_token
@@ -200,6 +202,7 @@ describe Minisky::OAuthClient do
       nonces.get(url: auth_server.issuer, session_id: session.session_id).should == 'par-success'
       client.handle_callback({ code: 'code', state: state_token, iss: auth_server.issuer },
                              expected_session_id: auth[:session_id])
+      client.host.should == host
       nonces.get(url: auth_server.issuer, session_id: session.session_id).should == 'token-success'
       client.oauth_client.session_manager.get_session(session.session_id).state_token.should be_nil
       client.oauth_client.session_manager.get_session(session.session_id).signing_key_id.should == 'client-key'
@@ -236,7 +239,7 @@ describe Minisky::OAuthClient do
     authorizations = Array.new(2) { client.authorize(pds: host) }
     original_keys.values.map(&:public_jwk).uniq.length.should == 2
     restored = described_class.new(
-      host, client_id: client_metadata['client_id'], redirect_uri: client_metadata['redirect_uris'].first,
+      client_id: client_metadata['client_id'], redirect_uri: client_metadata['redirect_uris'].first,
       metadata: client_metadata
     )
     stub_request(:post, auth_server.token_endpoint).to_return do |request|
@@ -289,21 +292,13 @@ describe Minisky::OAuthClient do
     def restore_client(signing_key)
       original = pending_session
       described_class.new(
-        host, client_id: client_metadata['client_id'], redirect_uri: client_metadata['redirect_uris'].first,
+        client_id: client_metadata['client_id'], redirect_uri: client_metadata['redirect_uris'].first,
         metadata: client_metadata, signing_key: signing_key, session_id: original.session_id
       )
     end
 
     it "should reject a different signing key before sending the restored session's authorization code" do
-      restored = restore_client(replacement_key)
-      restored.oauth_client.session_manager.get_session(pending_session.session_id).should be_nil
-
-      expect {
-        restored.handle_callback(
-          { code: 'code', state: pending_session.state_token, iss: auth_server.issuer },
-          expected_session_id: pending_session.session_id
-        )
-      }.to raise_error(AuthProto::Client::CallbackError, "Invalid state parameter")
+      expect { restore_client(replacement_key) }.to raise_error(Minisky::AuthError, "OAuth session not found")
 
       assert_not_requested :post, auth_server.token_endpoint
       stored = client.oauth_client.session_manager.get_session_by_state_token(pending_session.state_token)
@@ -314,12 +309,7 @@ describe Minisky::OAuthClient do
     it "should reject a different signing key before sending the restored session's refresh token" do
       pending_session.tokens = token_set
       client.oauth_client.session_manager.complete_authorization(pending_session)
-      restored = restore_client(replacement_key)
-      restored.oauth_client.session_manager.get_session(pending_session.session_id).should be_nil
-
-      expect {
-        restored.perform_token_refresh
-      }.to raise_error(AuthProto::Client::TokenError, "Invalid session")
+      expect { restore_client(replacement_key) }.to raise_error(Minisky::AuthError, "OAuth session not found")
 
       assert_not_requested :post, auth_server.token_endpoint
       stored = client.oauth_client.session_manager.get_session(pending_session.session_id)
@@ -340,16 +330,11 @@ describe Minisky::OAuthClient do
 
     it "should reject changed key material with the same kid before code exchange or refresh" do
       replacement = replacement_key.merge('kid' => 'original-key')
-      restored = restore_client(replacement)
-      restored.oauth_client.session_manager.get_session(pending_session.session_id).should be_nil
-      expect {
-        restored.handle_callback({ code: 'code', state: pending_session.state_token, iss: auth_server.issuer },
-                                 expected_session_id: pending_session.session_id)
-      }.to raise_error(AuthProto::Client::CallbackError, "Invalid state parameter")
+      expect { restore_client(replacement) }.to raise_error(Minisky::AuthError, "OAuth session not found")
 
       pending_session.tokens = token_set
       client.oauth_client.session_manager.complete_authorization(pending_session)
-      expect { restored.perform_token_refresh }.to raise_error(AuthProto::Client::TokenError, "Invalid session")
+      expect { restore_client(replacement) }.to raise_error(Minisky::AuthError, "OAuth session not found")
       assert_not_requested :post, auth_server.token_endpoint
       original = client.oauth_client.session_manager.get_session(pending_session.session_id)
       original.signing_key_thumbprint.should == JOSE::JWK.from_map(@signing_key).thumbprint('SHA256')
@@ -361,12 +346,7 @@ describe Minisky::OAuthClient do
       serialized.fetch('data').delete('signing_key_id')
       serialized.fetch('data').delete('signing_key_thumbprint')
       AuthProto.storage.set(session_key, JSON.generate(serialized))
-      restored = restore_client(@signing_key)
-
-      expect {
-        restored.handle_callback({ code: 'code', state: pending_session.state_token, iss: auth_server.issuer },
-                                 expected_session_id: pending_session.session_id)
-      }.to raise_error(AuthProto::Client::CallbackError, "Invalid state parameter")
+      expect { restore_client(@signing_key) }.to raise_error(Minisky::AuthError, "OAuth session not found")
 
       assert_not_requested :post, auth_server.token_endpoint
     end
@@ -485,6 +465,55 @@ describe Minisky::OAuthClient do
     end
   end
 
+  it "should create a client without knowing the PDS and reject host access before callback" do
+    client.session_id.should be_nil
+
+    expect { client.host }.to raise_error(Minisky::AuthError, /PDS host/)
+  end
+
+  it "should reject the old positional host argument" do
+    expect {
+      described_class.new(host, client_id: client_metadata['client_id'],
+                          redirect_uri: client_metadata['redirect_uris'].first, metadata: client_metadata)
+    }.to raise_error(ArgumentError)
+  end
+
+  it "should reject an unknown session in the initializer" do
+    expect {
+      described_class.new(client_id: client_metadata['client_id'],
+                          redirect_uri: client_metadata['redirect_uris'].first,
+                          metadata: client_metadata, session_id: 'missing')
+    }.to raise_error(Minisky::AuthError, "OAuth session not found")
+  end
+
+  it "should restore the host from a stored session immediately" do
+    session = attach_session
+    restored = described_class.new(
+      client_id: client_metadata['client_id'], redirect_uri: client_metadata['redirect_uris'].first,
+      metadata: client_metadata, session_id: session.session_id
+    )
+
+    restored.session_id.should == session.session_id
+    restored.host.should == session.pds
+    stub_request(:get, endpoint).to_return(status: 200, headers: response_headers, body: '{}')
+    restored.get_request('app.bsky.actor.getProfile').should == {}
+  end
+
+  it "should reject an expired pending session in the initializer" do
+    now = Time.now
+    Time.stubs(:now).returns(now)
+    session = client.oauth_client.session_manager.create_session(
+      client_id: client_metadata['client_id'], scope: 'atproto', pds: host
+    )
+    Time.stubs(:now).returns(now + AuthProto.configuration.pending_session_ttl)
+
+    expect {
+      described_class.new(client_id: client_metadata['client_id'],
+                          redirect_uri: client_metadata['redirect_uris'].first,
+                          metadata: client_metadata, session_id: session.session_id)
+    }.to raise_error(Minisky::AuthError, "OAuth session not found")
+  end
+
   it "should disable Minisky password token management" do
     client.auto_manage_tokens.should be false
     client.send_auth_headers.should be true
@@ -494,7 +523,7 @@ describe Minisky::OAuthClient do
   it "should retain existing memory sessions when another client is created" do
     session = attach_session
     Minisky::OAuthClient.new(
-      host, client_id: client_metadata["client_id"], redirect_uri: client_metadata["redirect_uris"].first,
+      client_id: client_metadata["client_id"], redirect_uri: client_metadata["redirect_uris"].first,
             metadata: client_metadata
     )
     client.oauth_client.session_manager.get_session(session.session_id).should_not be_nil
@@ -516,9 +545,10 @@ describe Minisky::OAuthClient do
     client.session_id.should == "pending"
     client.oauth_client.expects(:handle_callback).with({ code: 'code', state: 'state', iss: 'issuer' },
                                                      expected_session_id: 'pending')
-          .returns(session_id: "authorized")
+          .returns(session_id: "authorized", pds: host)
     client.handle_callback({ code: 'code', state: 'state', iss: 'issuer' }, expected_session_id: 'pending')
     client.session_id.should == "authorized"
+    client.host.should == host
   end
 
   it "should omit query params from GET proofs, preserve request params and headers, and save response nonces" do
@@ -542,7 +572,7 @@ describe Minisky::OAuthClient do
     stub_request(:get, endpoint).with { |request| !request.headers.key?("Authorization") }
                                 .to_return(status: 200, headers: { "DPoP-Nonce" => "fixture-nonce",
                                   "Content-Type" => "application/json" }, body: "{}")
-    client.get_request("app.bsky.actor.getProfile", auth: false).should == {}
+    client.get_request(endpoint, auth: false).should == {}
   end
 
   it "should reject authenticated requests before login" do
@@ -592,7 +622,7 @@ describe Minisky::OAuthClient do
 
   it "should reuse the persisted DPoP key when refreshing a session from a new client" do
     session = attach_session(expires_in: -10)
-    restored = described_class.new(host, client_id: client_metadata["client_id"],
+    restored = described_class.new(client_id: client_metadata["client_id"],
                                   redirect_uri: client_metadata["redirect_uris"].first, metadata: client_metadata,
                                   session_id: session.session_id)
     original_public_key = session.dpop_key.public_jwk
@@ -808,7 +838,7 @@ describe Minisky::OAuthClient do
         !request.headers.key?("Authorization") && !request.headers.key?("Dpop")
       end.to_return(status: 200, headers: { "DPoP-Nonce" => "fixture-nonce",
         "Content-Type" => "application/json" }, body: "{}")
-      client.post_request(rpc_method, record, auth: false).should == {}
+      client.post_request(post_endpoint, record, auth: false).should == {}
     end
 
     it "should allow an omitted body" do

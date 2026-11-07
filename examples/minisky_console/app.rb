@@ -23,8 +23,8 @@ get "/" do
 
   "To start authentication, run this in bin/console:\n\n" +
   "require_relative 'production'\n" +
-  "client = create_client('#{$server_host}', 'target.pds.hostname')\n" +
-  "authorize(client)\n\n" +
+  "client = create_client('#{$server_host}')\n" +
+  "authorize(client, 'your.handle')\n\n" +
   "Then open the printed URL and authorize the app. You will receive a hash with data, which you need to paste to:\n\n" +
   "handle_callback(client, { ... })\n"
 end
