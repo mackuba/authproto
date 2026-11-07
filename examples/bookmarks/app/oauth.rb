@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'authproto'
+require 'json'
 
 module OAuth
   class Error < StandardError; end

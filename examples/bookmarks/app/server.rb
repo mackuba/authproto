@@ -1,11 +1,8 @@
 # frozen_string_literal: true
 
-require 'json'
 require 'securerandom'
 require 'sinatra/base'
 require 'sinatra/reloader'
-require 'time'
-require 'uri'
 
 require_relative 'init'
 require_relative 'bookmark'
