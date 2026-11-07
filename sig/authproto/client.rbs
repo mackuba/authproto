@@ -18,7 +18,6 @@ module AuthProto
     attr_reader redirect_uri: String
     attr_reader client_metadata: Metadata::ClientMetadata
     attr_reader session_manager: State::SessionManager
-    attr_reader dpop_client: DPoP::Client
 
     def self.localhost_app?: (String client_id) -> bool
 

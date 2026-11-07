@@ -156,10 +156,6 @@ module AuthProto
     # @return [State::SessionManager]
     attr_reader :session_manager
 
-    # A helper object generating DPoP proofs and handling DPoP nonces for the Client
-    # @return [DPoP::Client]
-    attr_reader :dpop_client
-
 
     # Checks whether a client ID uses the localhost development URL prefix.
     #
@@ -484,7 +480,7 @@ module AuthProto
       raise TokenError, "Session not authorized" if session.pending?
       raise TokenError, "Session has expired" unless session.tokens_valid?
 
-      dpop_proof = dpop_client.generate_proof(
+      dpop_proof = @dpop_client.generate_proof(
         session: session,
         method: method,
         uri: url,
@@ -517,7 +513,7 @@ module AuthProto
     # @raise [DPoP::Client::Error] if the response or nonce is invalid or storage fails
     #
     def process_dpop(response, url:, session_id:)
-      dpop_client.process_response(response, url: url, session_id: session_id)
+      @dpop_client.process_response(response, url: url, session_id: session_id)
     end
 
 
@@ -539,7 +535,7 @@ module AuthProto
     # @raise [DPoP::Client::Error] if the response hash is invalid
     #
     def has_nonce_error?(response)
-      dpop_client.has_nonce_error?(response)
+      @dpop_client.has_nonce_error?(response)
     end
 
 
@@ -593,7 +589,7 @@ module AuthProto
     # @raise [DPoP::Client::Error] if the response or nonce is invalid or storage fails
     #
     def with_nonce_handling(session_id, url, &block)
-      dpop_client.with_nonce_handling(session_id, url, &block)
+      @dpop_client.with_nonce_handling(session_id, url, &block)
     end
 
 
@@ -817,7 +813,7 @@ module AuthProto
     end
 
     def exchange_code(code:, session:)
-      response = dpop_client.with_nonce_handling(session.session_id, session.auth_server.token_endpoint) do
+      response = @dpop_client.with_nonce_handling(session.session_id, session.auth_server.token_endpoint) do
         make_token_request(code, session)
       end
 
@@ -832,7 +828,7 @@ module AuthProto
     end
 
     def make_token_request(code, session)
-      dpop_proof = dpop_client.generate_proof(
+      dpop_proof = @dpop_client.generate_proof(
         session: session,
         method: 'POST',
         uri: session.auth_server.token_endpoint

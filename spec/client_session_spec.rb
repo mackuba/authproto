@@ -27,7 +27,7 @@ describe AuthProto::Client, 'sessions' do
   it "should delete a pending session without attempting revocation even when requested" do
     session = client.session_manager.create_session(client_id: client.client_id, scope: 'atproto')
     state_key = AuthProto::Storage::KeyBuilder.state_key(session.state_token)
-    client.dpop_client.expects(:generate_proof).never
+    client.instance_variable_get(:@dpop_client).expects(:generate_proof).never
 
     client.delete_session(session.session_id, revoke: true)
 
@@ -44,7 +44,7 @@ describe AuthProto::Client, 'sessions' do
     client.session_manager.complete_authorization(session)
     session_key = AuthProto::Storage::KeyBuilder.session_key(session.session_id)
     lock_key = AuthProto::Storage::KeyBuilder.lock_key('session', session.session_id)
-    client.dpop_client.expects(:generate_proof).never
+    client.instance_variable_get(:@dpop_client).expects(:generate_proof).never
     storage.expects(:with_lock).with(lock_key, ttl: 30) do
       storage.delete(session_key)
       true
@@ -74,7 +74,7 @@ describe AuthProto::Client, 'sessions' do
       expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
     )
     other_client.session_manager.complete_authorization(session)
-    client.dpop_client.expects(:generate_proof).never
+    client.instance_variable_get(:@dpop_client).expects(:generate_proof).never
 
     client.get_tokens(session.session_id).should be_nil
     client.authorized?(session.session_id).should be false
@@ -128,7 +128,7 @@ describe AuthProto::Client, 'sessions' do
     end
 
     it "should delete locally without contacting the server by default" do
-      client.dpop_client.expects(:generate_proof).never
+      client.instance_variable_get(:@dpop_client).expects(:generate_proof).never
 
       client.delete_session(session.session_id)
 
@@ -150,7 +150,7 @@ describe AuthProto::Client, 'sessions' do
 
     it "should skip revocation and delete locally when the server has no revocation endpoint" do
       session.auth_server.stubs(:revocation_endpoint).returns(nil)
-      client.dpop_client.expects(:generate_proof).never
+      client.instance_variable_get(:@dpop_client).expects(:generate_proof).never
 
       client.delete_session(session.session_id, revoke: true)
 

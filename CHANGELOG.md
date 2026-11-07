@@ -7,6 +7,7 @@
 - added `Minisky::OAuthClient.with_oauth_client` to reuse an existing `AuthProto::Client` instead of creating a new one
 - added `Minisky::OAuthClient#did`
 - renamed `server_url` params to `url` in `Client`, `DPoP::Client` and `DPoP::NonceManager` and to `origin` in `StoredNonce`
+- removed `Client#dpop_client` from public API
 - `Client` now rejects a `metadata` hash passed in argument for localhost clients (since you need to put the values into the `client_id` query params anyway for the server to read them)
 - `Client#handle_callback` now takes the callback parameters as a single Hash parameter instead of keyword args
 - `uri:` and `url:` arguments across the project now accept also `URI` objects

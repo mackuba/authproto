@@ -327,7 +327,7 @@ describe Minisky::OAuth do
       session = client.oauth_client.session_manager.get_session(auth[:session_id])
       session.signing_key_id.should == 'client-key'
       state_token = session.state_token
-      nonces = client.oauth_client.dpop_client.nonce_manager
+      nonces = client.oauth_client.instance_variable_get(:@dpop_client).nonce_manager
       nonces.get(url: auth_server.issuer, session_id: session.session_id).should == 'par-success'
       client.handle_callback({ code: 'code', state: state_token, iss: auth_server.issuer },
                              expected_session_id: auth[:session_id])
@@ -696,7 +696,7 @@ describe Minisky::OAuth do
     result = client.get_request("app.bsky.actor.getProfile", { actor: "alice.example.com" },
                                 headers: { "X-Test" => "yes", "authorization" => "Bearer wrong" })
     result["did"].should == "did:plc:ewvi7nxzyoun6zhxrhs64oiz"
-    client.oauth_client.dpop_client.nonce_manager.get(
+    client.oauth_client.instance_variable_get(:@dpop_client).nonce_manager.get(
       url: host, session_id: client.session_id
     ).should == "pds-nonce"
   end
@@ -730,7 +730,7 @@ describe Minisky::OAuth do
     other = client.oauth_client.session_manager.create_session(
       client_id: client_metadata['client_id'], scope: 'atproto'
     )
-    nonces = client.oauth_client.dpop_client.nonce_manager
+    nonces = client.oauth_client.instance_variable_get(:@dpop_client).nonce_manager
     nonces.update(nonce: 'other-session', url: host, session_id: other.session_id)
     proofs = []
     stub_request(:get, endpoint).to_return do |request|
@@ -844,14 +844,14 @@ describe Minisky::OAuth do
 
   it "should reject successful responses without a nonce even when one is cached" do
     attach_session
-    client.oauth_client.dpop_client.nonce_manager.update(
+    client.oauth_client.instance_variable_get(:@dpop_client).nonce_manager.update(
       nonce: "cached", url: host, session_id: client.session_id
     )
     stub_request(:get, endpoint).to_return(status: 200, headers: { "Content-Type" => "application/json" }, body: "{}")
     expect {
       client.get_request("app.bsky.actor.getProfile")
     }.to raise_error(AuthProto::DPoP::Client::Error, /Missing DPoP-Nonce/)
-    client.oauth_client.dpop_client.nonce_manager.get(
+    client.oauth_client.instance_variable_get(:@dpop_client).nonce_manager.get(
       url: host, session_id: client.session_id
     ).should == "cached"
   end
@@ -939,7 +939,7 @@ describe Minisky::OAuth do
       client.post_request(URI(post_endpoint), binary, params: { test: "yes" },
                                                       headers: { "content-type" => "application/octet-stream" })
       proofs.uniq.length.should == 2
-      client.oauth_client.dpop_client.nonce_manager.get(
+      client.oauth_client.instance_variable_get(:@dpop_client).nonce_manager.get(
         url: host, session_id: client.session_id
       ).should == "next-nonce"
     end
