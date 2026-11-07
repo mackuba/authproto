@@ -29,6 +29,26 @@ class Minisky::OAuthClient
   # @return [String, nil]
   attr_reader :session_id
 
+
+  # Creates a Minisky instance configured for a localhost app.
+  #
+  # @param redirect_uri [String, URI::Generic] loopback callback URL used to complete authorization
+  # @param scope [String] space-separated scopes to declare in the generated client metadata
+  # @param session_id [String, nil] optionally, stored localhost session ID to resume
+  #
+  # @return [Minisky::OAuthClient] configured localhost client
+  # @raise [AuthProto::InvalidClientMetadata] if the redirect URI or scope is invalid
+  # @raise [Minisky::AuthError] if a supplied session ID cannot be restored
+  #
+  # @see AuthProto::Client.for_localhost
+  #
+  def self.for_localhost(redirect_uri:, scope: 'atproto', session_id: nil)
+    query = URI.encode_www_form(redirect_uri: redirect_uri, scope: scope)
+
+    self.new(client_id: "http://localhost/?#{query}", redirect_uri: redirect_uri, session_id: session_id)
+  end
+
+
   # Creates an experimental Minisky client backed by an OAuth session.
   #
   # Disables Minisky's app-password token management and enables authenticated

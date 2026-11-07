@@ -4,7 +4,6 @@ require 'authproto/insecure_http_client'
 require 'authproto/localhost_server'
 require 'authproto/minisky'
 require 'dotenv/load'
-require 'uri'
 
 AuthProto.configure do |config|
   config.http_client = AuthProto::InsecureHTTPClient.new(timeout: 10)
@@ -16,10 +15,9 @@ end
 
 REDIRECT_URI = 'http://127.0.0.1:9292/callback'
 SCOPE = 'atproto repo:app.bsky.feed.post rpc:app.bsky.feed.getTimeline?aud=*'
-CLIENT_ID = 'http://localhost/?' + URI.encode_www_form({ redirect_uri: REDIRECT_URI, scope: SCOPE })
 
 def create_client(session_id: nil)
-  Minisky::OAuthClient.new(client_id: CLIENT_ID, redirect_uri: REDIRECT_URI, session_id: session_id)
+  Minisky::OAuthClient.for_localhost(redirect_uri: REDIRECT_URI, scope: SCOPE, session_id: session_id)
 end
 
 def authorize(client, handle)

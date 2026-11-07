@@ -107,6 +107,64 @@ describe Minisky::OAuthClient do
       .to_return(status: 200, headers: { 'Content-Type' => 'application/json' }, body: auth_server.to_h.to_json)
   end
 
+  describe '.for_localhost' do
+    let(:redirect_uri) { 'http://127.0.0.1:3000/callback?flow=login&next=%2Fhome' }
+    let(:scope) { 'atproto rpc:app.bsky.feed.getTimeline?aud=*' }
+
+    it "should encode the callback and scope like AuthProto::Client.for_localhost" do
+      client = described_class.for_localhost(redirect_uri: redirect_uri, scope: scope)
+      expected = AuthProto::Client.for_localhost(redirect_uri: redirect_uri, scope: scope)
+
+      client.oauth_client.client_id.should == expected.client_id
+      client.oauth_client.client_metadata.redirect_uris.should == [redirect_uri]
+      client.oauth_client.client_metadata.scope.should == scope
+      client.oauth_client.client_metadata.should_not be_confidential
+      client.session_id.should be_nil
+      expect { client.host }.to raise_error(Minisky::AuthError)
+    end
+
+    it "should accept a URI callback and default the scope to atproto" do
+      callback = URI('http://[::1]:3000/callback').freeze
+      client = described_class.for_localhost(redirect_uri: callback)
+
+      client.oauth_client.redirect_uri.should == callback.to_s
+      client.oauth_client.client_metadata.redirect_uris.should == [callback.to_s]
+      client.oauth_client.client_metadata.scope.should == 'atproto'
+    end
+
+    it "should restore a localhost session and its PDS" do
+      original = described_class.for_localhost(redirect_uri: redirect_uri, scope: scope)
+      session = original.oauth_client.session_manager.create_session(
+        client_id: original.oauth_client.client_id, scope: scope, pds: host
+      )
+      session.tokens = token_set
+      original.oauth_client.session_manager.complete_authorization(session)
+      restored = described_class.for_localhost(redirect_uri: redirect_uri, scope: scope, session_id: session.session_id)
+
+      restored.session_id.should == session.session_id
+      restored.host.should == host
+      restored.oauth_client.get_tokens(session.session_id)[:access_token].should == 'access'
+    end
+
+    it "should reject an unknown session" do
+      expect {
+        described_class.for_localhost(redirect_uri: redirect_uri, session_id: 'missing')
+      }.to raise_error(Minisky::AuthError, "OAuth session not found")
+    end
+
+    it "should validate the callback URL" do
+      expect {
+        described_class.for_localhost(redirect_uri: 'http://localhost:3000/callback')
+      }.to raise_error(AuthProto::InvalidClientMetadata)
+    end
+
+    it "should validate the declared scope" do
+      expect {
+        described_class.for_localhost(redirect_uri: redirect_uri, scope: 'repo:app.bsky.feed.post')
+      }.to raise_error(AuthProto::InvalidClientMetadata)
+    end
+  end
+
   it "should authorize a localhost public client using PKCE and DPoP without a client assertion" do
     redirect_uri = 'http://127.0.0.1:9292/callback'
     client_id = "http://localhost/?#{URI.encode_www_form(redirect_uri: redirect_uri)}"
@@ -468,7 +526,7 @@ describe Minisky::OAuthClient do
   it "should create a client without knowing the PDS and reject host access before callback" do
     client.session_id.should be_nil
 
-    expect { client.host }.to raise_error(Minisky::AuthError, /PDS host/)
+    expect { client.host }.to raise_error(Minisky::AuthError, /has not completed authentication/)
   end
 
   it "should reject the old positional host argument" do

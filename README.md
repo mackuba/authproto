@@ -495,6 +495,16 @@ posts = sky.fetch_all('app.bsky.graph.getFollows', { actor: did }, field: 'follo
 
 It also handles automatically the nonce updates and token refresh. Unlike `AuthProto::Client`, `Minisky::OAuthClient` handles a single session at a time.
 
+For localhost development, use this convenience initializer to generate a localhost client ID with the callback URL and scope encoded as query params:
+
+```rb
+sky = Minisky::OAuthClient.for_localhost(
+  redirect_uri: 'http://127.0.0.1:3000/callback',
+  scope: 'atproto repo:app.bsky.feed.post',
+  session_id: session_id   # optional, to resume a stored session
+)
+```
+
 This class is a bit more experimental and likely to change in future versions (pending a redesign of the Minisky internal architecture).
 
 

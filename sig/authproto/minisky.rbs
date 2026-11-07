@@ -8,6 +8,10 @@ class OAuthClient
   attr_reader oauth_client: AuthProto::Client
   attr_reader session_id: String?
 
+  def self.for_localhost: (
+      redirect_uri: (String | URI::Generic), ?scope: String, ?session_id: String?
+    ) -> instance
+
   def initialize: (
       client_id: String,
       redirect_uri: (String | URI::HTTPS),
