@@ -161,6 +161,18 @@ module AuthProto
     attr_reader :dpop_client
 
 
+    # Checks whether a client ID uses the localhost development URL prefix.
+    #
+    # For apps with a localhost client ID, use the {Client.for_localhost} helper to create an instance of {Client}.
+    #
+    # @param client_id [String] OAuth client ID URL
+    # @return [Boolean] whether the URL starts with `http://localhost`, optionally followed by `/` or `?`
+    #
+    def self.localhost_app?(client_id)
+      client_id.is_a?(String) && %r{\Ahttp://localhost(?:[/?]|\z)}i.match?(client_id)
+    end
+
+
     # Creates a localhost development client with redirect URI and scope encoded in its client ID.
     #
     # @param redirect_uri [String, URI::Generic] loopback callback URL used to complete authorization
@@ -201,7 +213,7 @@ module AuthProto
       @client_id = client_id
       @redirect_uri = redirect_uri.is_a?(URI::Generic) ? redirect_uri.to_s : redirect_uri
 
-      if metadata && client_id.is_a?(String) && client_id =~ %r{^http://localhost(/|$)}i
+      if metadata && self.class.localhost_app?(client_id)
         raise InvalidClientMetadata.new(
           "For localhost clients, do not include metadata as a hash, " +
           "but configure scope and redirect_uri through the client ID query params"

@@ -3,6 +3,7 @@
 - added `process_dpop`, `has_nonce_error?` and `with_nonce_handling` helpers to `Client`, proxying the calls to `dpop_client` for easier access
 - added `Client#http` which lets you access the global HTTP client
 - added `Client.for_localhost` and `Minisky::OAuthClient.for_localhost` for creating a localhost client with metadata encoded in the `client_id` query params
+- added `Client.localhost_app?` helper for checking a client ID
 - added `Minisky::OAuthClient.with_oauth_client` to reuse an existing `AuthProto::Client` instead of creating a new one
 - added `Minisky::OAuthClient#did`
 - renamed `server_url` params to `url` in `Client`, `DPoP::Client` and `DPoP::NonceManager` and to `origin` in `StoredNonce`

@@ -21,7 +21,7 @@ module OAuth
       client_id = @metadata.fetch('client_id')
       redirect_uri = @metadata.fetch('redirect_uris')[0]
 
-      if client_id.match?(%r{\Ahttp://localhost(/|$)})
+      if AuthProto::Client.localhost_app?(client_id)
         @oauth_client = AuthProto::Client.for_localhost(redirect_uri: redirect_uri, scope: @metadata['scope'])
       else
         keys_path = File.expand_path('../config/keys.json', __dir__)

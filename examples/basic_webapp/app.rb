@@ -55,7 +55,7 @@ class ExampleApp < Sinatra::Base
       signing_key = JSON.parse(File.read(keys_path))['keys'].first
     end
 
-    if client_id =~ %r{\Ahttp://localhost(/|$)}
+    if AuthProto::Client.localhost_app?(client_id)
       # For localhost apps, redirect_uri & scope are appended as query params to the client_id URI
       # Use this helper which does that for you:
       oauth_client = AuthProto::Client.for_localhost(redirect_uri: redirect_uri, scope: metadata['scope'])
