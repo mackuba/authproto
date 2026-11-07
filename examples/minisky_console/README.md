@@ -74,13 +74,13 @@ Then, you can run `client.get_request(...)` and `client.post_request(...)` to pe
 client.get_request('app.bsky.feed.getTimeline', { limit: 10 })
 ```
 
-To restore a session after closing and reopening the console, write down the sesion ID printed after successful authentication, and then pass it back to the `OAuthClient` constructor:
+To restore a session after closing and reopening the console, write down the sesion ID printed after successful authentication, and then pass it back to the `Minisky::OAuth` constructor:
 
 ```rb
 client = create_client(session_id: '123456-789-abc-...')
 ```
 
-The localhost script uses the `Minisky::OAuthClient.for_localhost` helper with the `REDIRECT_URI` and `SCOPE`
+The localhost script uses the `Minisky::OAuth.for_localhost` helper with the `REDIRECT_URI` and `SCOPE`
 constants declared in `localhost.rb`. Keep those values unchanged when restoring a stored session, since they determine
 the client ID, and a session may only be restored for the same client ID it was created for.
 
@@ -128,7 +128,7 @@ Your session id: ......
 
 Then, you can run `client.get_request(...)` and `client.post_request(...)` to perform authorized actions on the given account.
 
-Again, to restore a session after closing and reopening the console, write down the sesion ID printed after successful authentication, and then pass it back to the `OAuthClient` constructor:
+Again, to restore a session after closing and reopening the console, write down the sesion ID printed after successful authentication, and then pass it back to the `Minisky::OAuth` constructor:
 
 ```rb
 client = create_client('your.server.hostname', session_id: '123456-789-abc-...')

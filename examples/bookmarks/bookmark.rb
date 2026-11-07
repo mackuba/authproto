@@ -19,10 +19,10 @@ class Bookmark < ActiveRecord::Base
   # @raise [Minisky::AuthError] if the session cannot be resumed
   #
   def self.fetch_bookmarks(session_id, newer_only: false)
-    client = Minisky::OAuthClient.with_oauth_client(OAuth.client, session_id: session_id)
-    client.check_access
+    sky = Minisky::OAuth.with_oauth_client(OAuth.client, session_id: session_id)
+    sky.check_access
 
-    did = client.did
+    did = minisky.did
 
     newest = Bookmark.where(did: did).maximum(:created_at) if newer_only
     imported = 0
@@ -35,7 +35,7 @@ class Bookmark < ActiveRecord::Base
         query = { limit: 100 }
         query[:cursor] = cursor if cursor
 
-        response = client.get_request('app.bsky.bookmark.getBookmarks', query, headers: headers)
+        response = sky.get_request('app.bsky.bookmark.getBookmarks', query, headers: headers)
         reached_newest = false
 
         response.fetch('bookmarks').each do |entry|

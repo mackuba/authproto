@@ -13,7 +13,7 @@ require_relative 'http_helpers'
 # Requiring authproto alone does not load Minisky or this integration.
 #
 
-class Minisky::OAuthClient
+class Minisky::OAuth
   include AuthProto::HTTPHelpers
   include Minisky::Requests
 
@@ -36,7 +36,7 @@ class Minisky::OAuthClient
   # @param scope [String] space-separated scopes to declare in the generated client metadata
   # @param session_id [String, nil] optionally, stored localhost session ID to resume
   #
-  # @return [Minisky::OAuthClient] configured localhost client
+  # @return [Minisky::OAuth] configured localhost client
   # @raise [AuthProto::InvalidClientMetadata] if the redirect URI or scope is invalid
   # @raise [Minisky::AuthError] if a supplied session ID cannot be restored
   #
@@ -56,7 +56,7 @@ class Minisky::OAuthClient
   # @param oauth_client [AuthProto::Client] OAuth client to reuse
   # @param session_id [String, nil] optionally, stored session ID to resume
   #
-  # @return [Minisky::OAuthClient] Minisky client backed by the supplied OAuth client
+  # @return [Minisky::OAuth] Minisky client backed by the supplied OAuth client
   # @raise [ArgumentError] if the supplied client is not an AuthProto client
   # @raise [Minisky::AuthError] if a supplied session ID cannot be restored
   #

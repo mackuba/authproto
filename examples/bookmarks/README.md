@@ -1,7 +1,7 @@
 # Bluesky bookmarks example
 
 A Sinatra app in `app.rb` with a separate `bookmark.rb` model, using
-`Minisky::OAuthClient`, AuthProto, ActiveRecord 8.1, and `sinatra-activerecord`.
+`Minisky::OAuth`, AuthProto, ActiveRecord 8.1, and `sinatra-activerecord`.
 Sign in with a handle, fetch private bookmarks, and browse
 them newest first, 20 per page. Search returns every bookmark containing the given
 text, without pagination. Everything is rendered with ERB; no JavaScript or workers.

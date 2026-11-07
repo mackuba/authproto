@@ -1,7 +1,7 @@
 # Signatures for the methods defined by the optional Minisky adapter.
 # Additional methods mixed in from Minisky::Requests belong to the minisky gem.
 class Minisky
-class OAuthClient
+class OAuth
   include AuthProto::HTTPHelpers
   MAX_NONCE_RETRIES: Integer
   def host: () -> String

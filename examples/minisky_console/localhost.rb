@@ -17,7 +17,7 @@ REDIRECT_URI = 'http://127.0.0.1:9292/callback'
 SCOPE = 'atproto repo:app.bsky.feed.post rpc:app.bsky.feed.getTimeline?aud=*'
 
 def create_client(session_id: nil)
-  Minisky::OAuthClient.for_localhost(redirect_uri: REDIRECT_URI, scope: SCOPE, session_id: session_id)
+  Minisky::OAuth.for_localhost(redirect_uri: REDIRECT_URI, scope: SCOPE, session_id: session_id)
 end
 
 def authorize(client, handle)

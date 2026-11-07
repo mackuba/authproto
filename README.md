@@ -468,7 +468,7 @@ The API is a bit of a mix of a standard password-auth Minisky client and the `Au
 # and requires `gem 'minisky'` in the Gemfile
 require 'authproto/minisky'
 
-sky = Minisky::OAuthClient.new(
+sky = Minisky::OAuth.new(
   client_id: "https://#{server_hostname}/oauth-client-metadata.json",
   redirect_uri: "https://#{server_hostname}/callback",
   metadata: metadata,       # or nil/skip
@@ -493,22 +493,22 @@ sky.post_request('com.atproto.repo.createRecord', { repo: ..., ... })
 posts = sky.fetch_all('app.bsky.graph.getFollows', { actor: did }, field: 'follows')
 ```
 
-It also handles automatically the nonce updates and token refresh. Unlike `AuthProto::Client`, `Minisky::OAuthClient` handles a single session at a time.
+It also handles automatically the nonce updates and token refresh. Unlike `AuthProto::Client`, `Minisky::OAuth` handles a single session at a time.
 
 For localhost development, use this convenience initializer to generate a localhost client ID with the callback URL and scope encoded as query params:
 
 ```rb
-sky = Minisky::OAuthClient.for_localhost(
+sky = Minisky::OAuth.for_localhost(
   redirect_uri: 'http://127.0.0.1:3000/callback',
   scope: 'atproto repo:app.bsky.feed.post',
   session_id: session_id   # optional, to resume a stored session
 )
 ```
 
-You can also use the `with_oauth_client` helper to reuse an existing instance of `AuthProto::Client` (normally `Minisky::OAuthClient` creates one internally):
+You can also use the `with_oauth_client` helper to reuse an existing instance of `AuthProto::Client` (normally `Minisky::OAuth` creates one internally):
 
 ```rb
-sky = Minisky::OAuthClient.with_oauth_client(client, session_id: session_id)
+sky = Minisky::OAuth.with_oauth_client(client, session_id: session_id)
 ```
 
 This class is a bit more experimental and likely to change in future versions (pending a redesign of the Minisky internal architecture).
