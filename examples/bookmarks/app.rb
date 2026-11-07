@@ -29,6 +29,9 @@ class BookmarksApp < Sinatra::Base
     session_secret = ENV.fetch('SESSION_SECRET') { SecureRandom.hex(32) }
     raise "SESSION_SECRET must be at least 64 characters long" if session_secret.length < 64
 
+    master_key = ENV['ATPROTO_MASTER_KEY']
+    raise "ATPROTO_MASTER_KEY must be set" if master_key.nil?
+
     use Rack::Session::Cookie,
       key: 'bookmarks.session',
       expire_after: 86_400,
