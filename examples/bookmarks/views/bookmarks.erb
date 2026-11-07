@@ -1,0 +1,86 @@
+<main class="bookmarks-page">
+  <header class="bookmarks-header">
+    <div>
+      <h1><a href="/bookmarks">Your bookmarks</a></h1>
+      <p class="muted">
+        Signed in as <%= html_escape(session[:handle] ? "@#{session[:handle]}" : current_session.did) %>
+      </p>
+    </div>
+
+    <form method="post" action="/logout">
+      <input type="hidden" name="authenticity_token" value="<%= html_escape(csrf_token) %>">
+      <button type="submit" class="link-button">Sign out</button>
+    </form>
+  </header>
+
+  <form method="get" action="/bookmarks" class="search-form" role="search">
+    <label for="q">Search your bookmarks:</label>
+
+    <div class="search-controls">
+      <input id="q" name="q" type="search" placeholder="Text to find" value="<%= html_escape @query %>">
+      <button type="submit">Search</button>
+      <% unless @query.empty? %><a href="/bookmarks">Clear</a><% end %>
+    </div>
+  </form>
+
+  <% unless @fetched %>
+    <p>Your bookmarks haven't been fetched yet.</p>
+  <% end %>
+
+  <form method="post" action="/fetch" class="fetch-form">
+    <input type="hidden" name="authenticity_token" value="<%= html_escape(csrf_token) %>">
+    <button type="submit" class="link-button">
+      <%= @fetched ? 'Fetch bookmarks again' : 'Fetch your bookmarks' %>
+    </button>
+  </form>
+
+  <% unless @query.empty? %>
+    <p>Bookmarks containing “<%= html_escape @query %>”:</p>
+  <% end %>
+
+  <% if @bookmarks.empty? %>
+    <p class="empty-state"><%= @query.empty? ? 'No bookmarks saved yet.' : 'No matching bookmarks.' %></p>
+  <% end %>
+
+  <ol class="bookmark-list">
+    <% @bookmarks.each do |post| %>
+      <li>
+        <article class="bookmark">
+          <header>
+            <strong>@<%= html_escape(post.author_handle) %></strong>
+            <a href="<%= html_escape(post.post_url) %>">
+              <time datetime="<%= post.posted_at.utc.iso8601 %>">
+                <%= post.posted_at.utc.strftime('%-d %b %Y, %H:%M') %>
+              </time>
+            </a>
+          </header>
+          <p class="post-text"><%= html_escape(post.text) %></p>
+        </article>
+      </li>
+    <% end %>
+  </ol>
+
+  <% if @query.empty? && @total_pages > 1 %>
+    <nav class="pagination" aria-label="Bookmark pages">
+      <% if @page > 1 %>
+        <a href="/bookmarks?page=<%= @page - 1 %>" aria-label="Previous page">&lt;</a>
+      <% else %>
+        <span aria-disabled="true">&lt;</span>
+      <% end %>
+
+      <% @page_numbers.each do |number| %>
+        <% if number == @page %>
+          <span aria-current="page"><%= number %></span>
+        <% else %>
+          <a href="/bookmarks?page=<%= number %>"><%= number %></a>
+        <% end %>
+      <% end %>
+
+      <% if @page < @total_pages %>
+        <a href="/bookmarks?page=<%= @page + 1 %>" aria-label="Next page">&gt;</a>
+      <% else %>
+        <span aria-disabled="true">&gt;</span>
+      <% end %>
+    </nav>
+  <% end %>
+</main>

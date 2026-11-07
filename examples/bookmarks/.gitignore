@@ -1,0 +1,4 @@
+.env
+/config/oauth-client-metadata.json
+/config/keys.json
+/db/*.sqlite3*

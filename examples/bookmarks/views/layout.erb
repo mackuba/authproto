@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Bluesky Bookmarks</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <% if session[:error] %>
+    <div class="message message-error" role="alert"><%= html_escape session.delete(:error) %></div>
+  <% end %>
+
+  <% if session[:notice] %>
+    <div class="message message-notice" role="status"><%= html_escape session.delete(:notice) %></div>
+  <% end %>
+
+  <%= yield %>
+</body>
+</html>

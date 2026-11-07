@@ -1,0 +1,17 @@
+<main class="login-page">
+  <header class="login-header">
+    <h1>Sign in</h1>
+    <p>Enter your AT Protocol handle to sync your private Bluesky bookmarks.</p>
+  </header>
+
+  <form method="post" action="/authenticate" class="login-form">
+    <input type="hidden" name="authenticity_token" value="<%= html_escape csrf_token %>">
+    <label for="handle">Handle</label>
+    <div class="handle-input">
+      <span aria-hidden="true">@</span>
+      <input id="handle" name="handle" type="text" placeholder="handle.bsky.social" required
+             autocapitalize="none" autocorrect="off" autocomplete="username" spellcheck="false">
+    </div>
+    <button type="submit">Next</button>
+  </form>
+</main>
