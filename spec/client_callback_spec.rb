@@ -243,7 +243,7 @@ describe AuthProto::Client, '#handle_callback' do
     result.should be_a(AuthProto::State::SessionInfo)
     result.session_id.should == session.session_id
     result.access_token.should == 'access'
-    client.session_manager.get_session(session.session_id).should be_authorized
+    client.session_manager.get_session(session.session_id).tokens_valid?.should == true
     client.session_manager.get_session_by_state_token(state).should be_nil
   end
 
@@ -284,8 +284,8 @@ describe AuthProto::Client, '#handle_callback' do
     result.requested_scope.should == 'atproto transition:email'
     result.granted_scope.should == 'atproto'
     restored.requested_scope.should == 'atproto transition:email'
-    restored.granted_scope.should == 'atproto'
-    restored.has_limited_scope?.should be true
+    restored.session_data.granted_scope.should == 'atproto'
+    restored.session_data.has_limited_scope?.should be true
   end
 
   it "should preserve the subject mismatch error if revocation fails" do
@@ -341,7 +341,7 @@ describe AuthProto::Client, '#handle_callback' do
         result = client.handle_callback(callback, expected_session_id: session.session_id)
 
         result.did.should == subject
-        client.session_manager.get_session(session.session_id).should be_authorized
+        client.session_manager.get_session(session.session_id).tokens_valid?.should == true
       end
     end
 

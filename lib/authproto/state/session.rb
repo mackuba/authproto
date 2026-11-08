@@ -182,27 +182,6 @@ module AuthProto
         end
       end
 
-      # Returns the scope granted by the latest token response, including after refresh.
-      #
-      # @return [String, nil] space-separated granted scopes, or `nil` before authorization
-      #
-      def granted_scope
-        synchronize do
-          @tokens&.scope
-        end
-      end
-
-      # Checks whether any requested scope token is absent from the current grant.
-      # Scope order and duplicate tokens do not affect the comparison.
-      #
-      # @return [Boolean] `false` before authorization, otherwise whether requested scopes are missing
-      #
-      def has_limited_scope?
-        synchronize do
-          @tokens ? !(@requested_scope.split - @tokens.scope.split).empty? : false
-        end
-      end
-
       # Returns a live view of the current public session data.
       #
       # @return [SessionInfo, nil] a session info object, or `nil` before tokens are assigned
@@ -237,8 +216,6 @@ module AuthProto
           !@tokens.nil? && !@tokens.expired?
         end
       end
-
-      alias authorized? tokens_valid?
 
       # Whether this session can refresh its tokens
       # @return [Boolean]

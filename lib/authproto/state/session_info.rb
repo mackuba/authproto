@@ -66,7 +66,7 @@ module AuthProto
       # @return [String, nil]
       #
       def granted_scope
-        @session.granted_scope
+        @session.synchronize { @session.tokens&.scope }
       end
 
       # The DID of the authorized account, if known.
@@ -133,7 +133,10 @@ module AuthProto
       # @return [Boolean]
       #
       def has_limited_scope?
-        @session.has_limited_scope?
+        @session.synchronize do
+          tokens = @session.tokens
+          tokens ? !(@session.requested_scope.split - tokens.scope.split).empty? : false
+        end
       end
 
       # True if the authorization server has an advertised public token revocation endpoint.

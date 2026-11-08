@@ -45,8 +45,8 @@ describe AuthProto::Serialization::Session do
     restored = serializer.deserialize(serializer.serialize(authorized))
 
     restored.requested_scope.should == 'atproto transition:email'
-    restored.granted_scope.should == 'atproto'
-    restored.has_limited_scope?.should be true
+    restored.session_data.granted_scope.should == 'atproto'
+    restored.session_data.has_limited_scope?.should be true
   end
 
   it "should reject sessions without a saved DPoP key instead of generating a replacement" do

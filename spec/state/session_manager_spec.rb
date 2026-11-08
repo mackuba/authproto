@@ -395,7 +395,7 @@ describe AuthProto::State::SessionManager do
       restored = session_manager.get_session(session.session_id)
       restored.state_token.should be_nil
       restored.tokens.access_token.should == 'access'
-      restored.should be_authorized
+      restored.tokens_valid?.should == true
     end
 
     it "should not recreate a state lookup on later session updates" do

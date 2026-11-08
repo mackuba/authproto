@@ -140,4 +140,51 @@ describe AuthProto::State::SessionInfo do
     info.should_not respond_to(:access_token=)
     info.should_not respond_to(:tokens=)
   end
+  describe "granted scopes" do
+    let(:scope) { 'atproto transition:email' }
+    let(:did) { 'did:plc:alice' }
+    let(:session) { AuthProto::State::Session.new(client_id: 'http://localhost', scope: scope) }
+    let(:info) { described_class.new(session) }
+    let(:tokens) do
+      AuthProto::State::TokenSet.new(
+        access_token: 'access', token_type: 'DPoP', expires_in: 3600, scope: scope, sub: did
+      )
+    end
+
+    it "should report no grant and no limitation before authorization" do
+      info.granted_scope.should be_nil
+      info.has_limited_scope?.should be false
+    end
+
+    {
+      'atproto' => true,
+      'transition:email atproto' => false,
+      'atproto transition:email transition:email' => false,
+      'atproto repo:app.bsky.feed.post' => true
+    }.each do |granted, limited|
+      it "should compare requested scope tokens with the grant #{granted}" do
+        session.tokens = AuthProto::State::TokenSet.new(
+          access_token: 'access', token_type: 'DPoP', expires_in: 3600, scope: granted, sub: did
+        )
+
+        session.requested_scope.should == scope
+        info.granted_scope.should == granted
+        info.has_limited_scope?.should == limited
+        session.session_data.granted_scope.should == granted
+      end
+    end
+
+    it "should expose a changed grant after replacement tokens are assigned" do
+      session.tokens = tokens
+      info.has_limited_scope?.should be false
+
+      session.tokens = AuthProto::State::TokenSet.new(
+        access_token: 'replacement', token_type: 'DPoP', expires_in: 3600, scope: 'atproto', sub: did
+      )
+
+      info.granted_scope.should == 'atproto'
+      info.has_limited_scope?.should be true
+      session.requested_scope.should == scope
+    end
+  end
 end
