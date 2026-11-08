@@ -120,6 +120,8 @@ The `AuthProto::Storage::Memory` adapter is configured by default, so you can sk
 
 For the `SQLite` adapter, you might call `AuthProto.storage.cleanup_expired_records` periodically to remove expired sessions and locks if you want. `Memory` and `Redis` handle this automatically.
 
+It's not recommended to use AuthProto's storage for other purposes beyond what the library reads & writes to it internally.
+
 
 ### ATPROTO_MASTER_KEY:
 

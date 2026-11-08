@@ -111,12 +111,17 @@ timeout to allow a synchronous full import to finish.
 
 ## Storage and import behavior
 
-- `db/authproto.sqlite3`: AuthProto sessions, encrypted tokens, DPoP state, and the
-  saved session ID and completed-fetch marker for each owner.
-- `db/bookmarks.sqlite3`: the `bookmarks` table with `did`, `uri`, `author_handle`,
-  `created_at` (bookmark time), `posted_at` (post time), and `text`, plus the standard
-  ActiveRecord primary key and migration bookkeeping tables. The migration adds
-  `(did, created_at DESC)` and unique `(did, uri)` indexes.
+- `db/authproto.sqlite3`: AuthProto sessions, encrypted tokens, and DPoP state.
+- `db/bookmarks.sqlite3`: `accounts` with `did`, `fetched`, and `session_id`, and
+  `bookmarks` with `account_id`, `uri`, `author_handle`, `created_at` (bookmark time),
+  `posted_at` (post time), and `text`. Each account has many bookmarks. The migration
+  adds a unique DID index, a foreign key, `(account_id, created_at DESC)`, and unique
+  `(account_id, uri)` indexes.
+
+Run `bundle exec rake db:migrate` when updating an existing installation. Cached
+bookmarks are preserved and linked to accounts, with `fetched` set to true for
+those accounts. Sign in again to populate each account's `session_id`; old custom
+records in the AuthProto store are no longer used. New accounts start unfetched.
 
 Every query is scoped to the signed-in owner's DID. Imports skip blocked/missing
 posts and posts with blank text; embeds are ignored. The post date links to
@@ -144,13 +149,14 @@ For scripts that only need ActiveRecord and the database, load `app/init.rb`:
 ```ruby
 require_relative 'app/init'
 
-Bookmark.where(did: 'did:plc:YOUR_ACCOUNT_DID').newest_first.each do |bookmark|
+account = Account.find_by!(did: 'did:plc:YOUR_ACCOUNT_DID')
+account.bookmarks.newest_first.each do |bookmark|
   puts bookmark.text
 end
 ```
 
-This loads the model and database connection without loading `BookmarksApp` or
-requiring OAuth client metadata. Database rake tasks use the same initialization.
+This loads the models, database connection, and OAuth configuration without loading
+`BookmarksApp`. Database rake tasks use the same initialization.
 
 ## Tests
 

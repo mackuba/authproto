@@ -5,6 +5,7 @@ require 'sinatra/base'
 require 'sinatra/reloader'
 
 require_relative 'init'
+require_relative 'account'
 require_relative 'bookmark'
 
 
@@ -59,6 +60,10 @@ class BookmarksApp < Sinatra::Base
 
     def require_login
       redirect '/' unless current_session
+    end
+
+    def current_account
+      @current_account ||= Account.find_by!(did: current_session.did)
     end
 
     def html_escape(text)
@@ -118,7 +123,8 @@ class BookmarksApp < Sinatra::Base
     session[:oauth_session_id] = result.session_id
     session[:handle] = lookup_handle(result.did)
 
-    AuthProto.storage.set("atproto:bookmarks:session:#{result.did}", result.session_id)
+    account = Account.create_or_find_by!(did: result.did)
+    account.update!(session_id: result.session_id)
     redirect '/bookmarks'
   rescue StandardError => e
     report_error("Authorization failed", e)
@@ -129,9 +135,9 @@ class BookmarksApp < Sinatra::Base
     require_login
 
     @query = params[:q].to_s.strip
-    @fetched = AuthProto.storage.get("atproto:bookmarks:fetched:#{current_session.did}")
+    @fetched = current_account.fetched?
 
-    bookmarks = Bookmark.where(did: current_session.did).newest_first
+    bookmarks = current_account.bookmarks.newest_first
 
     if @query.empty?
       @total_pages = [(bookmarks.count.to_f / PER_PAGE).ceil, 1].max
@@ -167,9 +173,7 @@ class BookmarksApp < Sinatra::Base
 
     OAuth.client.delete_session(session_id, revoke: true)
 
-    if AuthProto.storage.get("atproto:bookmarks:session:#{did}") == session_id
-      AuthProto.storage.delete("atproto:bookmarks:session:#{did}")
-    end
+    Account.where(did: did, session_id: session_id).update_all(session_id: nil)
 
     session.clear
     redirect '/'

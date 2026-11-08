@@ -2,8 +2,9 @@
 
 require 'sinatra/activerecord/rake'
 
-require_relative 'app/bookmark'
 require_relative 'app/init'
+require_relative 'app/account'
+require_relative 'app/bookmark'
 
 namespace :bookmarks do
   desc "Fetch only newer bookmarks for an account: bookmarks:fetch[did]"
@@ -13,7 +14,7 @@ namespace :bookmarks do
     did = args[:did] || ENV['DID']
     abort "Pass the owner's DID: bundle exec rake 'bookmarks:fetch[did:plc:...]'" if did.to_s.empty?
 
-    session_id = AuthProto.storage.get("atproto:bookmarks:session:#{did}")
+    session_id = Account.find_by(did: did)&.session_id
     abort "No saved OAuth session for #{did}; sign in through the web app first" unless session_id
 
     count = Bookmark.fetch_bookmarks(session_id, newer_only: true)

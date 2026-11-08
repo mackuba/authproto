@@ -11,14 +11,23 @@
 # It's strongly recommended that you check this file into your version control system.
 
 ActiveRecord::Schema[8.1].define(version: 2026_11_07_004141) do
-  create_table "bookmarks", force: :cascade do |t|
+  create_table "accounts", force: :cascade do |t|
     t.string "did", null: false
+    t.boolean "fetched", default: false, null: false
+    t.string "session_id"
+    t.index ["did"], name: "index_accounts_on_did", unique: true
+  end
+
+  create_table "bookmarks", force: :cascade do |t|
     t.string "uri", null: false
     t.string "author_handle", null: false
     t.datetime "created_at"
     t.datetime "posted_at", null: false
     t.text "text", null: false
-    t.index ["did", "created_at"], name: "index_bookmarks_on_did_and_created_at", order: { created_at: :desc }
-    t.index ["did", "uri"], name: "index_bookmarks_on_did_and_uri", unique: true
+    t.integer "account_id", null: false
+    t.index ["account_id", "created_at"], name: "index_bookmarks_on_account_id_and_created_at", order: { created_at: :desc }
+    t.index ["account_id", "uri"], name: "index_bookmarks_on_account_id_and_uri", unique: true
   end
+
+  add_foreign_key "bookmarks", "accounts"
 end

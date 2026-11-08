@@ -4,8 +4,11 @@ require 'active_record'
 require 'time'
 
 require_relative 'init'
+require_relative 'account'
 
 class Bookmark < ActiveRecord::Base
+  belongs_to :account
+
   # Keep the API's bookmark timestamp instead of ActiveRecord's insertion time.
   self.record_timestamps = false
 
@@ -23,9 +26,9 @@ class Bookmark < ActiveRecord::Base
     sky = Minisky::OAuth.with_oauth_client(OAuth.client, session_id: session_id)
     sky.check_access
 
-    did = minisky.did
+    account = Account.find_by!(did: sky.did)
 
-    newest = Bookmark.where(did: did).maximum(:created_at) if newer_only
+    newest = account.bookmarks.maximum(:created_at) if newer_only
     imported = 0
     cursor = nil
 
@@ -53,7 +56,7 @@ class Bookmark < ActiveRecord::Base
           record = post.fetch('record')
           next if record['text'].blank?
 
-          bookmark = find_or_initialize_by(did: did, uri: entry.fetch('subject').fetch('uri'))
+          bookmark = account.bookmarks.find_or_initialize_by(uri: entry.fetch('subject').fetch('uri'))
           bookmark.update!(
             author_handle: post.fetch('author').fetch('handle'),
             created_at: created_at,
@@ -67,9 +70,10 @@ class Bookmark < ActiveRecord::Base
         cursor = response['cursor']
         break if cursor.blank? || reached_newest
       end
+
+      account.update!(fetched: true)
     end
 
-    AuthProto.storage.set("atproto:bookmarks:fetched:#{did}", 'true')
     imported
   end
 
