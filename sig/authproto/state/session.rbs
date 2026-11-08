@@ -31,7 +31,7 @@ module AuthProto
       def authorization_server=: (Metadata::AuthorizationServer server) -> Metadata::AuthorizationServer
       def did=: (String did) -> String
       def tokens=: (TokenSet tokens) -> String
-      def session_data: () -> AuthProto::State::SessionInfo?
+      def session_data: () -> AuthProto::State::SessionInfo
       def pending?: () -> bool
       def can_be_revoked?: () -> bool
       def tokens_valid?: () -> bool

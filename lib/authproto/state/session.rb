@@ -184,14 +184,10 @@ module AuthProto
 
       # Returns a live view of the current public session data.
       #
-      # @return [SessionInfo, nil] a session info object, or `nil` before tokens are assigned
+      # @return [SessionInfo] a session info object
       #
       def session_data
-        synchronize do
-          return nil unless @tokens
-
-          SessionInfo.new(self)
-        end
+        SessionInfo.new(self)
       end
 
       # Returns true if this session has not completed authorization yet and doesn't contain tokens.

@@ -304,6 +304,50 @@ AuthProto::LocalhostServer.start(client.client_metadata) do |json|
 end
 ```
 
+### Load session data
+
+When coming back later to a previously saved session, you will need to look it up in the storage using the session ID and see if's still usable and check its state:
+
+```rb
+info = client.get_session(session_id)
+```
+
+`get_session` returns a `SessionInfo` object with these methods:
+
+- `session_id` - the session's unique identifier
+- `access_token` - the current access token, or `nil` before authorization
+- `refresh_token` - the current refresh token, or `nil` if none was issued
+- `expires_at` - the access token's expiry time, or `nil` before authorization
+- `expires_in` - seconds remaining until the access token expires
+- `requested_scope` - list of requested permissions
+- `granted_scope` - list of actually granted permissions
+- `did` - the account's DID, if known
+- `pds` - the URL of the account's PDS, if known
+- `pending?` - if authorization is still pending
+- `tokens_valid?` or `authorized?` - if an access token was issued and is valid (not expired)
+- `renewable?` - if the session has a refresh token
+- `has_limited_scope?` - if any requested permissions are missing from the current grant
+- `can_be_revoked?` - if the authorization server supports token revocation
+
+
+### Refresh the tokens
+
+The access tokens usually have a lifetime of around 15-30 minutes, and after that time, you will get a 401 error (or `Client` can raise `Client::TokenError` if it detects an expired token earlier). In that case, call `refresh_token` to use the other token you got (the refresh token) to get a new access token:
+
+```rb
+client.refresh_token(session_id)
+```
+
+It might also be a good idea to check the token's expiration date before making the request and refreshing it in advance if needed:
+
+```rb
+if !session.tokens_valid?
+  session = client.refresh_token(session_id)
+end
+```
+
+Replace the previously returned value with the return value from `refresh_token` – the method looks up a new session object, and the previous object is not updated in place.
+
 
 ### Make authenticated data requests
 
@@ -311,7 +355,11 @@ This part is a bit more complicated, because this API is designed to allow worki
 
 ```rb
 endpoint = "https://#{pds_host}/xrpc/com.atproto.repo.createRecord"
-session = client.get_tokens(session_id)
+session = client.get_session(session_id)
+
+if !session.tokens_valid?
+  session = client.refresh_token(session_id)
+end
 
 headers = client.auth_headers(
   session_id: session_id,
@@ -364,7 +412,7 @@ You can also use the `with_nonce_handling` helper, passing it a block which make
 
 ```rb
 endpoint = "https://#{pds_host}/xrpc/com.atproto.repo.createRecord"
-session = client.get_tokens(session_id)
+session = client.get_session(session_id)
 
 connection = Faraday.new do |f|
   f.request :json
@@ -431,15 +479,6 @@ end
 ```
 
 For a more batteries-included client API, see [Minisky](#minisky-adapter) below.
-
-
-### Refresh the tokens
-
-The access tokens usually have a lifetime of around 15-30 minutes, and after that time, you will get a 401 error (or `Client` can raise `Client::TokenError` if it detects an expired token earlier). In that case, call `refresh_token` to use the other token you got (the refresh token) to get a new access token:
-
-```rb
-client.refresh_token(session_id)
-```
 
 
 ### Log the user out

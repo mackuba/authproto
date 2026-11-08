@@ -34,7 +34,7 @@ module AuthProto
     def handle_callback: (
         Hash[String | Symbol, untyped] callback_params, expected_session_id: String
       ) -> State::SessionInfo
-    def get_tokens: (String session_id) -> State::SessionInfo?
+    def get_session: (String session_id) -> State::SessionInfo?
     def refresh_token: (String session_id) -> State::SessionInfo
     def authorized?: (String session_id) -> bool
     def auth_headers: (session_id: String, method: String, url: (String | URI::HTTPS)) -> Hash[String, String]

@@ -349,20 +349,21 @@ module AuthProto
     end
 
 
-    # Looks up a session using given ID and returns its tokens and session info.
+    # Looks up an existing session by ID.
     #
-    # Returns a {State::SessionInfo} object with the session data.
+    # The returned session may not always be immediately usable for making authenticated requests. A matched
+    # session is returned if it's pending or authorized, and possibly with expired access token, but renewable.
+    # The method returns nil if a session is found but it's either an expired pending session that cannot
+    # finish authorization, or a session with expired access token but no refresh token to replace it with.
     #
-    # Returns nil if a session is not found or its access token is expired.
+    # Use methods on {State::SessionInfo} like {State::SessionInfo#pending?}, {State::SessionInfo#authorized?}
+    # or {State::SessionInfo#renewable?} to check the status of the returned session.
     #
     # @param session_id [String] session identifier
-    # @return [State::SessionInfo, nil] current tokens and session data, or `nil` if not found or expired
+    # @return [State::SessionInfo, nil] current session data, or `nil` if unavailable or no longer usable
     #
-    def get_tokens(session_id)
-      session = session_manager.get_session(session_id)
-      return nil unless session && session.tokens_valid?
-
-      session.session_data
+    def get_session(session_id)
+      session_manager.get_session(session_id)&.session_data
     end
 
 

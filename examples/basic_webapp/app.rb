@@ -107,7 +107,9 @@ class ExampleApp < Sinatra::Base
       return nil unless session_id
 
       begin
-        return nil unless settings.oauth_client.authorized?(session_id)
+        oauth_session = settings.oauth_client.get_session(session_id)
+        return nil if !oauth_session || oauth_session.pending?
+
         session_id
       rescue AuthProto::Client::SessionError
         # Clear invalid session
@@ -206,11 +208,11 @@ class ExampleApp < Sinatra::Base
     redirect "/" if session_id.nil?
 
     # Get current session info
-    oauth_session = settings.oauth_client.get_tokens(session_id)
+    oauth_session = settings.oauth_client.get_session(session_id)
 
     # Check if token needs refresh
     begin
-      if oauth_session.expires_in < 30
+      if !oauth_session.tokens_valid?
         oauth_session = settings.oauth_client.refresh_token(session_id)
       end
     rescue StandardError => e
@@ -267,8 +269,12 @@ class ExampleApp < Sinatra::Base
     session_id = load_session
     redirect "/" if session_id.nil?
 
-    # Get current session info
-    oauth_session = settings.oauth_client.get_tokens(session_id)
+    # Get current session info and refresh expired tokens before publishing
+    oauth_session = settings.oauth_client.get_session(session_id)
+
+    if !oauth_session.tokens_valid?
+      oauth_session = settings.oauth_client.refresh_token(session_id)
+    end
 
     text = params[:text].to_s
 

@@ -214,7 +214,7 @@ describe Minisky::OAuth do
       restored.session_id.should == session.session_id
       restored.host.should == host
       restored.did.should == session.did
-      restored.oauth_client.get_tokens(session.session_id).access_token.should == 'access'
+      restored.oauth_client.get_session(session.session_id).access_token.should == 'access'
     end
 
     it "should reject an unknown session" do
@@ -722,7 +722,7 @@ describe Minisky::OAuth do
     attach_session(expires_in: -10)
     stub_refresh
     client.check_access.should == :refreshed
-    client.oauth_client.get_tokens(client.session_id).access_token.should == "new-access"
+    client.oauth_client.get_session(client.session_id).access_token.should == "new-access"
   end
 
   it "should apply a PDS nonce challenge only to the session making the request" do
@@ -769,7 +769,7 @@ describe Minisky::OAuth do
     }.to_json)
 
     restored.check_access.should == :refreshed
-    restored.oauth_client.get_tokens(session.session_id).refresh_token.should == "restored-refresh"
+    restored.oauth_client.get_session(session.session_id).refresh_token.should == "restored-refresh"
     assert_requested :post, "https://auth.example.com/token", times: 1
   end
 
@@ -783,7 +783,7 @@ describe Minisky::OAuth do
     stub_request(:get, endpoint).with(headers: { "Authorization" => "DPoP new-access" })
                                 .to_return(status: 200, headers: response_headers, body: "{}")
     client.get_request("app.bsky.actor.getProfile")
-    client.oauth_client.get_tokens(client.session_id).refresh_token.should == "new-refresh"
+    client.oauth_client.get_session(client.session_id).refresh_token.should == "new-refresh"
   end
 
   it "should retry a nonce challenge with a fresh proof and the new nonce" do

@@ -164,8 +164,22 @@ describe AuthProto::State::Session do
   end
 
   describe "#session_data" do
-    it "should return nil before tokens are assigned" do
-      session.session_data.should be_nil
+    it "should return session info before tokens are assigned" do
+      info = session.session_data
+
+      info.should be_a(AuthProto::State::SessionInfo)
+      info.session_id.should == session.session_id
+      info.requested_scope.should == scope
+      info.did.should == did
+      info.should be_pending
+      info.should_not be_authorized
+      info.access_token.should be_nil
+      info.expires_at.should be_nil
+      info.expires_in.should be_nil
+
+      session.tokens = tokens
+      info.should_not be_pending
+      info.access_token.should == tokens.access_token
     end
 
     it "should return current tokens and session identifiers with the remaining lifetime" do

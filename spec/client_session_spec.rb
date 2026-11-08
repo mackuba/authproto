@@ -13,6 +13,80 @@ describe AuthProto::Client, 'sessions' do
     AuthProto.stubs(:storage).returns(storage)
   end
 
+  describe '#get_session' do
+    it "should return pending session information without exposing usable tokens" do
+      session = client.session_manager.create_session(
+        client_id: client.client_id, scope: 'atproto', pds: 'https://pds.example.com'
+      )
+      info = client.get_session(session.session_id)
+
+      info.should be_a(AuthProto::State::SessionInfo)
+      info.session_id.should == session.session_id
+      info.pds.should == 'https://pds.example.com'
+      info.should be_pending
+      info.should_not be_authorized
+      info.access_token.should be_nil
+      info.expires_in.should be_nil
+      client.authorized?(session.session_id).should be false
+      expect {
+        client.auth_headers(session_id: session.session_id, method: 'GET', url: 'https://pds.example.com/xrpc/test')
+      }.to raise_error(AuthProto::Client::TokenError, "Session not authorized")
+    end
+
+    it "should return nil for an expired pending session" do
+      now = Time.now
+      Time.stubs(:now).returns(now)
+      session = client.session_manager.create_session(client_id: client.client_id, scope: 'atproto')
+      Time.stubs(:now).returns(now + AuthProto.configuration.pending_session_ttl)
+
+      client.get_session(session.session_id).should be_nil
+    end
+
+    [nil, 'refresh'].each do |refresh_token|
+      it "should return expired sessions only when renewable (refresh_token=#{refresh_token.inspect})" do
+        now = Time.now
+        Time.stubs(:now).returns(now)
+        session = client.session_manager.create_session(client_id: client.client_id, scope: 'atproto')
+        session.tokens = AuthProto::State::TokenSet.new(
+          access_token: 'access', refresh_token: refresh_token, token_type: 'DPoP',
+          expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
+        )
+        client.session_manager.complete_authorization(session)
+        client.get_session(session.session_id).should be_authorized
+        Time.stubs(:now).returns(now + 3600)
+
+        info = client.get_session(session.session_id)
+
+        if refresh_token
+          info.should be_a(AuthProto::State::SessionInfo)
+          info.should be_renewable
+          info.should_not be_pending
+          info.should_not be_authorized
+          info.should_not be_tokens_valid
+          info.access_token.should == 'access'
+          info.refresh_token.should == refresh_token
+          info.expires_in.should == 0
+          expect {
+            client.auth_headers(session_id: session.session_id, method: 'GET', url: 'https://pds.example.com/xrpc/test')
+          }.to raise_error(AuthProto::Client::TokenError, "Session has expired")
+        else
+          info.should be_nil
+        end
+      end
+    end
+
+    it "should return nil for a missing session" do
+      client.get_session('missing').should be_nil
+    end
+
+    it "should return nil for another client's pending session" do
+      session = other_client.session_manager.create_session(client_id: other_client.client_id, scope: 'atproto')
+
+      client.get_session(session.session_id).should be_nil
+      other_client.get_session(session.session_id).should be_pending
+    end
+  end
+
   it "should remove both the pending session and its state lookup" do
     session = client.session_manager.create_session(client_id: client.client_id, scope: 'atproto')
     session_key = AuthProto::Storage::KeyBuilder.session_key(session.session_id)
@@ -76,7 +150,7 @@ describe AuthProto::Client, 'sessions' do
     other_client.session_manager.complete_authorization(session)
     client.instance_variable_get(:@dpop_client).expects(:generate_proof).never
 
-    client.get_tokens(session.session_id).should be_nil
+    client.get_session(session.session_id).should be_nil
     client.authorized?(session.session_id).should be false
     expect {
       client.auth_headers(session_id: session.session_id, method: 'GET', url: 'https://pds.example.com/xrpc/test')
@@ -86,7 +160,7 @@ describe AuthProto::Client, 'sessions' do
     }.to raise_error(AuthProto::Client::TokenError, "Invalid session")
     client.delete_session(session.session_id)
 
-    other_client.get_tokens(session.session_id).access_token.should == 'access'
+    other_client.get_session(session.session_id).access_token.should == 'access'
     client.delete_session(session.session_id, revoke: true)
     other_client.session_manager.get_session(session.session_id).client_id.should == other_client.client_id
   end
