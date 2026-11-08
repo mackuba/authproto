@@ -96,9 +96,9 @@ class ExampleApp < Sinatra::Base
         key: "atproto.session",
         expire_after: 86_400, # 1 day in seconds
         secret: session_secret,
-        secure: ENV.fetch("RACK_ENV", "development") == "production",  # Only send over HTTPS
-        httponly: true,     # Not accessible via JavaScript
-        same_site: :lax     # CSRF protection
+        secure: production?,  # Only send over HTTPS
+        httponly: true,       # Not accessible via JavaScript
+        same_site: :lax       # CSRF protection
   end
 
   helpers do

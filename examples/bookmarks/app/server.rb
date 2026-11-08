@@ -42,15 +42,19 @@ class BookmarksApp < Sinatra::Base
 
   helpers do
     def current_session
-      return @current_session if defined?(@current_session)
+      @current_session ||= begin
+        session_id = session[:oauth_session_id]
+        return nil unless session_id
 
-      session_id = session[:oauth_session_id]
-      oauth_session = session_id && OAuth.client.session_manager.get_session(session_id)
-      @current_session = oauth_session unless oauth_session&.pending?
+        oauth_session = OAuth.client.get_session(session_id)
 
-      session.delete(:oauth_session_id) if @current_session.nil?
+        if oauth_session.nil? || oauth_session.pending?
+          session.delete(:oauth_session_id)
+          return nil
+        end
 
-      @current_session
+        oauth_session
+      end
     end
 
     def require_login
@@ -148,7 +152,7 @@ class BookmarksApp < Sinatra::Base
 
     count = Bookmark.fetch_bookmarks(current_session.session_id)
 
-    session[:notice] = "Fetched #{count} bookmarks with text."
+    session[:notice] = "Fetched #{count} bookmarks."
     redirect '/bookmarks'
   rescue StandardError => e
     report_error("Fetching bookmarks failed", e)

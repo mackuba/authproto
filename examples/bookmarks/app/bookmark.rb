@@ -31,7 +31,7 @@ class Bookmark < ActiveRecord::Base
 
     headers = { 'atproto-proxy' => 'did:web:api.bsky.app#bsky_appview' }
 
-    Bookmark.transaction do
+    transaction do
       loop do
         query = { limit: 100 }
         query[:cursor] = cursor if cursor
@@ -53,7 +53,7 @@ class Bookmark < ActiveRecord::Base
           record = post.fetch('record')
           next if record['text'].blank?
 
-          bookmark = Bookmark.find_or_initialize_by(did: did, uri: entry.fetch('subject').fetch('uri'))
+          bookmark = find_or_initialize_by(did: did, uri: entry.fetch('subject').fetch('uri'))
           bookmark.update!(
             author_handle: post.fetch('author').fetch('handle'),
             created_at: created_at,

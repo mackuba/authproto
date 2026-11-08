@@ -8,6 +8,8 @@ require_relative 'app/init'
 namespace :bookmarks do
   desc "Fetch only newer bookmarks for an account: bookmarks:fetch[did]"
   task :fetch, [:did] => 'db:load_config' do |task, args|
+    # TODO: this will currently fail if the user has explicitly logged out, because that deletes the session
+
     did = args[:did] || ENV['DID']
     abort "Pass the owner's DID: bundle exec rake 'bookmarks:fetch[did:plc:...]'" if did.to_s.empty?
 
