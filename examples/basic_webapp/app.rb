@@ -191,7 +191,7 @@ class ExampleApp < Sinatra::Base
     )
 
     session.delete(:pending_oauth_session_id)
-    session[:oauth_session_id] = result[:session_id]
+    session[:oauth_session_id] = result.session_id
 
     redirect "/authorized"
   rescue StandardError => e
@@ -210,7 +210,7 @@ class ExampleApp < Sinatra::Base
 
     # Check if token needs refresh
     begin
-      if oauth_session[:expires_in] < 30
+      if oauth_session.expires_in < 30
         oauth_session = settings.oauth_client.refresh_token(session_id)
       end
     rescue StandardError => e
@@ -221,7 +221,7 @@ class ExampleApp < Sinatra::Base
 
     # Make test API call to com.atproto.server.checkAccountStatus using Faraday
     begin
-      pds = oauth_session[:pds]
+      pds = oauth_session.pds
       endpoint = "/xrpc/com.atproto.server.checkAccountStatus"
       url = URI.join(pds, endpoint)
 
@@ -282,12 +282,12 @@ class ExampleApp < Sinatra::Base
       redirect "/authorized"
     end
 
-    pds = oauth_session[:pds]
+    pds = oauth_session.pds
     endpoint = "/xrpc/com.atproto.repo.createRecord"
     url = URI.join(pds, endpoint)
 
     record = {
-      repo: oauth_session[:did],
+      repo: oauth_session.did,
       collection: "app.bsky.feed.post",
       record: {
         text: text,

@@ -32,7 +32,7 @@
 
       <div class="token-info">
         <p class="field-label">Token Information</p>
-        <pre class="data-output"><code><%= @session ? html_escape(JSON.pretty_generate(@session)) : "\n" %></code></pre>
+        <pre class="data-output"><code><%= @session ? html_escape(JSON.pretty_generate(@session.to_h)) : "\n" %></code></pre>
       </div>
 
       <div class="api-test">

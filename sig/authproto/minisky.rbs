@@ -27,7 +27,7 @@ class OAuth
   def authorize: (?handle: String?, ?pds: (String | URI::HTTPS)?, ?scope: String) -> AuthProto::authorization_result
   def handle_callback: (
     Hash[String | Symbol, untyped] callback_params, expected_session_id: String
-  ) -> AuthProto::callback_result
+  ) -> AuthProto::State::SessionInfo
   def get_request: (
       String | URI::HTTP method,
       ?Hash[untyped, untyped]? params,
@@ -42,7 +42,7 @@ class OAuth
       ?params: Hash[untyped, untyped]?
     ) -> untyped
   def log_in: (*untyped args) -> bot
-  def perform_token_refresh: () -> AuthProto::refreshed_tokens
+  def perform_token_refresh: () -> AuthProto::State::SessionInfo
   def check_access: () -> (:ok | :refreshed)
 
   private

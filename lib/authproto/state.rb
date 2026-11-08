@@ -9,7 +9,7 @@ module AuthProto
   # storage and management of authorization session data, including tokens, PKCE values,
   # and identity information.
   #
-  # The module consists of three main components:
+  # The module consists of four main components:
   #
   # 1. {TokenSet} - Represents OAuth tokens (access and refresh) with their metadata,
   #    including expiration times, scope, and the authenticated user's DID.
@@ -22,6 +22,8 @@ module AuthProto
   #
   # 3. {SessionManager} - Provides thread-safe storage and retrieval of active sessions,
   #    with support for lookup by session ID or state token.
+  #
+  # 4. {SessionInfo} - Provides a view of public session data and tokens from its referenced session.
   #
   # @example Creating and managing a session
   #   manager = AuthProto::State::SessionManager.new(client_id: 'https://myapp.com/oauth-client-metadata.json')

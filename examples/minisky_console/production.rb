@@ -32,5 +32,5 @@ def handle_callback(client, json)
   result = client.handle_callback(json, expected_session_id: client.session_id)
 
   puts "Authentication complete ✓"
-  puts "Your session id: #{result[:session_id]}"
+  puts "Your session id: #{result.session_id}"
 end

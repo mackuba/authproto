@@ -1,0 +1,23 @@
+module AuthProto
+  module State
+    class SessionInfo
+      def initialize: (Session session) -> void
+      def session_id: () -> String
+      def access_token: () -> String?
+      def refresh_token: () -> String?
+      def expires_at: () -> Time?
+      def expires_in: () -> Integer?
+      def requested_scope: () -> String
+      def granted_scope: () -> String?
+      def did: () -> String?
+      def pds: () -> String?
+      def to_h: () -> Hash[Symbol, String | Integer | Time | nil]
+      def pending?: () -> bool
+      def tokens_valid?: () -> bool
+      alias authorized? tokens_valid?
+      def renewable?: () -> bool
+      def has_limited_scope?: () -> bool
+      def can_be_revoked?: () -> bool
+    end
+  end
+end

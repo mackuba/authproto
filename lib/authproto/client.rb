@@ -306,22 +306,13 @@ module AuthProto
     # earlier: take the session ID either from a local context for scripts, or from the initiating browser session for
     # web apps, do not infer it from the received callback parameters.
     #
-    # Returns a hash with session data, containing:
-    #
-    # - `:session_id` (String)
-    # - `:did` (String)
-    # - `:pds` (String or nil)
-    # - `:access_token` (String)
-    # - `:refresh_token` (String or nil)
-    # - `:expires_in` (Integer) – number of seconds remaining until the access token expires
-    # - `:requested_scope` (String) – space-separated list of requested permissions
-    # - `:granted_scope` (String) – space-separated list of actually granted permissions
+    # Returns a {State::SessionInfo} object with the session data.
     #
     # @param callback_params [Hash{String, Symbol => Object}] callback query parameters from the URL the user gets
     #    redirected to after authorization (should contain `code`, `state` and `iss`, or `error`)
     # @param expected_session_id [String] pending session ID previously received from {#authorize}
     #
-    # @return [Hash{Symbol => String, Integer, nil}] tokens and session data
+    # @return [State::SessionInfo] current tokens and session data
     #
     # @raise [ArgumentError] if returned token fields fail token-set validation
     # @raise [CallbackError] if parameters are invalid, the server returns an OAuth error, the expected session ID
@@ -360,21 +351,12 @@ module AuthProto
 
     # Looks up a session using given ID and returns its tokens and session info.
     #
-    # Returns a hash with session data, containing:
-    #
-    # - `:session_id` (String)
-    # - `:did` (String)
-    # - `:pds` (String or nil)
-    # - `:access_token` (String)
-    # - `:refresh_token` (String or nil)
-    # - `:expires_in` (Integer) – number of seconds remaining until the access token expires
-    # - `:requested_scope` (String) – space-separated list of requested permissions
-    # - `:granted_scope` (String) – space-separated list of actually granted permissions
+    # Returns a {State::SessionInfo} object with the session data.
     #
     # Returns nil if a session is not found or its access token is expired.
     #
     # @param session_id [String] session identifier
-    # @return [Hash{Symbol => String, Integer, nil}, nil] tokens and session data, or `nil` if not found or expired
+    # @return [State::SessionInfo, nil] current tokens and session data, or `nil` if not found or expired
     #
     def get_tokens(session_id)
       session = session_manager.get_session(session_id)
@@ -386,19 +368,10 @@ module AuthProto
 
     # Looks up a session using given ID and refreshes its set of tokens.
     #
-    # Returns a hash with session data, containing:
-    #
-    # - `:session_id` (String)
-    # - `:did` (String)
-    # - `:pds` (String or nil)
-    # - `:access_token` (String)
-    # - `:refresh_token` (String or nil)
-    # - `:expires_in` (Integer) – number of seconds remaining until the access token expires
-    # - `:requested_scope` (String) – space-separated list of requested permissions
-    # - `:granted_scope` (String) – space-separated list of actually granted permissions
+    # Returns a {State::SessionInfo} object with the session data.
     #
     # @param session_id [String] session to refresh
-    # @return [Hash{Symbol => String, Integer, nil}] updated tokens and session data
+    # @return [State::SessionInfo] current tokens and session data
     #
     # @raise [DPoP::Client::Error] if a refresh response lacks a valid nonce
     # @raise [Encryption::EncryptionError] if replacement tokens cannot be stored

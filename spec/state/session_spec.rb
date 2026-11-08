@@ -174,9 +174,11 @@ describe AuthProto::State::Session do
       session.tokens = tokens
 
       Time.stubs(:now).returns(now + 60)
-      session.session_data.should == {
+      session.session_data.should be_a(AuthProto::State::SessionInfo)
+      session.session_data.to_h.should == {
         access_token: tokens.access_token,
         expires_in: 3540,
+        expires_at: tokens.expires_at,
         refresh_token: tokens.refresh_token,
         requested_scope: scope,
         granted_scope: tokens.scope,
@@ -190,7 +192,7 @@ describe AuthProto::State::Session do
       session = described_class.new(client_id: client_id, scope: scope, pds: 'https://pds.example.com:8443')
       session.tokens = tokens
 
-      session.session_data[:pds].should == 'https://pds.example.com:8443'
+      session.session_data.pds.should == 'https://pds.example.com:8443'
     end
 
     it "should include a nil refresh token and preserve negative remaining lifetimes" do
@@ -200,8 +202,8 @@ describe AuthProto::State::Session do
         access_token: 'expired_access_token', token_type: 'DPoP', expires_in: -10, scope: scope, sub: did
       )
 
-      session.session_data[:refresh_token].should be_nil
-      session.session_data[:expires_in].should == -10
+      session.session_data.refresh_token.should be_nil
+      session.session_data.expires_in.should == -10
     end
   end
 
@@ -227,7 +229,7 @@ describe AuthProto::State::Session do
         session.requested_scope.should == scope
         session.granted_scope.should == granted
         session.has_limited_scope?.should == limited
-        session.session_data[:granted_scope].should == granted
+        session.session_data.granted_scope.should == granted
       end
     end
 

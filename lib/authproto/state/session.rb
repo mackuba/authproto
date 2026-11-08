@@ -6,6 +6,7 @@ require 'securerandom'
 require_relative '../dpop/key_set'
 require_relative '../pkce'
 require_relative '../state'
+require_relative 'session_info'
 
 module AuthProto
   module State
@@ -202,24 +203,15 @@ module AuthProto
         end
       end
 
-      # Returns the current tokens and session identifiers, with expiry in seconds from now.
+      # Returns a live view of the current public session data.
       #
-      # @return [Hash{Symbol => String, Integer, nil}, nil] session data, or `nil` before tokens are assigned
+      # @return [SessionInfo, nil] a session info object, or `nil` before tokens are assigned
       #
       def session_data
         synchronize do
           return nil unless @tokens
 
-          {
-            access_token: @tokens.access_token,
-            expires_in: (@tokens.expires_at - Time.now).to_i,
-            refresh_token: @tokens.refresh_token,
-            requested_scope: @requested_scope,
-            granted_scope: @tokens.scope,
-            session_id: @session_id,
-            did: @did,
-            pds: @pds
-          }
+          SessionInfo.new(self)
         end
       end
 

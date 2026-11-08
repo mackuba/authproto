@@ -156,7 +156,7 @@ describe Minisky::OAuth do
       wrapped.authorize(handle: 'alice.example.com')[:session_id].should == 'pending'
       callback = { code: 'code', state: 'state', iss: 'https://auth.example.com' }
       existing.expects(:handle_callback).with(callback, expected_session_id: 'pending')
-              .returns(session_id: 'authorized', pds: host, did: 'did:plc:alice')
+              .returns(stub(session_id: 'authorized', pds: host, did: 'did:plc:alice'))
 
       wrapped.handle_callback(callback, expected_session_id: 'pending')
       wrapped.session_id.should == 'authorized'
@@ -214,7 +214,7 @@ describe Minisky::OAuth do
       restored.session_id.should == session.session_id
       restored.host.should == host
       restored.did.should == session.did
-      restored.oauth_client.get_tokens(session.session_id)[:access_token].should == 'access'
+      restored.oauth_client.get_tokens(session.session_id).access_token.should == 'access'
     end
 
     it "should reject an unknown session" do
@@ -343,7 +343,7 @@ describe Minisky::OAuth do
                                expected_session_id: auth[:session_id])
       }.to raise_error(AuthProto::Client::CallbackError, "Invalid state parameter")
 
-      client.perform_token_refresh[:refresh_token].should == "new-refresh"
+      client.perform_token_refresh.refresh_token.should == "new-refresh"
       client.oauth_client.session_manager.get_session(session.session_id).signing_key_id.should == 'client-key'
       AuthProto.storage.exists?(AuthProto::Storage::KeyBuilder.state_key(state_token)).should be_falsey
       assertions.length.should == 5
@@ -453,7 +453,7 @@ describe Minisky::OAuth do
       restored = restore_client(@signing_key)
       stub_refresh
 
-      restored.perform_token_refresh[:refresh_token].should == 'new-refresh'
+      restored.perform_token_refresh.refresh_token.should == 'new-refresh'
       stored = restored.oauth_client.session_manager.get_session(pending_session.session_id)
       stored.signing_key_id.should == 'original-key'
     end
@@ -677,7 +677,7 @@ describe Minisky::OAuth do
     client.session_id.should == "pending"
     client.oauth_client.expects(:handle_callback).with({ code: 'code', state: 'state', iss: 'issuer' },
                                                      expected_session_id: 'pending')
-          .returns(session_id: "authorized", pds: host, did: 'did:plc:alice')
+          .returns(stub(session_id: "authorized", pds: host, did: 'did:plc:alice'))
     client.handle_callback({ code: 'code', state: 'state', iss: 'issuer' }, expected_session_id: 'pending')
     client.session_id.should == "authorized"
     client.host.should == host
@@ -722,7 +722,7 @@ describe Minisky::OAuth do
     attach_session(expires_in: -10)
     stub_refresh
     client.check_access.should == :refreshed
-    client.oauth_client.get_tokens(client.session_id)[:access_token].should == "new-access"
+    client.oauth_client.get_tokens(client.session_id).access_token.should == "new-access"
   end
 
   it "should apply a PDS nonce challenge only to the session making the request" do
@@ -769,7 +769,7 @@ describe Minisky::OAuth do
     }.to_json)
 
     restored.check_access.should == :refreshed
-    restored.oauth_client.get_tokens(session.session_id)[:refresh_token].should == "restored-refresh"
+    restored.oauth_client.get_tokens(session.session_id).refresh_token.should == "restored-refresh"
     assert_requested :post, "https://auth.example.com/token", times: 1
   end
 
@@ -783,7 +783,7 @@ describe Minisky::OAuth do
     stub_request(:get, endpoint).with(headers: { "Authorization" => "DPoP new-access" })
                                 .to_return(status: 200, headers: response_headers, body: "{}")
     client.get_request("app.bsky.actor.getProfile")
-    client.oauth_client.get_tokens(client.session_id)[:refresh_token].should == "new-refresh"
+    client.oauth_client.get_tokens(client.session_id).refresh_token.should == "new-refresh"
   end
 
   it "should retry a nonce challenge with a fresh proof and the new nonce" do

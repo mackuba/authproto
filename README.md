@@ -311,7 +311,7 @@ This part is a bit more complicated, because this API is designed to allow worki
 
 ```rb
 endpoint = "https://#{pds_host}/xrpc/com.atproto.repo.createRecord"
-tokens = client.get_tokens(session_id)
+session = client.get_tokens(session_id)
 
 headers = client.auth_headers(
   session_id: session_id,
@@ -324,7 +324,7 @@ connection = Faraday.new do |f|
 end
 
 post_record = {
-  repo: tokens.fetch(:did),
+  repo: session.did,
   collection: "app.bsky.feed.post",
   record: {
     text: "Hello world!",
@@ -364,14 +364,14 @@ You can also use the `with_nonce_handling` helper, passing it a block which make
 
 ```rb
 endpoint = "https://#{pds_host}/xrpc/com.atproto.repo.createRecord"
-tokens = client.get_tokens(session_id)
+session = client.get_tokens(session_id)
 
 connection = Faraday.new do |f|
   f.request :json
 end
 
 post_record = {
-  repo: tokens.fetch(:did),
+  repo: session.did,
   collection: "app.bsky.feed.post",
   record: {
     text: "Hello world!",

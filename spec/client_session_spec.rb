@@ -86,7 +86,7 @@ describe AuthProto::Client, 'sessions' do
     }.to raise_error(AuthProto::Client::TokenError, "Invalid session")
     client.delete_session(session.session_id)
 
-    other_client.get_tokens(session.session_id)[:access_token].should == 'access'
+    other_client.get_tokens(session.session_id).access_token.should == 'access'
     client.delete_session(session.session_id, revoke: true)
     other_client.session_manager.get_session(session.session_id).client_id.should == other_client.client_id
   end

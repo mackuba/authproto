@@ -111,10 +111,10 @@ class BookmarksApp < Sinatra::Base
 
     result = OAuth.client.handle_callback(params, expected_session_id: pending_session_id)
 
-    session[:oauth_session_id] = result.fetch(:session_id)
-    session[:handle] = lookup_handle(result.fetch(:did))
+    session[:oauth_session_id] = result.session_id
+    session[:handle] = lookup_handle(result.did)
 
-    AuthProto.storage.set("atproto:bookmarks:session:#{result.fetch(:did)}", result.fetch(:session_id))
+    AuthProto.storage.set("atproto:bookmarks:session:#{result.did}", result.session_id)
     redirect '/bookmarks'
   rescue StandardError => e
     report_error("Authorization failed", e)

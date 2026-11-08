@@ -178,7 +178,7 @@ class Minisky::OAuth
   # @param callback_params [Hash{String, Symbol => Object}] callback query parameters from the URL the user gets
   #    redirected to after authorization (should contain `code`, `state` and `iss`, or `error`)
   #
-  # @return [Hash{Symbol => String, Integer, nil}] token and session details from the OAuth client
+  # @return [AuthProto::State::SessionInfo] current tokens and session details
   # @raise [AuthProto::Client::CallbackError] if expected session, state or issuer validation fails
   # @raise [AuthProto::Client::TokenError] if token exchange or validation fails
   # @raise [AuthProto::Error] if proofs, storage or serialization fail
@@ -186,9 +186,9 @@ class Minisky::OAuth
   #
   def handle_callback(callback_params, expected_session_id:)
     result = oauth_client.handle_callback(callback_params, expected_session_id: expected_session_id)
-    @session_id = result.fetch(:session_id)
-    @host = result.fetch(:pds)
-    @did = result.fetch(:did)
+    @session_id = result.session_id
+    @host = result.pds
+    @did = result.did
 
     result
   end
@@ -283,7 +283,7 @@ class Minisky::OAuth
 
   # Refreshes and persists tokens for the current session via the OAuth client.
   #
-  # @return [Hash{Symbol => String, Integer, nil}] replacement tokens and session ID
+  # @return [AuthProto::State::SessionInfo] current tokens and session details
   # @raise [AuthProto::Client::TokenError] if the session cannot be refreshed
   # @raise [AuthProto::Token::RefreshError] if refresh fails
   # @raise [AuthProto::Storage::StorageError] if token persistence fails

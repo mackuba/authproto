@@ -81,7 +81,7 @@ describe AuthProto::Client, '#handle_callback' do
         expires_in: 3600, scope: 'atproto', sub: 'did:plc:alice'
       ))
 
-      client.handle_callback(params, expected_session_id: session.session_id)[:session_id].should == session.session_id
+      client.handle_callback(params, expected_session_id: session.session_id).session_id.should == session.session_id
       params['extra'].should == 'value'
     end
 
@@ -240,8 +240,9 @@ describe AuthProto::Client, '#handle_callback' do
 
     result = client.handle_callback(callback, expected_session_id: session.session_id)
 
-    result[:session_id].should == session.session_id
-    result[:access_token].should == 'access'
+    result.should be_a(AuthProto::State::SessionInfo)
+    result.session_id.should == session.session_id
+    result.access_token.should == 'access'
     client.session_manager.get_session(session.session_id).should be_authorized
     client.session_manager.get_session_by_state_token(state).should be_nil
   end
@@ -280,8 +281,8 @@ describe AuthProto::Client, '#handle_callback' do
                                     expected_session_id: pending.session_id)
     restored = client.session_manager.get_session(pending.session_id)
 
-    result[:requested_scope].should == 'atproto transition:email'
-    result[:granted_scope].should == 'atproto'
+    result.requested_scope.should == 'atproto transition:email'
+    result.granted_scope.should == 'atproto'
     restored.requested_scope.should == 'atproto transition:email'
     restored.granted_scope.should == 'atproto'
     restored.has_limited_scope?.should be true
@@ -339,7 +340,7 @@ describe AuthProto::Client, '#handle_callback' do
 
         result = client.handle_callback(callback, expected_session_id: session.session_id)
 
-        result[:did].should == subject
+        result.did.should == subject
         client.session_manager.get_session(session.session_id).should be_authorized
       end
     end
