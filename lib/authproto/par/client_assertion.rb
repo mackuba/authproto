@@ -12,6 +12,8 @@ module AuthProto
   module PAR
 
     #
+    # @api private
+    #
     # Generates client authentication JWTs according to RFC 7523 for AT Protocol OAuth.
     # Creates signed assertions using ES256 with required claims including iss/sub (client_id),
     # aud (authorization server issuer), jti (unique ID), and iat/exp (timing claims).

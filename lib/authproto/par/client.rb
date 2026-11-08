@@ -12,6 +12,8 @@ module AuthProto
   module PAR
 
     #
+    # @api private
+    #
     # Client for making Pushed Authorization Requests (PAR) according to RFC 9126.
     # Handles submitting authorization parameters to the PAR endpoint and building
     # the subsequent authorization URL.

@@ -5,6 +5,8 @@ require_relative 'errors'
 module AuthProto
 
   #
+  # @api private
+  #
   # Handles creation and processing of Pushed Authorization Requests (PAR)
   # according to RFC 9126 and AT Protocol OAuth requirements.
   #

@@ -13,6 +13,8 @@ module AuthProto
   module DPoP
 
     #
+    # @api private
+    #
     # Manages DPoP nonces provided by servers during the OAuth flow.
     # Tracks separate nonces for each session and server using persistent storage.
     # Thread-safe to handle concurrent requests.

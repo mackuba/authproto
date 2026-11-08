@@ -9,6 +9,8 @@ require_relative 'errors'
 module AuthProto
 
   #
+  # @api private
+  #
   # Generates a matching PKCE verifier and S256 challenge for an OAuth authorization flow.
   #
 

@@ -14,6 +14,8 @@ module AuthProto
   module DPoP
 
     #
+    # @api private
+    #
     # Creates and manages DPoP proof JWTs according to RFC 9449.
     # DPoP proofs are used to prove possession of a key when making
     # HTTP requests. Each proof is a JWT that includes details about

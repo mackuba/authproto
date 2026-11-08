@@ -9,6 +9,8 @@ module AuthProto
   module PAR
 
     #
+    # @api private
+    #
     # Represents a pushed authorization request.
     #
 

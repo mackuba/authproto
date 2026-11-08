@@ -4,6 +4,8 @@ module AuthProto
   module DPoP
 
     #
+    # @api private
+    #
     # Represents a stored nonce with its server origin.
     #
 

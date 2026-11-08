@@ -10,6 +10,8 @@ module AuthProto
   module DPoP
 
     #
+    # @api private
+    #
     # Holds an ES256 signing keypair and imports/exports JWKs for DPoP proofs.
     # Keys are held in memory; the session serializer handles encrypted persistence.
     # Uses JOSE for cryptographic operations and key format handling.

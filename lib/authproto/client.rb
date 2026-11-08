@@ -152,6 +152,8 @@ module AuthProto
     # @return [Metadata::ClientMetadata]
     attr_reader :client_metadata
 
+    # @api private
+    #
     # A helper object managing stored OAuth sessions
     # @return [State::SessionManager]
     attr_reader :session_manager

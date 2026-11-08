@@ -9,6 +9,8 @@ module AuthProto
   module State
 
     #
+    # @api private
+    #
     # Manages active OAuth sessions with secure persistent storage
     #
 

@@ -11,6 +11,8 @@ require_relative 'proof_generator'
 module AuthProto
 
   #
+  # @api private
+  #
   # Shared proof generation and server-origin nonces for DPoP authentication.
   #
 

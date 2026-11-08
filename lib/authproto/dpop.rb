@@ -3,6 +3,8 @@
 module AuthProto
 
   #
+  # @api private
+  #
   # Demonstrating Proof of Possession (DPoP) signing and request authentication.
   #
 

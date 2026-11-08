@@ -9,6 +9,8 @@ require_relative 'errors'
 module AuthProto
 
   #
+  # @api private
+  #
   # AES-GCM envelopes and context-specific key derivation for stored OAuth secrets.
   #
 

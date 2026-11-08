@@ -6,6 +6,8 @@ module AuthProto
   module PAR
 
     #
+    # @api private
+    #
     # Represents a PAR response
     #
 
