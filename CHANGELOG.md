@@ -1,4 +1,4 @@
-## Unreleased
+## [0.3.0.beta5] – 2026-11-10
 
 - added `process_dpop`, `has_nonce_error?` and `with_nonce_handling` helpers to `Client`, proxying the calls to `dpop_client` for easier access
 - added `Client#http` which lets you access the global HTTP client
