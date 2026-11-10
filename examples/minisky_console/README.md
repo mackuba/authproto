@@ -41,7 +41,7 @@ This example is configured to only use an SQLite storage using a database in `db
 
 ## Localhost use
 
-Run `bin/console`, then:
+Run `bin/console` (or `bundle exec irb`) then:
 
 ```rb
 require_relative 'localhost'

@@ -86,7 +86,7 @@ class ExampleApp < Sinatra::Base
     set :metadata_path, metadata_path
 
     set :host_authorization, {
-      permitted_hosts: ["localhost", ENV.fetch("PERMITTED_DOMAIN", nil)].compact
+      permitted_hosts: ["localhost", "127.0.0.1", ENV.fetch("PERMITTED_DOMAIN", nil)].compact
     }
 
     session_secret = ENV.fetch("SESSION_SECRET") { SecureRandom.hex(32) }
