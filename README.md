@@ -198,7 +198,7 @@ The other type is a **confidential client**; to run one, you need a set of keys 
 }
 ```
 
-This is a private key, a public key lacks the `d` field. You can generate those e.g. using this [generate_keys.rb script](https://tangled.org/mackuba.eu/authproto/blob/readme/examples/basic_webapp/scripts/generate_keys.rb) from the example app in [examples folder](https://tangled.org/mackuba.eu/authproto/tree/readme/examples/) here.
+This is a private key, a public key lacks the `d` field. You can generate those e.g. using this [generate_keys.rb script](https://tangled.org/mackuba.eu/authproto/blob/main/examples/basic_webapp/scripts/generate_keys.rb) from the example app in [examples folder](https://tangled.org/mackuba.eu/authproto/tree/main/examples/) here.
 
 Once you have the keys, put the public one under `jwks.keys` in the metadata JSON:
 
@@ -564,6 +564,15 @@ Some other things you can configure through `AuthProto.configure`:
 * `pending_session_ttl` – how long a session that hasn't completed authentication with a callback is valid (default: 15 min)
 
 You shouldn't generally need to change those defaults.
+
+
+## Further examples
+
+There are 3 example apps included in the [examples folder](https://tangled.org/mackuba.eu/authproto/tree/main/examples/) in the repo:
+
+- [minisky_console](https://tangled.org/mackuba.eu/authproto/tree/main/examples/minisky_console/) – shows how to use AuthProto & `Minisky::OAuth` from a console script or IRB
+- [basic_webapp](https://tangled.org/mackuba.eu/authproto/tree/main/examples/basic_webapp/) – demonstrates how to build a simple webapp where the user can log in and access some of their ATProto account data
+- [bookmarks](https://tangled.org/mackuba.eu/authproto/tree/main/examples/bookmarks/) – another webapp, which imports and stores your Bluesky bookmarks, which demonstrates how to use AuthProto both in server endpoints and in Rake tasks to import data, how to integrate it with ActiveRecord, and how to make proxied calls to the AppView through the PDS
 
 
 ## Other resources
