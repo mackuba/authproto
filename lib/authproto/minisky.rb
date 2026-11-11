@@ -160,6 +160,7 @@ class Minisky::OAuth
   # @option options [String] :handle account handle, optionally prefixed with `@`
   # @option options [String] :pds PDS URL, as an alternative to `handle`
   # @option options [String] :scope ('atproto') requested scopes
+  # @option options [String] :prompt optional authorization prompt mode, such as `consent`
   #
   # @return [Hash{Symbol => String}] `:url` to open and pending `:session_id`
   # @raise [AuthProto::Error] if authorization, discovery, PAR or persistence fails

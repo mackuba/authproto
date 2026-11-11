@@ -250,10 +250,12 @@ module AuthProto
     # @param pds [String, URI::HTTPS, nil] full URL of the PDS to authorize the user on
     # @param scope [String] space-separated list of scopes to request authorization for; the scopes must all be
     #   declared in the client metadata, and must include `atproto`
+    # @param prompt [String, nil] optional authorization prompt mode, such as `consent`
     #
     # @return [Hash{Symbol => String}] `:url` to direct the user to, `:session_id` of the created session
     #
     # @raise [AuthorizationError] if identity arguments or scope are invalid or identity can't be resolved
+    # @raise [ArgumentError] if the prompt is invalid or not on the server's list of supported prompt modes
     # @raise [DIDKit::DIDError, DIDKit::FormatError, DIDKit::APIError] if DID validation or document fetching fails
     # @raise [Encryption::EncryptionError] if session serialization cannot encrypt secrets
     # @raise [HTTPClient::SSRFError] if server discovery rejects a destination
@@ -264,7 +266,7 @@ module AuthProto
     # @raise [PAR::Error] if the pushed authorization request fails
     # @raise [Storage::StorageError] if session storage or locking fails
     #
-    def authorize(handle: nil, pds: nil, scope: 'atproto')
+    def authorize(handle: nil, pds: nil, scope: 'atproto', prompt: nil)
       validate_auth_params(handle, pds, scope)
       pds = pds.to_s if pds.is_a?(URI::HTTP)
 
@@ -278,6 +280,16 @@ module AuthProto
 
       authorization_server = resolve_auth_server_info(pds)
 
+      if prompt
+        raise ArgumentError, "prompt must be a nonempty string" if !prompt.is_a?(String) || prompt.empty?
+
+        supported_prompts = authorization_server.prompt_values_supported
+
+        if supported_prompts && !supported_prompts.include?(prompt)
+          raise ArgumentError, "prompt is not supported by the authorization server: #{prompt.inspect}"
+        end
+      end
+
       session = session_manager.create_session(
         client_id: @client_id,
         scope: scope,
@@ -287,7 +299,7 @@ module AuthProto
         signing_key_id: @signing_key_kid
       )
 
-      auth_url = submit_authorization_par(authorization_server, session, login_hint: handle)
+      auth_url = submit_authorization_par(authorization_server, session, login_hint: handle, prompt: prompt)
 
       {
         url: auth_url,
@@ -723,7 +735,7 @@ module AuthProto
       Metadata::AuthorizationServer.from_url(auth_server_url)
     end
 
-    def submit_authorization_par(authorization_server, session, login_hint: nil)
+    def submit_authorization_par(authorization_server, session, login_hint: nil, prompt: nil)
       par_client = PAR::Client.new(
         authorization_server: authorization_server,
         dpop_client: @dpop_client
@@ -734,7 +746,8 @@ module AuthProto
         req.redirect_uri = @redirect_uri
         req.state = session.state_token
         req.scope = session.requested_scope
-        req.login_hint = login_hint if login_hint
+        req.login_hint = login_hint
+        req.prompt = prompt
         req.code_challenge = session.pkce_challenge
 
         if @client_metadata.confidential?

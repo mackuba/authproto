@@ -65,6 +65,30 @@ describe AuthProto::Metadata::AuthorizationServer do
       restored.revocation_endpoint.should == 'https://auth.example.com/revoke'
     end
 
+    it "should omit prompt modes when the server does not advertise them" do
+      server = described_class.new(valid_metadata)
+
+      server.prompt_values_supported.should be_nil
+      server.to_h.should_not have_key(:prompt_values_supported)
+    end
+
+    [%w[consent login], []].each do |prompts|
+      it "should preserve advertised prompt modes #{prompts.inspect} when serialized and restored" do
+        server = described_class.new(valid_metadata.merge('prompt_values_supported' => prompts))
+        restored = described_class.new(JSON.parse(server.to_h.to_json))
+
+        restored.prompt_values_supported.should == prompts
+      end
+    end
+
+    [nil, 'consent', ['consent', 1]].each do |prompts|
+      it "should reject malformed prompt modes #{prompts.inspect}" do
+        expect {
+          described_class.new(valid_metadata.merge('prompt_values_supported' => prompts))
+        }.to raise_error(AuthProto::InvalidAuthorizationServer, /prompt_values_supported/)
+      end
+    end
+
     ['http://auth.example.com/revoke', 'https://auth.example.com/revoke#fragment'].each do |endpoint|
       it "should reject an invalid revocation endpoint #{endpoint}" do
         expect {

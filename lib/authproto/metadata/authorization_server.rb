@@ -102,6 +102,10 @@ module AuthProto
       # @return [Array<String>]
       attr_reader :scopes_supported
 
+      # List of prompt modes supported by the authorization server, if supplied.
+      # @return [Array<String>, nil]
+      attr_reader :prompt_values_supported
+
       # Supported DPoP algorithms, including `ES256`.
       # @return [Array<String>]
       attr_reader :dpop_signing_alg_values_supported
@@ -149,7 +153,7 @@ module AuthProto
       # @return [Hash{Symbol => String, Array<String>, Boolean}] authorization server metadata
       #
       def to_h
-        {
+        metadata = {
           issuer: issuer,
           authorization_endpoint: authorization_endpoint,
           token_endpoint: token_endpoint,
@@ -166,6 +170,9 @@ module AuthProto
           require_pushed_authorization_requests: true,
           client_id_metadata_document_supported: true
         }
+
+        metadata[:prompt_values_supported] = prompt_values_supported if prompt_values_supported
+        metadata
       end
 
 
@@ -200,6 +207,11 @@ module AuthProto
         validate_token_endpoint_auth_signing_algs
         validate_dpop_signing_algs
         validate_scopes
+
+        if data.key?('prompt_values_supported')
+          @prompt_values_supported = data['prompt_values_supported']
+          validate_string_array(@prompt_values_supported, 'prompt_values_supported')
+        end
 
         # Required boolean fields
         validate_boolean_field(data, 'authorization_response_iss_parameter_supported', true)

@@ -24,7 +24,9 @@ class OAuth
       ?oauth_client: AuthProto::Client?
     ) -> void
   def config: () -> nil
-  def authorize: (?handle: String?, ?pds: (String | URI::HTTPS)?, ?scope: String) -> AuthProto::authorization_result
+  def authorize: (
+    ?handle: String?, ?pds: (String | URI::HTTPS)?, ?scope: String, ?prompt: String?
+  ) -> AuthProto::authorization_result
   def handle_callback: (
     Hash[String | Symbol, untyped] callback_params, expected_session_id: String
   ) -> AuthProto::State::SessionInfo

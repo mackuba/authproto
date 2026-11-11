@@ -12,6 +12,7 @@ module AuthProto
       @token_endpoint_auth_methods_supported: Array[String]
       @token_endpoint_auth_signing_alg_values_supported: Array[String]
       @scopes_supported: Array[String]
+      @prompt_values_supported: Array[String]?
       @dpop_signing_alg_values_supported: Array[String]
 
       REQUIRED_FIELDS: ::Array["issuer" | "authorization_endpoint" | "token_endpoint" | "response_types_supported" | "grant_types_supported" | "code_challenge_methods_supported" | "token_endpoint_auth_methods_supported" | "token_endpoint_auth_signing_alg_values_supported" | "scopes_supported" | "dpop_signing_alg_values_supported" | "pushed_authorization_request_endpoint"]
@@ -26,6 +27,7 @@ module AuthProto
       attr_reader token_endpoint_auth_methods_supported: Array[String]
       attr_reader token_endpoint_auth_signing_alg_values_supported: Array[String]
       attr_reader scopes_supported: Array[String]
+      attr_reader prompt_values_supported: Array[String]?
       attr_reader dpop_signing_alg_values_supported: Array[String]
 
       def initialize: (Hash[String, untyped] metadata) -> void

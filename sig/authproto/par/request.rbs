@@ -7,6 +7,7 @@ module AuthProto
       @state: String
       @scope: String
       @login_hint: String?
+      @prompt: String?
       @nonce: String?
       @client_assertion: ClientAssertion?
 
@@ -17,6 +18,7 @@ module AuthProto
         attr_accessor state: String?
         attr_accessor scope: String?
         attr_accessor login_hint: String?
+        attr_accessor prompt: String?
         attr_accessor nonce: String?
         attr_accessor client_assertion: ClientAssertion?
       end
@@ -27,6 +29,7 @@ module AuthProto
       attr_reader redirect_uri: String
       attr_reader scope: String
       attr_reader login_hint: String?
+      attr_reader prompt: String?
       attr_reader nonce: String?
       attr_reader client_assertion: ClientAssertion?
 

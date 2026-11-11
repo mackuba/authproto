@@ -47,6 +47,10 @@ module AuthProto
         # @return [String, nil]
         attr_reader :login_hint
 
+        # Optional authorization prompt mode.
+        # @return [String, nil]
+        attr_reader :prompt
+
         # Optional authorization nonce parameter.
         # @return [String, nil]
         attr_reader :nonce
@@ -119,6 +123,7 @@ module AuthProto
         }
 
         params['login_hint'] = login_hint if login_hint
+        params['prompt'] = prompt if prompt
         params['nonce'] = nonce if nonce
 
         if client_assertion

@@ -30,7 +30,7 @@ module AuthProto
         ?signing_key: (json_object | JOSE::JWK)?
       ) -> void
     def http: () -> _HTTPClient?
-    def authorize: (?handle: String?, ?pds: (String | URI::HTTPS)?, ?scope: String) -> authorization_result
+    def authorize: (?handle: String?, ?pds: (String | URI::HTTPS)?, ?scope: String, ?prompt: String?) -> authorization_result
     def handle_callback: (
         Hash[String | Symbol, untyped] callback_params, expected_session_id: String
       ) -> State::SessionInfo
@@ -54,7 +54,8 @@ module AuthProto
     def submit_authorization_par: (
         Metadata::AuthorizationServer authorization_server,
         State::Session session,
-        ?login_hint: String?
+        ?login_hint: String?,
+        ?prompt: String?
       ) -> String
     def validate_callback_params: (Hash[String | Symbol, untyped] callback_params) -> Hash[String, untyped]
     def exchange_code: (code: String, session: State::Session) -> State::TokenSet
