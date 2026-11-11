@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'fileutils'
+require 'timeout'
 require 'tmpdir'
 
 require_relative 'storage_examples'
@@ -142,6 +143,103 @@ describe AuthProto::Storage::SQLite do
       second_storage.get("atproto:test:persistent").should == "value"
     ensure
       second_storage&.close
+    end
+  end
+
+  describe "fork recovery" do
+    it "should reconnect after a fork, and synchronize access so threads don't open multiple connections" do
+      skip "Requires fork support" unless Process.respond_to?(:fork)
+
+      storage.set('atproto:parent', 'parent value')
+      parent_database = storage.instance_variable_get(:@database)
+      reader, writer = IO.pipe
+
+      child_pid = Process.fork do
+        reader.close
+
+        # Forked process inherits the open connection, but sqlite gem closes it for safety
+
+        begin
+          opened_connections = Queue.new
+          start = Queue.new
+
+          storage.define_singleton_method(:open_database) do
+            opened_connections << true
+            # Give competing threads time to enter if connection creation loses its mutex.
+            sleep 0.01
+            super()
+          end
+
+          # Start 10 threads which all try to make a write and will need to (re)open the connection first
+          threads = 10.times.map do |index|
+            Thread.new do
+              start.pop
+              storage.set("atproto:child:#{index}", index)
+            end
+          end
+
+          10.times { start << true }
+          threads.each(&:value)
+
+          parent_value = storage.with_lock('atproto:fork-lock') do
+            storage.get('atproto:parent')
+          end
+
+          database = storage.instance_variable_get(:@database)
+
+          result = {
+            parent_value: parent_value,
+            connections: opened_connections.size, # should be 1
+            busy_timeout: database.get_first_value('PRAGMA busy_timeout'),
+            synchronous: database.get_first_value('PRAGMA synchronous')
+          }
+
+          storage.close
+
+          # Write the status back through the pipe to the rspec process
+          writer.write(Marshal.dump(result))
+        rescue StandardError => e
+          writer.write(Marshal.dump(error: "#{e.class}: #{e.message}"))
+        ensure
+          writer.close
+          exit! 0
+        end
+      end
+
+      # In the parent:
+      writer.close
+      result = Timeout.timeout(5) { Marshal.load(reader.read) }
+
+      Process.wait(child_pid)
+      child_pid = nil
+
+      result.should == {
+        parent_value: 'parent value',
+        connections: 1,
+        busy_timeout: described_class::DEFAULT_BUSY_TIMEOUT,
+        synchronous: 2
+      }
+
+      storage.instance_variable_get(:@database).should equal(parent_database)
+      parent_database.should_not be_closed
+
+      0.upto(9) { |i| storage.get("atproto:child:#{i}").should == i }
+
+      storage.with_lock('atproto:fork-lock') { storage.set('atproto:after-fork', 'value') }
+      storage.get('atproto:after-fork').should == 'value'
+    ensure
+      reader&.close
+      writer.close if writer && !writer.closed?
+
+      if child_pid
+        begin
+          Process.kill('KILL', child_pid)
+        rescue Errno::ESRCH
+          # The child may have already exited.
+        end
+
+        Process.wait(child_pid)
+      end
     end
   end
 

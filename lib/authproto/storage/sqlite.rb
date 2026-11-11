@@ -47,11 +47,13 @@ module AuthProto
         end
 
         FileUtils.mkdir_p(File.dirname(path))
+        @path = File.expand_path(path)
+        @busy_timeout = busy_timeout
+        @connection_mutex = Mutex.new
 
-        @database = SQLite3::Database.new(path)
-        @database.busy_timeout = busy_timeout
+        @database = open_database
+        @database_pid = Process.pid
 
-        configure_database
         create_schema
       rescue SQLite3::Exception => e
         raise SQLiteError, "Failed to initialize database: #{e.message}"
@@ -73,7 +75,7 @@ module AuthProto
 
         expires_at = ttl && (current_time + ttl)
 
-        @database.execute(
+        database.execute(
           <<~SQL,
             INSERT INTO atproto_storage (key, value, expires_at)
             VALUES (?, ?, ?)
@@ -98,7 +100,7 @@ module AuthProto
         validate_key(key)
 
         now = current_time
-        row = @database.get_first_row(
+        row = database.get_first_row(
           <<~SQL,
             SELECT value
             FROM atproto_storage
@@ -127,7 +129,7 @@ module AuthProto
       def delete(key)
         validate_key(key)
 
-        result = @database.get_first_value(
+        result = database.get_first_value(
           "DELETE FROM atproto_storage WHERE key = ? RETURNING 1",
           [key]
         )
@@ -149,7 +151,7 @@ module AuthProto
 
         now = current_time
 
-        exists = @database.get_first_value(
+        exists = database.get_first_value(
           <<~SQL,
             SELECT 1
             FROM atproto_storage
@@ -206,8 +208,8 @@ module AuthProto
       def cleanup_expired_records
         now = current_time
 
-        @database.execute("DELETE FROM atproto_storage WHERE expires_at <= ?", [now])
-        @database.execute("DELETE FROM atproto_locks WHERE expires_at <= ?", [now])
+        database.execute("DELETE FROM atproto_storage WHERE expires_at <= ?", [now])
+        database.execute("DELETE FROM atproto_locks WHERE expires_at <= ?", [now])
       rescue SQLite3::Exception => e
         raise SQLiteError, "Failed to clean up expired records: #{e.message}"
       end
@@ -218,16 +220,51 @@ module AuthProto
       # @raise [SQLiteError] if closing the database fails
       #
       def close
-        @database.close
+        @connection_mutex.synchronize do
+          @database.close unless @database.nil? || @database.closed?
+        end
       rescue SQLite3::Exception => e
         raise SQLiteError, "Failed to close database: #{e.message}"
       end
 
+
       private
 
-      def configure_database
-        @database.execute("PRAGMA journal_mode = WAL")
-        @database.execute("PRAGMA synchronous = FULL")
+      def database
+        @connection_mutex.synchronize do
+          if @database_pid != Process.pid || @database.closed?
+
+            # We're in a different process - this happens after a fork(), if the parent process has opened a connection
+            # before the fork was made. This can happen in web servers like Passenger or Puma that use forking to
+            # create worker processes.
+            #
+            # In this case, we discard the existing connection (which sqlite gem has already closed for us for safety)
+            # and open a new one.
+            #
+            # Do NOT close the inherited connection here, this is also potentially unsafe.
+
+            @database = open_database
+            @database_pid = Process.pid
+          end
+
+          @database
+        end
+      end
+
+      def open_database
+        db = SQLite3::Database.new(@path)
+        db.busy_timeout = @busy_timeout
+        configure_database(db)
+
+        db
+      rescue StandardError
+        db.close if db && !db.closed?
+        raise
+      end
+
+      def configure_database(db)
+        db.execute("PRAGMA journal_mode = WAL")
+        db.execute("PRAGMA synchronous = FULL")
       end
 
       def create_schema
@@ -253,7 +290,7 @@ module AuthProto
         now = current_time
         owner = SecureRandom.uuid
 
-        acquired_owner = @database.get_first_value(
+        acquired_owner = database.get_first_value(
           <<~SQL,
             INSERT INTO atproto_locks (key, owner, expires_at)
             VALUES (?, ?, ?)
@@ -270,7 +307,7 @@ module AuthProto
       end
 
       def release_lock(key, owner)
-        result = @database.get_first_value(
+        result = database.get_first_value(
           "DELETE FROM atproto_locks WHERE key = ? AND owner = ? RETURNING 1",
           [key, owner]
         )
@@ -281,7 +318,7 @@ module AuthProto
       end
 
       def delete_expired_value(key, now)
-        @database.execute(
+        database.execute(
           "DELETE FROM atproto_storage WHERE key = ? AND expires_at <= ?",
           [key, now]
         )
