@@ -4,12 +4,11 @@ require 'jose'
 require 'json'
 require 'monitor'
 
+require_relative '../client_assertion'
 require_relative '../configuration'
 require_relative '../errors'
 require_relative '../http_client'
 require_relative '../http_helpers'
-require_relative '../par'
-require_relative '../par/client_assertion'
 require_relative '../state/token_set'
 require_relative 'identity'
 require_relative 'response'
@@ -158,7 +157,7 @@ module AuthProto
       # @param dpop_client [DPoP::Client] proof signer and nonce tracker
       # @param auth_server [Metadata::AuthorizationServer] server with a token endpoint
       # @param client_metadata [Metadata::ClientMetadata] client ID and authentication key configuration
-      # @param client_assertion [PAR::ClientAssertion, nil] reusable validated signer; required for confidential clients
+      # @param client_assertion [ClientAssertion, nil] reusable validated signer; required for confidential clients
       # @raise [ArgumentError] if confidential-client metadata is supplied without an assertion signer
       #
       def initialize(session:, dpop_client:, auth_server:, client_metadata:, client_assertion: nil)
@@ -171,7 +170,7 @@ module AuthProto
         @client_metadata = client_metadata
         @client_assertion = client_assertion
 
-        if client_metadata.confidential? && !client_assertion.is_a?(PAR::ClientAssertion)
+        if client_metadata.confidential? && !client_assertion.is_a?(ClientAssertion)
           raise ArgumentError, "Confidential clients require a client_assertion signer"
         end
       end
@@ -291,7 +290,7 @@ module AuthProto
 
       def add_client_authentication(body)
         body.merge!(
-          client_assertion_type: PAR::CLIENT_ASSERTION_TYPE,
+          client_assertion_type: ClientAssertion::TYPE,
           client_assertion: @client_assertion.generate_jwt(audience: auth_server.issuer)
         )
       end

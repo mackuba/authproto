@@ -1,6 +1,5 @@
 module AuthProto
   module PAR
-    CLIENT_ASSERTION_TYPE: String
     class Error < AuthProto::Error
     end
   end

@@ -5,11 +5,11 @@ require 'jose'
 require 'json'
 require 'uri'
 
+require_relative '../client_assertion'
 require_relative '../configuration'
 require_relative '../errors'
 require_relative '../http_helpers'
 require_relative '../metadata'
-require_relative '../par/client_assertion'
 require_relative '../validated_uri'
 
 module AuthProto
@@ -603,7 +603,7 @@ module AuthProto
       end
 
       def validate_auth_confidential(metadata)
-        algorithm = PAR::ClientAssertion::ALGORITHM
+        algorithm = ClientAssertion::ALGORITHM
 
         unless @token_endpoint_auth_signing_alg == algorithm
           raise InvalidClientMetadata, "token_endpoint_auth_signing_alg must be #{algorithm}"

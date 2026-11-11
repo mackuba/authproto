@@ -2,8 +2,8 @@
 
 require 'uri'
 
+require_relative '../client_assertion'
 require_relative '../par'
-require_relative 'client_assertion'
 
 module AuthProto
   module PAR
@@ -131,7 +131,7 @@ module AuthProto
             raise Error, "audience is required with client_assertion"
           end
 
-          params['client_assertion_type'] = CLIENT_ASSERTION_TYPE
+          params['client_assertion_type'] = ClientAssertion::TYPE
           params['client_assertion'] = client_assertion.generate_jwt(audience: audience)
         end
 
@@ -156,7 +156,7 @@ module AuthProto
         return if client_assertion.nil?
 
         unless client_assertion.is_a?(ClientAssertion)
-          raise Error, "client_assertion must be a PAR::ClientAssertion"
+          raise Error, "client_assertion must be a ClientAssertion"
         end
       end
     end

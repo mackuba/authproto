@@ -4,6 +4,7 @@ require 'didkit/did'
 require 'jose'
 require 'uri'
 
+require_relative 'client_assertion'
 require_relative 'configuration'
 require_relative 'dpop/client'
 require_relative 'errors'
@@ -13,7 +14,6 @@ require_relative 'metadata/client_metadata'
 require_relative 'metadata/resource_server'
 require_relative 'par'
 require_relative 'par/client'
-require_relative 'par/client_assertion'
 require_relative 'par/request'
 require_relative 'state/session_manager'
 require_relative 'state/token_set'
@@ -204,7 +204,7 @@ module AuthProto
     #   for confidential clients
     #
     # @raise [InvalidClientMetadata] if the metadata or some other parameters are invalid or don't match each other
-    # @raise [PAR::ClientAssertion::Error] if the signing key is invalid or not usable
+    # @raise [ClientAssertion::Error] if the signing key is invalid or not usable
     # @raise [HTTPClient::HTTPError, HTTPClient::SSRFError] if fetching client metadata fails
     #
     def initialize(client_id:, redirect_uri:, metadata: nil, signing_key: nil)
@@ -262,7 +262,7 @@ module AuthProto
     # @raise [InvalidAuthorizationServer] if server discovery or metadata validation fails
     # @raise [DPoP::Client::Error] if generating the PAR proof fails
     # @raise [DPoP::KeySet::KeyError] if generating the session key fails
-    # @raise [PAR::ClientAssertion::Error] if client assertion signing fails
+    # @raise [ClientAssertion::Error] if client assertion signing fails
     # @raise [PAR::Error] if the pushed authorization request fails
     # @raise [Storage::StorageError] if session storage or locking fails
     #
@@ -334,7 +334,7 @@ module AuthProto
     # @raise [DPoP::Client::Error] if proof/assertion generation fails
     # @raise [Encryption::EncryptionError] if tokens cannot be encrypted for storage
     # @raise [HTTPClient::HTTPError, HTTPClient::SSRFError] if token transport fails
-    # @raise [PAR::ClientAssertion::Error] if proof/assertion generation fails
+    # @raise [ClientAssertion::Error] if proof/assertion generation fails
     # @raise [State::SessionError] if token subject conflicts with the session DID
     # @raise [Storage::StorageError] if session storage or locking fails
     # @raise [TokenError] if token exchange or response validation fails; identity failures attempt token revocation
@@ -679,7 +679,7 @@ module AuthProto
         return nil
       end
 
-      assertion = PAR::ClientAssertion.new(client_id: @client_id, signing_key: key)
+      assertion = ClientAssertion.new(client_id: @client_id, signing_key: key)
       private_key = assertion.signing_key
 
       if @client_metadata.jwks
@@ -699,7 +699,7 @@ module AuthProto
 
     def metadata_key_matches_public_key?(candidate, public_key)
       return false if candidate['revoked']
-      return false if candidate.key?('alg') && candidate['alg'] != PAR::ClientAssertion::ALGORITHM
+      return false if candidate.key?('alg') && candidate['alg'] != ClientAssertion::ALGORITHM
       return false if candidate.key?('use') && candidate['use'] != 'sig'
       return false if candidate.key?('key_ops') && !candidate['key_ops'].include?('verify')
 
@@ -833,7 +833,7 @@ module AuthProto
 
       if @client_metadata.confidential?
         body.merge!(
-          client_assertion_type: PAR::CLIENT_ASSERTION_TYPE,
+          client_assertion_type: ClientAssertion::TYPE,
           client_assertion: @client_assertion.generate_jwt(audience: session.auth_server.issuer)
         )
       end

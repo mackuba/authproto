@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-describe AuthProto::PAR::ClientAssertion do
+describe AuthProto::ClientAssertion do
   let(:client_id) { "test-client-id" }
   let(:audience) { "https://example.com/oauth/token" }
   let(:signing_key) do
@@ -19,7 +19,7 @@ describe AuthProto::PAR::ClientAssertion do
 
     JOSE::JWK.from_map(key_map)
   end
-  let(:client_assertion) { AuthProto::PAR::ClientAssertion.new(client_id: client_id, signing_key: signing_key) }
+  let(:client_assertion) { AuthProto::ClientAssertion.new(client_id: client_id, signing_key: signing_key) }
 
   describe 'assertion inputs' do
     [nil, '', '   ', "\t\n", 123, false].each do |value|
@@ -150,28 +150,28 @@ describe AuthProto::PAR::ClientAssertion do
 
       expect {
         client_assertion.generate_jwt(audience: audience)
-      }.to raise_error(AuthProto::PAR::ClientAssertion::Error) { |error|
+      }.to raise_error(AuthProto::ClientAssertion::Error) { |error|
         error.message.should match(/Failed to generate client assertion/)
       }
     end
 
     it "should wrap JWT signing errors when only a public key is supplied" do
       expect {
-        AuthProto::PAR::ClientAssertion.new(client_id: client_id, signing_key: signing_key.to_public)
-      }.to raise_error(AuthProto::PAR::ClientAssertion::Error, /signing_key must be a private key/)
+        AuthProto::ClientAssertion.new(client_id: client_id, signing_key: signing_key.to_public)
+      }.to raise_error(AuthProto::ClientAssertion::Error, /signing_key must be a private key/)
     end
 
     it "should reject a signing key whose curve does not match ES256" do
       expect {
-        AuthProto::PAR::ClientAssertion.new(client_id: client_id, signing_key: JOSE::JWK.generate_key([:ec, "P-384"]))
-      }.to raise_error(AuthProto::PAR::ClientAssertion::Error, /EC P-256/)
+        AuthProto::ClientAssertion.new(client_id: client_id, signing_key: JOSE::JWK.generate_key([:ec, "P-384"]))
+      }.to raise_error(AuthProto::ClientAssertion::Error, /EC P-256/)
     end
 
     it "should reject a JWK algorithm that conflicts with ES256" do
       key = JOSE::JWK.from_map(signing_key.to_map.to_h.merge("alg" => "ES384"))
       expect {
-        AuthProto::PAR::ClientAssertion.new(client_id: client_id, signing_key: key)
-      }.to raise_error(AuthProto::PAR::ClientAssertion::Error, /permit ES256 signing/)
+        AuthProto::ClientAssertion.new(client_id: client_id, signing_key: key)
+      }.to raise_error(AuthProto::ClientAssertion::Error, /permit ES256 signing/)
     end
 
     it "should default the lifetime to 5 minutes" do

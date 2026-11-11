@@ -3,13 +3,13 @@
 require 'json'
 require 'uri'
 
+require_relative '../client_assertion'
 require_relative '../configuration'
 require_relative '../dpop'
 require_relative '../errors'
 require_relative '../http_client'
 require_relative '../http_helpers'
 require_relative '../metadata'
-require_relative '../par/client_assertion'
 require_relative '../validated_uri'
 
 module AuthProto
@@ -286,7 +286,7 @@ module AuthProto
           @token_endpoint_auth_signing_alg_values_supported, 'token_endpoint_auth_signing_alg_values_supported'
         )
 
-        algorithm = PAR::ClientAssertion::ALGORITHM
+        algorithm = ClientAssertion::ALGORITHM
 
         unless @token_endpoint_auth_signing_alg_values_supported.include?(algorithm)
           raise InvalidAuthorizationServer, "token_endpoint_auth_signing_alg_values_supported must include #{algorithm}"

@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
+require_relative '../client_assertion'
 require_relative '../configuration'
 require_relative '../errors'
 require_relative '../http_helpers'
-require_relative '../par'
 
 module AuthProto
   module Token
@@ -23,7 +23,7 @@ module AuthProto
       # @param session [State::Session] session bound to the issuing authorization server
       # @param dpop_client [DPoP::Client] proof signer and nonce tracker
       # @param client_metadata [Metadata::ClientMetadata] client authentication configuration
-      # @param client_assertion [PAR::ClientAssertion, nil] confidential-client assertion signer
+      # @param client_assertion [ClientAssertion, nil] confidential-client assertion signer
       #
       def initialize(session:, dpop_client:, client_metadata:, client_assertion: nil)
         @session = session
@@ -73,7 +73,7 @@ module AuthProto
 
         if @client_metadata.confidential?
           body.merge!(
-            client_assertion_type: PAR::CLIENT_ASSERTION_TYPE,
+            client_assertion_type: ClientAssertion::TYPE,
             client_assertion: @client_assertion.generate_jwt(audience: @session.auth_server.issuer)
           )
         end

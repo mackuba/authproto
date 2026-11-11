@@ -241,7 +241,7 @@ describe Minisky::OAuth do
     client_id = "http://localhost/?#{URI.encode_www_form(redirect_uri: redirect_uri)}"
     client = described_class.new(client_id: client_id, redirect_uri: redirect_uri)
     stub_authorization_metadata
-    AuthProto::PAR::ClientAssertion.expects(:new).never
+    AuthProto::ClientAssertion.expects(:new).never
     stub_request(:post, "#{auth_server.issuer}/par").with do |request|
       form = URI.decode_www_form(request.body).to_h
       form["client_id"] == client_id && form["code_challenge_method"] == "S256" &&
@@ -282,8 +282,8 @@ describe Minisky::OAuth do
       else
         client_metadata["jwks"] = { "keys" => [@signing_key.except("d").merge("key_ops" => ["verify"])] }
       end
-      signer = AuthProto::PAR::ClientAssertion.new(client_id: client_metadata['client_id'], signing_key: @signing_key)
-      AuthProto::PAR::ClientAssertion.expects(:new)
+      signer = AuthProto::ClientAssertion.new(client_id: client_metadata['client_id'], signing_key: @signing_key)
+      AuthProto::ClientAssertion.expects(:new)
         .with(client_id: client_metadata['client_id'], signing_key: @signing_key).once.returns(signer)
       stub_authorization_metadata
       public_key = JWT::JWK.import(key.to_public_map.to_h).public_key
@@ -301,7 +301,7 @@ describe Minisky::OAuth do
 
         payload["iss"] == client_metadata["client_id"] && payload["sub"] == client_metadata["client_id"] &&
           payload["aud"] == auth_server.issuer && header["kid"] == "client-key" &&
-          form["client_assertion_type"] == AuthProto::PAR::CLIENT_ASSERTION_TYPE
+          form["client_assertion_type"] == AuthProto::ClientAssertion::TYPE
       end
       stub_request(:post, "#{auth_server.issuer}/par").with(&validate_assertion)
         .to_return do |request|

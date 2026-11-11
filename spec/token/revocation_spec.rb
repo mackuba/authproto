@@ -54,13 +54,13 @@ describe AuthProto::Token::Revocation do
 
   it "should authenticate confidential revocation with the client key and issuer audience" do
     key = JOSE::JWK.generate_key([:ec, 'P-256']).to_map.to_h.merge('kid' => 'client-key')
-    assertion = AuthProto::PAR::ClientAssertion.new(client_id: metadata.client_id, signing_key: key)
+    assertion = AuthProto::ClientAssertion.new(client_id: metadata.client_id, signing_key: key)
     metadata.stubs(:confidential?).returns(true)
     revoker = described_class.new(session: session, dpop_client: AuthProto::DPoP::Client.new,
                                  client_metadata: metadata, client_assertion: assertion)
     stub_request(:post, endpoint).with do |request|
       form = URI.decode_www_form(request.body).to_h
-      form['client_assertion_type'].should == AuthProto::PAR::CLIENT_ASSERTION_TYPE
+      form['client_assertion_type'].should == AuthProto::ClientAssertion::TYPE
       payload, header = JWT.decode(form.fetch('client_assertion'), JWT::JWK.import(key).public_key,
                                    true, algorithms: ['ES256'])
       payload['aud'].should == server.issuer

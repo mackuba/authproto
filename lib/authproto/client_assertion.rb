@@ -4,12 +4,10 @@ require 'jose'
 require 'jwt'
 require 'securerandom'
 
-require_relative '../configuration'
-require_relative '../errors'
-require_relative '../par'
+require_relative 'configuration'
+require_relative 'errors'
 
 module AuthProto
-  module PAR
 
     #
     # @api private
@@ -22,11 +20,15 @@ module AuthProto
     class ClientAssertion
 
       # Raised when client assertion key import or JWT signing fails.
-      class Error < PAR::Error; end
+      class Error < AuthProto::Error; end
 
       # JWS signing algorithm used for client assertions.
       # @return [String]
       ALGORITHM = "ES256"
+
+      # URN identifying the assertion type, set in the `client_assertion_type` field in OAuth requests.
+      # @return [String]
+      TYPE = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 
       # Validated private EC P-256 key used by this reusable assertion signer.
       # @return [JOSE::JWK]
@@ -142,5 +144,4 @@ module AuthProto
         signing_key
       end
     end
-  end
 end

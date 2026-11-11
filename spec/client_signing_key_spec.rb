@@ -64,7 +64,7 @@ describe AuthProto::Client, 'client authentication keys' do
 
   it 'should reject a public key supplied as the private signing key' do
     expect { build_client(public_jwk) }.to raise_error(
-      AuthProto::PAR::ClientAssertion::Error, /signing_key must be a private key/
+      AuthProto::ClientAssertion::Error, /signing_key must be a private key/
     )
   end
 
@@ -109,7 +109,7 @@ describe AuthProto::Client, 'client authentication keys' do
   [{ 'kid' => '' }, { 'd' => '' }, { 'alg' => 'ES384' }, { 'revoked' => true },
    { 'use' => 'enc' }, { 'key_ops' => ['verify'] }].each do |changes|
     it "should reject an unusable private signing key #{changes.inspect}" do
-      expect { build_client(private_jwk.merge(changes)) }.to raise_error(AuthProto::PAR::ClientAssertion::Error)
+      expect { build_client(private_jwk.merge(changes)) }.to raise_error(AuthProto::ClientAssertion::Error)
     end
   end
 

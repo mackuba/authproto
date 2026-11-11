@@ -3,7 +3,7 @@
 describe AuthProto::PAR::Request do
   let(:assertion) do
     key = JOSE::JWK.generate_key([:ec, 'P-256']).to_map.to_h.merge('kid' => 'client-key')
-    AuthProto::PAR::ClientAssertion.new(client_id: config.client_id, signing_key: key)
+    AuthProto::ClientAssertion.new(client_id: config.client_id, signing_key: key)
   end
   let(:config) do
     AuthProto::PAR::Request::Configuration.new.tap do |c|
@@ -80,7 +80,7 @@ describe AuthProto::PAR::Request do
       it "should reject an invalid assertion signer: #{signer.inspect}" do
         config.client_assertion = signer
 
-        expect { described_class.new(config) }.to raise_error(AuthProto::PAR::Error, /must be a PAR::ClientAssertion/)
+        expect { described_class.new(config) }.to raise_error(AuthProto::PAR::Error, /must be a ClientAssertion/)
       end
     end
 

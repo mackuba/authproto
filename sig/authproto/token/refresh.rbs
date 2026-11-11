@@ -27,7 +27,7 @@ module AuthProto
       attr_reader auth_server: Metadata::AuthorizationServer
       attr_reader client_metadata: Metadata::ClientMetadata
 
-      def initialize: (session: State::Session, dpop_client: DPoP::Client, auth_server: Metadata::AuthorizationServer, client_metadata: Metadata::ClientMetadata, ?client_assertion: PAR::ClientAssertion?) -> void
+      def initialize: (session: State::Session, dpop_client: DPoP::Client, auth_server: Metadata::AuthorizationServer, client_metadata: Metadata::ClientMetadata, ?client_assertion: ClientAssertion?) -> void
       def perform_refresh: () -> State::TokenSet
 
       private

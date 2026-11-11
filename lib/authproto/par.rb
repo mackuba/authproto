@@ -41,9 +41,5 @@ module AuthProto
 
     # Error raised for PAR-related issues
     class Error < AuthProto::Error; end
-
-    # OAuth JWT bearer client assertion type URN.
-    # @return [String]
-    CLIENT_ASSERTION_TYPE = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
   end
 end

@@ -52,7 +52,7 @@ module AuthProto
     # @example With client authentication (confidential clients)
     #   request = AuthProto::PAR::Request.build do |config|
     #     # ... basic parameters ...
-    #     config.client_assertion = AuthProto::PAR::ClientAssertion.new(client_id: client_id, signing_key: signing_key)
+    #     config.client_assertion = AuthProto::ClientAssertion.new(client_id: client_id, signing_key: signing_key)
     #   end
     #
     # All requests use HTTPS and include a fresh DPoP proof from the supplied
