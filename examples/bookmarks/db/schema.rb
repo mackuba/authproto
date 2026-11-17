@@ -10,11 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_07_004141) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_17_120000) do
   create_table "accounts", force: :cascade do |t|
     t.string "did", null: false
     t.boolean "fetched", default: false, null: false
-    t.string "session_id"
+    t.boolean "sync_enabled", default: true, null: false
     t.index ["did"], name: "index_accounts_on_did", unique: true
   end
 
@@ -29,5 +29,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_07_004141) do
     t.index ["account_id", "uri"], name: "index_bookmarks_on_account_id_and_uri", unique: true
   end
 
+  create_table "sessions", force: :cascade do |t|
+    t.integer "account_id", null: false
+    t.string "session_id", null: false
+    t.boolean "active", default: true, null: false
+    t.index ["account_id"], name: "index_sessions_on_account_id"
+    t.index ["session_id"], name: "index_sessions_on_session_id", unique: true
+  end
+
   add_foreign_key "bookmarks", "accounts"
+  add_foreign_key "sessions", "accounts"
 end

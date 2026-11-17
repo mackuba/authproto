@@ -7,6 +7,7 @@ require 'sinatra/reloader'
 require_relative 'init'
 require_relative 'account'
 require_relative 'bookmark'
+require_relative 'session'
 
 
 #
@@ -49,7 +50,12 @@ class BookmarksApp < Sinatra::Base
 
         oauth_session = OAuth.client.get_session(session_id)
 
-        if oauth_session.nil? || oauth_session.pending?
+        if oauth_session && !oauth_session.pending?
+          user_did = oauth_session.did
+          web_session = Session.active.joins(:account).find_by(session_id: session_id, accounts: { did: user_did })
+        end
+
+        if web_session.nil?
           session.delete(:oauth_session_id)
           return nil
         end
@@ -120,11 +126,11 @@ class BookmarksApp < Sinatra::Base
 
     result = OAuth.client.handle_callback(params, expected_session_id: pending_session_id)
 
+    account = Account.create_or_find_by!(did: result.did)
+    account.sessions.create!(session_id: result.session_id)
+
     session[:oauth_session_id] = result.session_id
     session[:handle] = lookup_handle(result.did)
-
-    account = Account.create_or_find_by!(did: result.did)
-    account.update!(session_id: result.session_id)
     redirect '/bookmarks'
   rescue StandardError => e
     report_error("Authorization failed", e)
@@ -168,12 +174,7 @@ class BookmarksApp < Sinatra::Base
   post '/logout' do
     require_login
 
-    did = current_session.did
-    session_id = current_session.session_id
-
-    OAuth.client.delete_session(session_id, revoke: true)
-
-    Account.where(did: did, session_id: session_id).update_all(session_id: nil)
+    current_account.sessions.find_by!(session_id: current_session.session_id).update!(active: false)
 
     session.clear
     redirect '/'

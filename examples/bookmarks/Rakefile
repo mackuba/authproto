@@ -4,20 +4,25 @@ require 'sinatra/activerecord/rake'
 
 require_relative 'app/init'
 require_relative 'app/account'
-require_relative 'app/bookmark'
+require_relative 'app/bookmark_sync'
 
 namespace :bookmarks do
-  desc "Fetch only newer bookmarks for an account: bookmarks:fetch[did]"
+  desc "Sync new bookmarks and clean up signed-out sessions: bookmarks:fetch[did]"
   task :fetch, [:did] => 'db:load_config' do |task, args|
-    # TODO: this will currently fail if the user has explicitly logged out, because that deletes the session
-
     did = args[:did] || ENV['DID']
     abort "Pass the owner's DID: bundle exec rake 'bookmarks:fetch[did:plc:...]'" if did.to_s.empty?
 
-    session_id = Account.find_by(did: did)&.session_id
-    abort "No saved OAuth session for #{did}; sign in through the web app first" unless session_id
+    account = Account.find_by(did: did)
+    abort "No bookmark account for #{did}. Sign in through the web app first." unless account
 
-    count = Bookmark.fetch_bookmarks(session_id, newer_only: true)
-    puts "Fetched #{count} newer bookmarks for #{did}."
+    count = BookmarkSync.new(account).run
+
+    if count
+      puts "Fetched #{count} new bookmarks for #{did}."
+    else
+      puts "Background sync is off for #{did}. Cleaned up signed-out sessions."
+    end
+  rescue Minisky::AuthError => e
+    abort e.message
   end
 end
