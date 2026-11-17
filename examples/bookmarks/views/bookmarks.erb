@@ -34,6 +34,16 @@
     </button>
   </form>
 
+  <form method="post" action="/sync" class="fetch-form">
+    <input type="hidden" name="authenticity_token" value="<%= html_escape(csrf_token) %>">
+
+    <span class="muted">Background sync is <%= current_account.sync_enabled? ? 'on' : 'off' %>.</span>
+
+    <button type="submit" class="link-button" name="enabled" value="<%= !current_account.sync_enabled? %>">
+      <%= current_account.sync_enabled? ? 'Turn off background sync' : 'Turn on background sync' %>
+    </button>
+  </form>
+
   <% unless @query.empty? %>
     <p>Bookmarks containing “<%= html_escape @query %>”:</p>
   <% end %>

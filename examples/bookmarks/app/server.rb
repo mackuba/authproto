@@ -171,6 +171,19 @@ class BookmarksApp < Sinatra::Base
     redirect '/bookmarks'
   end
 
+  post '/sync' do
+    require_login
+
+    enabled = params[:enabled]
+    halt 400 unless %w[true false].include?(enabled)
+
+    current_account.update!(sync_enabled: enabled == 'true')
+    redirect '/bookmarks'
+  rescue StandardError => e
+    report_error("Changing background sync failed", e)
+    redirect '/bookmarks'
+  end
+
   post '/logout' do
     require_login
 
