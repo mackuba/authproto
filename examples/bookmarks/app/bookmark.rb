@@ -15,7 +15,7 @@ class Bookmark < ActiveRecord::Base
   scope :newest_first, -> { order(created_at: :desc, uri: :desc) }
 
   # Fetches bookmarks synchronously, following API cursors and saving text posts.
-  # A failed fetch rolls back the import so an incremental retry cannot miss older pages.
+  # Saves the results atomically after fetching so an incremental retry cannot miss older pages.
   #
   # @param session_id [String] OAuth session belonging to the bookmark owner
   # @param newer_only [Boolean] stop at the newest locally saved bookmark
@@ -29,46 +29,41 @@ class Bookmark < ActiveRecord::Base
     account = Account.find_by!(did: sky.did)
 
     newest = account.bookmarks.maximum(:created_at) if newer_only
-    imported = 0
-    cursor = nil
 
-    headers = { 'atproto-proxy' => 'did:web:api.bsky.app#bsky_appview' }
+    entries = sky.fetch_all('app.bsky.bookmark.getBookmarks', { limit: 100 },
+      field: 'bookmarks',
+      headers: {
+        'atproto-proxy' => 'did:web:api.bsky.app#bsky_appview'
+      },
+      break_when: newest && lambda { |entry|
+        created_at = entry['createdAt']
+        created_at && Time.iso8601(created_at) <= newest
+      }
+    )
+
+    imported = 0
 
     transaction do
-      loop do
-        query = { limit: 100 }
-        query[:cursor] = cursor if cursor
+      entries.each do |entry|
+        post = entry.fetch('item')
+        next unless post['$type'] == 'app.bsky.feed.defs#postView'
 
-        response = sky.get_request('app.bsky.bookmark.getBookmarks', query, headers: headers)
-        reached_newest = false
+        record = post.fetch('record')
+        next if record['text'].blank?
 
-        response.fetch('bookmarks').each do |entry|
-          created_at = entry['createdAt'] && Time.iso8601(entry['createdAt'])
+        uri = entry.fetch('subject').fetch('uri')
+        created_at = entry['createdAt']
 
-          if newest && created_at && created_at <= newest
-            reached_newest = true
-            next
-          end
+        bookmark = account.bookmarks.find_or_initialize_by(uri: uri)
 
-          post = entry.fetch('item')
-          next unless post['$type'] == 'app.bsky.feed.defs#postView'
+        bookmark.update!(
+          author_handle: post.fetch('author').fetch('handle'),
+          created_at: created_at && Time.iso8601(created_at),
+          posted_at: Time.iso8601(record.fetch('createdAt')),
+          text: record.fetch('text')
+        )
 
-          record = post.fetch('record')
-          next if record['text'].blank?
-
-          bookmark = account.bookmarks.find_or_initialize_by(uri: entry.fetch('subject').fetch('uri'))
-          bookmark.update!(
-            author_handle: post.fetch('author').fetch('handle'),
-            created_at: created_at,
-            posted_at: Time.iso8601(record.fetch('createdAt')),
-            text: record.fetch('text')
-          )
-
-          imported += 1
-        end
-
-        cursor = response['cursor']
-        break if cursor.blank? || reached_newest
+        imported += 1
       end
 
       account.update!(fetched: true)
