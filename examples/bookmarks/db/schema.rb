@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_17_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_17_120100) do
   create_table "accounts", force: :cascade do |t|
     t.string "did", null: false
     t.boolean "fetched", default: false, null: false
@@ -33,6 +33,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_17_120000) do
     t.integer "account_id", null: false
     t.string "session_id", null: false
     t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
     t.index ["account_id"], name: "index_sessions_on_account_id"
     t.index ["session_id"], name: "index_sessions_on_session_id", unique: true
   end

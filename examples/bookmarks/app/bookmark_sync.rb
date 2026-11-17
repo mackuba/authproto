@@ -32,7 +32,7 @@ class BookmarkSync
     # We need one set of working access tokens for the user's account to run the import.
     # Loop over the user's all sessions and find the first one that works.
 
-    @account.sessions.order(active: :desc, id: :desc).each do |session|
+    @account.sessions.order(active: :desc, created_at: :desc, id: :desc).each do |session|
       begin
         count = Bookmark.fetch_bookmarks(session.session_id, newer_only: true)
         return [session, count]
