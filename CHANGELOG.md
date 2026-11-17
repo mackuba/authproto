@@ -2,6 +2,8 @@
 
 - added `prompt:` option to `Client#authorize`
 - fixed SQLite storage breaking on production with servers that use forking to create new workers
+- moved `AuthProto::PAR::ClientAssertion` to `AuthProto::ClientAssertion`
+- updated "bookmarks" example to track multiple user sessions and use their access tokens for background sync even after the user logs out in the browser
 
 ## [0.3.0.beta5] – 2026-11-10
 
